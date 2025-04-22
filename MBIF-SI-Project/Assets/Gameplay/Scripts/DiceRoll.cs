@@ -1,5 +1,5 @@
 using UnityEngine;
-
+using System.Collections;
 [RequireComponent(typeof(Rigidbody))]
 public class DiceRoll : MonoBehaviour
 {
@@ -13,6 +13,8 @@ public class DiceRoll : MonoBehaviour
 
     private Vector3 initialPosition;
     private Quaternion initialRotation;
+    private float actionCooldown = 3f;  // Waktu cooldown untuk ResetPosition dan RollDice
+    private bool isActionCooldown = false;
 
     private void Awake()
     {
@@ -22,17 +24,41 @@ public class DiceRoll : MonoBehaviour
 
     }
 
-    private void Update()
+     private void Update()
     {
         if (body != null)
         {
-            
-            if (Input.GetMouseButtonDown(0))
+            // Mengecek apakah mouse sedang ditekan
+            if (Input.GetMouseButton(0) && !isActionCooldown)
             {
+                // Jalankan fungsi ResetPosition dan RollDice tanpa cooldown selama mouse ditahan
                 ResetPosition();
                 RollDice();
             }
+
+            // Mengecek apakah mouse dilepaskan
+            if (Input.GetMouseButtonUp(0) && !isActionCooldown)
+            {
+                // Setelah mouse dilepas, mulai cooldown
+                StartCoroutine(HandleActionsCooldown());
+            }
         }
+    }
+
+    private IEnumerator HandleActionsCooldown()
+    {
+        // Memulai cooldown untuk ResetPosition dan RollDice
+        isActionCooldown = true;
+
+        // Menjalankan fungsi-fungsi yang diinginkan
+        ResetPosition();
+        RollDice();
+
+        // Menunggu selama cooldownTime detik
+        yield return new WaitForSeconds(actionCooldown);
+
+        // Setelah cooldown selesai, reset flag isActionCooldown
+        isActionCooldown = false;
     }
 
     private void ResetPosition()
@@ -41,8 +67,7 @@ public class DiceRoll : MonoBehaviour
         body.velocity = Vector3.zero;
         body.angularVelocity = Vector3.zero;
         transform.position = initialPosition;
-        transform.rotation = initialRotation;
-
+        
         diceFaceNum = 0;
     }
 
