@@ -24,24 +24,11 @@ public class DiceRoll : MonoBehaviour
 
     }
 
-    private void Update()
+    public void StartRoll()
     {
-        if (body != null)
+        if (!isActionCooldown)
         {
-            // Mengecek apakah mouse sedang ditekan
-            if (Input.GetMouseButton(0) && !isActionCooldown)
-            {
-                // Jalankan fungsi ResetPosition dan RollDice tanpa cooldown selama mouse ditahan
-                ResetPosition();
-                RollDice();
-            }
-
-            // Mengecek apakah mouse dilepaskan
-            if (Input.GetMouseButtonUp(0) && !isActionCooldown)
-            {
-                // Setelah mouse dilepas, mulai cooldown
-                StartCoroutine(HandleActionsCooldown());
-            }
+            StartCoroutine(HandleActionsCooldown());
         }
     }
 
