@@ -23,6 +23,7 @@ public class GameManager : MonoBehaviour
     private List<Card> deck = new List<Card>();
     private List<PlayerProfile> turnOrder = new List<PlayerProfile>();
     private List<GameObject> cardObjects = new List<GameObject>();
+private HashSet<GameObject> takenCards = new HashSet<GameObject>();
 
     
     private int totalCardsToGive = 10;
@@ -99,21 +100,37 @@ public class GameManager : MonoBehaviour
     }
 
     private void InitializeDeck()
-    {
-        deck.Clear();
-        deck.Add(new Card("Fireball", "Deal 5 damage"));
-        deck.Add(new Card("Heal", "Recover 3 HP"));
-        deck.Add(new Card("Shield", "Block next attack"));
-        deck.Add(new Card("Steal", "Take 1 card"));
-        deck.Add(new Card("Freeze", "Skip opponent turn"));
-        deck.Add(new Card("Burn", "Damage over time"));
-        deck.Add(new Card("Boost", "Increase attack"));
-        deck.Add(new Card("Swap", "Switch a card"));
-        deck.Add(new Card("Guard", "Reduce damage"));
-        deck.Add(new Card("Draw 2", "Take 2 more cards"));
+{
+    deck.Clear();
 
-        ShuffleDeck();
+    // Tambahkan kartu default
+    deck.Add(new Card("Trade Offer", "Deal 5 damage", 4));
+    deck.Add(new Card("Heal", "Recover 3 HP", 2));
+    deck.Add(new Card("Shield", "Block next attack", 3));
+    deck.Add(new Card("Steal", "Take 1 card", 5));
+    deck.Add(new Card("Flashbuy", "Take 2 more cards", 8));
+
+    ShuffleDeck();
+
+    // Tambahkan/kurangi agar total jadi 10 kartu
+    if (deck.Count < totalCardsToGive)
+    {
+        int cardsNeeded = totalCardsToGive - deck.Count;
+        for (int i = 0; i < cardsNeeded; i++)
+        {
+            // Duplikasikan kartu secara acak dari deck
+            Card randomCard = deck[Random.Range(0, deck.Count)];
+            Card duplicate = new Card(randomCard.cardName, randomCard.description, randomCard.value);
+            deck.Add(duplicate);
+        }
     }
+    else if (deck.Count > totalCardsToGive)
+    {
+        // Ambil 10 kartu acak dari deck yang sudah di-shuffle
+        deck = new List<Card>(deck.GetRange(0, totalCardsToGive));
+    }
+}
+
 
     private void ShuffleDeck()
     {
@@ -133,108 +150,139 @@ public class GameManager : MonoBehaviour
     cardObjects.Clear();
 
     for (int i = 0; i < totalCardsToGive && i < deck.Count; i++)
-    {
-        Card card = deck[i];
-        GameObject cardObj = Instantiate(cardPrefab, cardHolderParent);
+{
+    Card card = deck[i];
+    GameObject cardObj = Instantiate(cardPrefab, cardHolderParent);
 
-        Text cardText = cardObj.GetComponentInChildren<Text>();
-        if (cardText != null) cardText.text = card.cardName;
+    // Ambil Text untuk nama kartu
+    Text cardText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+    if (cardText != null) cardText.text = card.cardName;
 
-        cardObjects.Add(cardObj); // simpan
-    }
+    // Ambil Text untuk nilai kartu
+    Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
+    if (cardValueText != null) cardValueText.text = card.value.ToString();
+
+    cardObjects.Add(cardObj);
+}
+
 
     currentCardIndex = 0;
     currentTurnIndex = 0;
-    StartCoroutine(HandleTurns());
+    StartCoroutine(NextTurn());
 }
 
-private IEnumerator HandleTurns()
+private IEnumerator NextTurn()
 {
-    int cardsGiven = 0;
-
-    while (cardsGiven < totalCardsToGive && cardsGiven < cardObjects.Count)
+    if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
     {
-        PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
+        Debug.Log("✅ Semua kartu sudah dibagikan.");
+        yield break;
+    }
+
+    PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
+
+    if (currentPlayer.playerName.Contains("You"))
+    {
         bool cardTaken = false;
+        List<Button> clickableButtons = new List<Button>();
 
-        if (currentPlayer.playerName.Contains("You"))
+        for (int i = 0; i < cardObjects.Count; i++)
         {
-            List<Button> clickableButtons = new List<Button>();
-            cardTaken = false;
+            GameObject obj = cardObjects[i];
+            if (obj == null) continue;
 
-            // Tambahkan listener ke semua kartu yang masih ada
-            for (int i = cardsGiven; i < cardObjects.Count; i++)
+            Button btn = obj.GetComponent<Button>();
+            if (btn != null)
             {
-                GameObject obj = cardObjects[i];
-                Button btn = obj.GetComponent<Button>();
-                if (btn != null)
-                {
-                    btn.onClick.RemoveAllListeners();
-
-                    int index = i;
-                    btn.onClick.AddListener(() =>
-                    {
-                        if (!cardTaken)
-                        {
-                            TakeCard(cardObjects[index], currentPlayer);
-                            cardTaken = true;
-                        }
-                    });
-
-                    clickableButtons.Add(btn);
-                }
-            }
-
-            // Timer 10 detik
-            float timer = 0f;
-            while (!cardTaken && timer < 10f)
-            {
-                timer += Time.deltaTime;
-                yield return null;
-            }
-
-            if (!cardTaken && cardsGiven < cardObjects.Count)
-            {
-                TakeCard(cardObjects[cardsGiven], currentPlayer);
-                cardTaken = true;
-            }
-
-            foreach (var btn in clickableButtons)
                 btn.onClick.RemoveAllListeners();
-        }
-        else
-{
-    yield return new WaitForSeconds(1f);
+                int index = i;
 
-    // Cari kartu pertama yang belum diambil
-    GameObject cardToTake = null;
+                btn.onClick.AddListener(() =>
+                {
+                    if (!cardTaken)
+                    {
+                        TakeCard(cardObjects[index], currentPlayer);
+                        cardTaken = true;
+
+                        currentCardIndex++;
+                        currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+
+                        StartCoroutine(NextTurn()); // Lanjut ke turn berikutnya
+                    }
+                });
+
+                clickableButtons.Add(btn);
+            }
+        }
+
+        // Timer 10 detik
+        float timer = 0f;
+        while (!cardTaken && timer < 10f)
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        if (!cardTaken)
+        {
+            // Ambil acak jika tidak sempat pilih
+            List<GameObject> available = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
+
+            if (available.Count > 0)
+            {
+                GameObject randomCard = available[Random.Range(0, available.Count)];
+                TakeCard(randomCard, currentPlayer);
+                cardTaken = true;
+
+                currentCardIndex++;
+                currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+                StartCoroutine(NextTurn()); // Lanjut
+            }
+        }
+
+        foreach (var btn in clickableButtons)
+            btn.onClick.RemoveAllListeners();
+    }
+    else
+    {
+        yield return new WaitForSeconds(1f);
+
+        List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
+
+        if (availableCards.Count > 0)
+        {
+            GameObject randomCard = availableCards[Random.Range(0, availableCards.Count)];
+            TakeCard(randomCard, currentPlayer);
+
+            currentCardIndex++;
+        }
+
+        currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+        StartCoroutine(NextTurn());
+    }
+    if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
+{
+    Debug.Log("✅ Semua kartu sudah dibagikan.");
+
+    yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
+    ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
+
+    yield break;
+}
+
+}
+private void ClearHiddenCards()
+{
     foreach (var cardObj in cardObjects)
     {
-        if (cardObj != null) // masih eksis
+        if (cardObj != null)
         {
-            cardToTake = cardObj;
-            break;
+            Destroy(cardObj);
         }
     }
-
-    if (cardToTake != null)
-    {
-        TakeCard(cardToTake, currentPlayer);
-        cardTaken = true;
-    }
+    cardObjects.Clear();
 }
 
-        if (cardTaken)
-        {
-            cardsGiven++;
-            currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-        }
-
-        yield return new WaitForSeconds(0.2f);
-    }
-
-    Debug.Log("✅ Semua kartu sudah dibagikan.");
-}
 
 
 
@@ -254,26 +302,32 @@ private IEnumerator HandleTurns()
 
     private IEnumerator AutoBotTurn()
 {
-    while (currentCardIndex < totalCardsToGive && cardHolderParent.childCount > 0)
+    while (currentCardIndex < totalCardsToGive)
     {
         PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
 
         if (!currentPlayer.playerName.Contains("You"))
         {
-            yield return new WaitForSeconds(1f); // jeda biar ga instan
+            yield return new WaitForSeconds(1f);
 
-            if (currentCardIndex < cardHolderParent.childCount)
+            // 🔄 Cari semua kartu yang masih aktif
+            List<GameObject> availableCards = new List<GameObject>();
+            foreach (GameObject card in cardObjects)
             {
-                GameObject cardObj = cardHolderParent.GetChild(currentCardIndex).gameObject;
-                TakeCard(cardObj, currentPlayer);
+                if (card != null) availableCards.Add(card);
+            }
 
+            if (availableCards.Count > 0)
+            {
+                int randomIndex = Random.Range(0, availableCards.Count);
+                GameObject selectedCard = availableCards[randomIndex];
+
+                TakeCard(selectedCard, currentPlayer);
                 currentCardIndex++;
             }
         }
 
         currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-
-        // Lanjut terus sampai semua kartu habis
         yield return null;
     }
 
@@ -284,18 +338,35 @@ private IEnumerator HandleTurns()
 
     private void TakeCard(GameObject cardObj, PlayerProfile currentPlayer)
 {
-    if (cardObj == null) return; // ✅ Cek null biar aman
+    if (cardObj == null || takenCards.Contains(cardObj)) return;
 
-    // 🔧 Ambil nama kartu sebelum di-destroy
+    // 🔧 Ambil nama kartu
     Text textComp = cardObj.GetComponentInChildren<Text>();
     string cardName = textComp != null ? textComp.text : "Unknown";
 
     Card card = new Card(cardName, "");
     currentPlayer.AddCard(card);
 
-    Destroy(cardObj);
+    // Tandai sebagai sudah diambil
+    takenCards.Add(cardObj);
+
+    // Nonaktifkan klik dan buat buram
+    CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
+    if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
+    cg.alpha = 0.3f;
+    cg.interactable = false;
+    cg.blocksRaycasts = false;
+
+    // 🔒 Sembunyikan semua anak dari kartu
+    foreach (Transform child in cardObj.transform)
+    {
+        child.gameObject.SetActive(false);
+    }
+
     UpdatePlayerUI();
 }
+
+
 
     private void UpdatePlayerUI()
     {
@@ -342,11 +413,14 @@ private IEnumerator HandleTurns()
     {
         public string cardName;
         public string description;
+        public int value;
 
-        public Card(string name, string desc)
+
+        public Card(string name, string desc, int val = 0)
         {
             cardName = name;
             description = desc;
+            value = val;
         }
     }
 }
