@@ -12,6 +12,8 @@ public class GameManager : MonoBehaviour
     public Transform playerListContainer;
     public GameObject cardPrefab;
     public Transform cardHolderParent;
+    public GameObject ticketButtonPrefab;
+public Transform ticketListContainer;
 
     public Button bot2Button;
     public Button bot3Button;
@@ -24,6 +26,8 @@ public class GameManager : MonoBehaviour
     private List<PlayerProfile> turnOrder = new List<PlayerProfile>();
     private List<GameObject> cardObjects = new List<GameObject>();
 private HashSet<GameObject> takenCards = new HashSet<GameObject>();
+private List<GameObject> ticketButtons = new List<GameObject>();
+private bool ticketChosen = false;
 
     
     private int totalCardsToGive = 10;
@@ -48,8 +52,88 @@ private HashSet<GameObject> takenCards = new HashSet<GameObject>();
         bots.Add(new PlayerProfile("Bot " + (i + 1)));
     }
 
-    AssignTickets();
+    ShowTicketChoices();
+}
+private void ShowTicketChoices()
+{
+    ClearTicketButtons();
+
+    ticketChosen = false;
+
+    int totalPlayers = bots.Count + 1; // 1 player + bots
+    ticketManager.InitializeTickets(totalPlayers); // Isi tiket 1..n
+
+    List<int> availableTickets = new List<int>();
+    for (int i = 1; i <= totalPlayers; i++)
+    {
+        availableTickets.Add(i);
+    }
+
+    // ⬇️ Acak posisi ticket sebelum buat button
+    TicketManager.ShuffleList(availableTickets);
+
+    foreach (int ticketNumber in availableTickets)
+    {
+        GameObject btnObj = Instantiate(ticketButtonPrefab, ticketListContainer);
+        ticketButtons.Add(btnObj);
+
+        Text btnText = btnObj.GetComponentInChildren<Text>();
+        if (btnText != null)
+            btnText.text = "Choose";
+
+        Button btn = btnObj.GetComponent<Button>();
+        if (btn != null)
+        {
+            int chosenTicket = ticketNumber;
+            btn.onClick.AddListener(() =>
+            {
+                OnTicketSelected(chosenTicket, btnObj);
+            });
+        }
+    }
+}
+
+
+private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
+{
+    if (ticketChosen) return;
+    ticketChosen = true;
+
+    player.ticketNumber = ticketManager.PickTicketForPlayer(chosenTicket);
+
+    // Ganti tulisan tombol yang diklik saja
+    Text btnText = clickedButton.GetComponentInChildren<Text>();
+    if (btnText != null)
+    {
+        btnText.text = $"{chosenTicket}"; // 🛠️ Update text yang diklik saja
+    }
+
+    // Mulai delay 3 detik buat bot
+    StartCoroutine(AssignTicketsToBotsAfterDelay());
+}
+
+
+private IEnumerator AssignTicketsToBotsAfterDelay()
+{
+    yield return new WaitForSeconds(3f); // ⏳ Tunggu 3 detik
+
+    foreach (var bot in bots)
+    {
+        bot.ticketNumber = ticketManager.GetRandomTicketForBot();
+    }
+
+    ClearTicketButtons();
     ResetAll();
+}
+
+
+private void ClearTicketButtons()
+{
+    foreach (var btn in ticketButtons)
+    {
+        Destroy(btn);
+    }
+    ticketButtons.Clear();
 }
 private void AssignTickets()
 {
