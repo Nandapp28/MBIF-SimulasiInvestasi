@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
-    public Score scoreCalculator;
+    public TicketManager ticketManager;
 
     [Header("UI References")]
     public GameObject playerEntryPrefab;
@@ -41,63 +41,65 @@ private HashSet<GameObject> takenCards = new HashSet<GameObject>();
     }
 
     private void SetBotCount(int count)
+{
+    bots.Clear();
+    for (int i = 0; i < count; i++)
     {
-        bots.Clear();
-        for (int i = 0; i < count; i++)
-        {
-            bots.Add(new PlayerProfile("Bot " + (i + 1)));
-        }
-
-        ResetAllScores();
-        ResetDicePositions();
-        Invoke(nameof(UpdateScores), 3f);
+        bots.Add(new PlayerProfile("Bot " + (i + 1)));
     }
 
-    private void ResetDicePositions()
+    AssignTickets();
+    ResetAll();
+}
+private void AssignTickets()
+{
+    List<int> availableTickets = new List<int>();
+    int totalPlayers = bots.Count + 1; // 1 player + bots
+
+    for (int i = 1; i <= totalPlayers; i++)
     {
-        if (scoreCalculator.dice1 != null) scoreCalculator.dice1.ResetPosition();
-        if (scoreCalculator.dice2 != null) scoreCalculator.dice2.ResetPosition();
+        availableTickets.Add(i);
     }
 
-    private void ResetAllScores()
+    // Acak tiket
+    for (int i = 0; i < availableTickets.Count; i++)
     {
-        player.SetScore(0);
-        foreach (var bot in bots)
-            bot.SetScore(0);
-
-        ClearPlayerListUI();
-        AddPlayerEntry(player.playerName, 0, 0);
-        foreach (var bot in bots)
-            AddPlayerEntry(bot.playerName, 0, 0);
+        int randIndex = Random.Range(i, availableTickets.Count);
+        int temp = availableTickets[i];
+        availableTickets[i] = availableTickets[randIndex];
+        availableTickets[randIndex] = temp;
     }
 
-    private void UpdateScores()
+    player.ticketNumber = availableTickets[0];
+    for (int i = 0; i < bots.Count; i++)
     {
-        ClearPlayerListUI();
-
-        player.SetLastRoll(scoreCalculator.GetDiceTotal());
-        player.SetScore(player.lastRoll);
-
-        foreach (var bot in bots)
-        {
-            int roll = Random.Range(1, 13);
-            bot.SetLastRoll(roll);
-            bot.SetScore(roll);
-        }
-
-        List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
-        allPlayers.AddRange(bots);
-        allPlayers.Sort((a, b) => b.lastRoll.CompareTo(a.lastRoll));
-
-        for (int i = 0; i < allPlayers.Count; i++)
-        {
-            var p = allPlayers[i];
-            AddPlayerEntry($"{i + 1}. {p.playerName}", p.lastRoll, p.cardCount);
-        }
-
-        turnOrder = new List<PlayerProfile>(allPlayers);
-        DrawCardsInOrder();
+        bots[i].ticketNumber = availableTickets[i + 1];
     }
+}
+
+
+    
+    private void ResetAll()
+{
+    ClearPlayerListUI();
+    AddPlayerEntry(player.playerName, player.ticketNumber, player.cardCount);
+
+    foreach (var bot in bots)
+    {
+        AddPlayerEntry(bot.playerName, bot.ticketNumber, bot.cardCount);
+    }
+
+    List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
+    allPlayers.AddRange(bots);
+    allPlayers.Sort((a, b) => a.ticketNumber.CompareTo(b.ticketNumber)); // 🎟️ Urut berdasarkan tiket kecil ke besar
+
+    turnOrder = new List<PlayerProfile>(allPlayers);
+
+    DrawCardsInOrder();
+}
+
+
+   
 
     private void InitializeDeck()
 {
@@ -378,18 +380,19 @@ private void ClearHiddenCards()
         }
     }
 
-    private void AddPlayerEntry(string name, int score, int cardCount)
+    private void AddPlayerEntry(string name, int ticket, int cardCount)
+{
+    GameObject entry = Instantiate(playerEntryPrefab, playerListContainer);
+    Text[] texts = entry.GetComponentsInChildren<Text>();
+    foreach (Text t in texts)
     {
-        GameObject entry = Instantiate(playerEntryPrefab, playerListContainer);
-        Text[] texts = entry.GetComponentsInChildren<Text>();
-        foreach (Text t in texts)
-        {
-            if (t.name == "NameText") t.text = name;
-            else if (t.name == "ScoreText") t.text = $"{score} pts";
-            else if (t.name == "CardText") t.text = $"{cardCount} kartu";
-        }
-        playerEntries.Add(entry);
+        if (t.name == "NameText") t.text = name;
+        else if (t.name == "ScoreText") t.text = $"Tiket {ticket}";  // ✨ Ubah ke tiket
+        else if (t.name == "CardText") t.text = $"{cardCount} kartu";
     }
+    playerEntries.Add(entry);
+}
+
 
     private void ClearPlayerListUI()
     {
