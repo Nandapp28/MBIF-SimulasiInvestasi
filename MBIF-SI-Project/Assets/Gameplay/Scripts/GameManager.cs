@@ -18,8 +18,11 @@ public Transform ticketListContainer;
     public Button bot2Button;
     public Button bot3Button;
     public Button bot4Button;
+public GameObject resetSemesterButton;
+
 
     private PlayerProfile player;
+    public static GameManager Instance;
     private List<PlayerProfile> bots = new List<PlayerProfile>();
     private List<GameObject> playerEntries = new List<GameObject>();
     private List<Card> deck = new List<Card>();
@@ -35,9 +38,57 @@ private bool ticketChosen = false;
     private int currentCardIndex = 0;
     private int currentTurnIndex = 0;
 
+    private Coroutine autoSelectCoroutine; 
+
+private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    // Fungsi yang dipanggil saat semester direset
+    public void ResetSemester()
+{
+    Debug.Log("🔁 Resetting Semester...");
+
+    // Reset data internal pemain
+    foreach (var p in turnOrder)
+    {
+        p.ticketNumber = 0;
+        // Jika mau hapus kartu juga, bisa panggil: p.ClearCards(); (jika tersedia)
+    }
+
+    currentCardIndex = 0;
+    currentTurnIndex = 0;
+    ticketChosen = false;
+    takenCards.Clear();
+    turnOrder.Clear();
+
+    // Bersihkan kartu dari UI
+    ClearHiddenCards();
+    ClearAllCardsInHolder();
+
+    // Bersihkan UI pemain
+    ClearPlayerListUI();
+
+    // Tampilkan kembali pilihan tiket
+    ShowTicketChoices();
+}
+
+
     private void Start()
     {
         player = new PlayerProfile("You");
+        if (resetSemesterButton != null)
+        resetSemesterButton.SetActive(false);
+
 
         bot2Button.onClick.AddListener(() => SetBotCount(2));
         bot3Button.onClick.AddListener(() => SetBotCount(3));
@@ -91,13 +142,39 @@ private void ShowTicketChoices()
             });
         }
     }
-}
+    // Jalankan timer auto-pilih jika player tidak klik
+autoSelectCoroutine = StartCoroutine(AutoSelectTicket());
 
+}
+private IEnumerator AutoSelectTicket()
+{
+    yield return new WaitForSeconds(4f);
+
+    if (ticketChosen) yield break; // kalau udah dipilih, keluar
+
+    // Pilih tombol acak
+    int randomIndex = UnityEngine.Random.Range(0, ticketButtons.Count);
+    GameObject randomBtn = ticketButtons[randomIndex];
+
+    // Ambil ticket dari text listener
+    Button btn = randomBtn.GetComponent<Button>();
+    if (btn != null)
+    {
+        btn.onClick.Invoke(); // simulasi klik tombol
+    }
+}
 
 private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
 {
     if (ticketChosen) return;
-    ticketChosen = true;
+ticketChosen = true;
+
+// Stop auto-select
+if (autoSelectCoroutine != null)
+{
+    StopCoroutine(autoSelectCoroutine);
+    autoSelectCoroutine = null;
+}
 
     player.ticketNumber = ticketManager.PickTicketForPlayer(chosenTicket);
 
@@ -353,8 +430,13 @@ private IEnumerator NextTurn()
     yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
     ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
 
+    yield return new WaitForSeconds(2f); // 🔥 Tambahan delay 2 detik sebelum tombol muncul
+    if (resetSemesterButton != null)
+        resetSemesterButton.SetActive(true); // 🔥 Tampilkan tombol reset semester
+
     yield break;
 }
+
 
 }
 private void ClearHiddenCards()
