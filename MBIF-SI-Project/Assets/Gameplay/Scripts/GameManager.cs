@@ -37,6 +37,8 @@ private bool ticketChosen = false;
 
     private int currentCardIndex = 0;
     private int currentTurnIndex = 0;
+private int resetCount = 0;
+private int maxResetCount = 3;
 
     private Coroutine autoSelectCoroutine; 
 
@@ -57,6 +59,7 @@ private void Awake()
     public void ResetSemester()
 {
     Debug.Log("🔁 Resetting Semester...");
+     resetCount++;
 
     // Reset data internal pemain
     foreach (var p in turnOrder)
@@ -80,6 +83,7 @@ private void Awake()
 
     // Tampilkan kembali pilihan tiket
     ShowTicketChoices();
+     resetSemesterButton.SetActive(false);
 }
 
 
@@ -255,6 +259,7 @@ private void AssignTickets()
     allPlayers.Sort((a, b) => a.ticketNumber.CompareTo(b.ticketNumber)); // 🎟️ Urut berdasarkan tiket kecil ke besar
 
     turnOrder = new List<PlayerProfile>(allPlayers);
+    UpdatePlayerUI();
 
     DrawCardsInOrder();
 }
@@ -430,9 +435,19 @@ private IEnumerator NextTurn()
     yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
     ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
 
-    yield return new WaitForSeconds(2f); // 🔥 Tambahan delay 2 detik sebelum tombol muncul
+    yield return new WaitForSeconds(2f); // ##Berganti Semester
     if (resetSemesterButton != null)
-        resetSemesterButton.SetActive(true); // 🔥 Tampilkan tombol reset semester
+{
+    if (resetCount < maxResetCount)
+    {
+        resetSemesterButton.SetActive(true); // Tampilkan hanya jika belum 3x
+    }
+    else
+    {
+        resetSemesterButton.SetActive(false); // Sembunyikan selamanya
+    }
+}
+// 🔥 Tampilkan tombol reset semester
 
     yield break;
 }
