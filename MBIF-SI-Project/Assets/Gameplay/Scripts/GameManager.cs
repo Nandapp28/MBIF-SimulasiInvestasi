@@ -247,11 +247,11 @@ private void AssignTickets()
     private void ResetAll()
 {
     ClearPlayerListUI();
-    AddPlayerEntry(player.playerName, player.ticketNumber, player.cardCount);
+    AddPlayerEntry(player.playerName, player.ticketNumber, player.cardCount, player.finpoint);
 
     foreach (var bot in bots)
     {
-        AddPlayerEntry(bot.playerName, bot.ticketNumber, bot.cardCount);
+        AddPlayerEntry(bot.playerName, bot.ticketNumber, bot.cardCount, bot.finpoint);
     }
 
     List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
@@ -527,8 +527,19 @@ private void ClearHiddenCards()
     Text textComp = cardObj.GetComponentInChildren<Text>();
     string cardName = textComp != null ? textComp.text : "Unknown";
 
-    Card card = new Card(cardName, "");
-    currentPlayer.AddCard(card);
+    // Ambil data nilai kartu
+Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
+int cardValue = 0;
+if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
+
+// Kurangi finpoint sesuai value kartu
+currentPlayer.finpoint -= cardValue;
+if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
+
+// Buat kartu dan tambahkan
+Card card = new Card(cardName, "", cardValue);
+currentPlayer.AddCard(card);
+
 
     // Tandai sebagai sudah diambil
     takenCards.Add(cardObj);
@@ -557,11 +568,11 @@ private void ClearHiddenCards()
         for (int i = 0; i < turnOrder.Count; i++)
         {
             var p = turnOrder[i];
-            AddPlayerEntry($"{i + 1}. {p.playerName}", p.lastRoll, p.cardCount);
+            AddPlayerEntry($"{i + 1}. {p.playerName}", p.lastRoll, p.cardCount, p.finpoint);
         }
     }
 
-    private void AddPlayerEntry(string name, int ticket, int cardCount)
+    private void AddPlayerEntry(string name, int ticket, int cardCount, int finpoint)
 {
     GameObject entry = Instantiate(playerEntryPrefab, playerListContainer);
     Text[] texts = entry.GetComponentsInChildren<Text>();
@@ -570,6 +581,7 @@ private void ClearHiddenCards()
         if (t.name == "NameText") t.text = name;
         else if (t.name == "ScoreText") t.text = $"Tiket {ticket}";  // ✨ Ubah ke tiket
         else if (t.name == "CardText") t.text = $"{cardCount} kartu";
+        else if (t.name == "Finpoint") t.text = $"FP {finpoint}";
     }
     playerEntries.Add(entry);
 }
