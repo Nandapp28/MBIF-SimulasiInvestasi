@@ -18,8 +18,11 @@ public Transform ticketListContainer;
     public Button bot2Button;
     public Button bot3Button;
     public Button bot4Button;
+public GameObject resetSemesterButton;
+
 
     private PlayerProfile player;
+    public static GameManager Instance;
     private List<PlayerProfile> bots = new List<PlayerProfile>();
     private List<GameObject> playerEntries = new List<GameObject>();
     private List<Card> deck = new List<Card>();
@@ -34,10 +37,62 @@ private bool ticketChosen = false;
 
     private int currentCardIndex = 0;
     private int currentTurnIndex = 0;
+private int resetCount = 0;
+private int maxResetCount = 3;
+
+    private Coroutine autoSelectCoroutine; 
+
+private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    // Fungsi yang dipanggil saat semester direset
+    public void ResetSemester()
+{
+    Debug.Log("🔁 Resetting Semester...");
+     resetCount++;
+
+    // Reset data internal pemain
+    foreach (var p in turnOrder)
+    {
+        p.ticketNumber = 0;
+        // Jika mau hapus kartu juga, bisa panggil: p.ClearCards(); (jika tersedia)
+    }
+
+    currentCardIndex = 0;
+    currentTurnIndex = 0;
+    ticketChosen = false;
+    takenCards.Clear();
+    turnOrder.Clear();
+
+    // Bersihkan kartu dari UI
+    ClearHiddenCards();
+    ClearAllCardsInHolder();
+
+    // Bersihkan UI pemain
+    ClearPlayerListUI();
+
+    // Tampilkan kembali pilihan tiket
+    ShowTicketChoices();
+     resetSemesterButton.SetActive(false);
+}
+
 
     private void Start()
     {
         player = new PlayerProfile("You");
+        if (resetSemesterButton != null)
+        resetSemesterButton.SetActive(false);
+
 
         bot2Button.onClick.AddListener(() => SetBotCount(2));
         bot3Button.onClick.AddListener(() => SetBotCount(3));
@@ -91,13 +146,39 @@ private void ShowTicketChoices()
             });
         }
     }
-}
+    // Jalankan timer auto-pilih jika player tidak klik
+autoSelectCoroutine = StartCoroutine(AutoSelectTicket());
 
+}
+private IEnumerator AutoSelectTicket()
+{
+    yield return new WaitForSeconds(4f);
+
+    if (ticketChosen) yield break; // kalau udah dipilih, keluar
+
+    // Pilih tombol acak
+    int randomIndex = UnityEngine.Random.Range(0, ticketButtons.Count);
+    GameObject randomBtn = ticketButtons[randomIndex];
+
+    // Ambil ticket dari text listener
+    Button btn = randomBtn.GetComponent<Button>();
+    if (btn != null)
+    {
+        btn.onClick.Invoke(); // simulasi klik tombol
+    }
+}
 
 private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
 {
     if (ticketChosen) return;
-    ticketChosen = true;
+ticketChosen = true;
+
+// Stop auto-select
+if (autoSelectCoroutine != null)
+{
+    StopCoroutine(autoSelectCoroutine);
+    autoSelectCoroutine = null;
+}
 
     player.ticketNumber = ticketManager.PickTicketForPlayer(chosenTicket);
 
@@ -166,11 +247,11 @@ private void AssignTickets()
     private void ResetAll()
 {
     ClearPlayerListUI();
-    AddPlayerEntry(player.playerName, player.ticketNumber, player.cardCount);
+    AddPlayerEntry(player.playerName, player.ticketNumber, player.cardCount, player.finpoint);
 
     foreach (var bot in bots)
     {
-        AddPlayerEntry(bot.playerName, bot.ticketNumber, bot.cardCount);
+        AddPlayerEntry(bot.playerName, bot.ticketNumber, bot.cardCount, bot.finpoint);
     }
 
     List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
@@ -178,6 +259,7 @@ private void AssignTickets()
     allPlayers.Sort((a, b) => a.ticketNumber.CompareTo(b.ticketNumber)); // 🎟️ Urut berdasarkan tiket kecil ke besar
 
     turnOrder = new List<PlayerProfile>(allPlayers);
+    UpdatePlayerUI();
 
     DrawCardsInOrder();
 }
@@ -185,36 +267,39 @@ private void AssignTickets()
 
    
 
-    private void InitializeDeck()
+   private void InitializeDeck()
 {
     deck.Clear();
 
-    // Tambahkan kartu default
-    deck.Add(new Card("Trade Offer", "Deal 5 damage", 4));
-    deck.Add(new Card("Heal", "Recover 3 HP", 2));
-    deck.Add(new Card("Shield", "Block next attack", 3));
-    deck.Add(new Card("Steal", "Take 1 card", 5));
-    deck.Add(new Card("Flashbuy", "Take 2 more cards", 8));
+    List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
+
+    // Tambahkan kartu default dengan warna acak
+    deck.Add(new Card("Trade Offer", "Deal 5 damage", 4, GetRandomColor(colors)));
+    deck.Add(new Card("Heal", "Recover 3 HP", 2, GetRandomColor(colors)));
+    deck.Add(new Card("Shield", "Block next attack", 3, GetRandomColor(colors)));
+    deck.Add(new Card("Steal", "Take 1 card", 5, GetRandomColor(colors)));
+    deck.Add(new Card("Flashbuy", "Take 2 more cards", 8, GetRandomColor(colors)));
 
     ShuffleDeck();
 
-    // Tambahkan/kurangi agar total jadi 10 kartu
     if (deck.Count < totalCardsToGive)
     {
         int cardsNeeded = totalCardsToGive - deck.Count;
         for (int i = 0; i < cardsNeeded; i++)
         {
-            // Duplikasikan kartu secara acak dari deck
             Card randomCard = deck[Random.Range(0, deck.Count)];
-            Card duplicate = new Card(randomCard.cardName, randomCard.description, randomCard.value);
-            deck.Add(duplicate);
+            deck.Add(new Card(randomCard.cardName, randomCard.description, randomCard.value, GetRandomColor(colors)));
         }
     }
     else if (deck.Count > totalCardsToGive)
     {
-        // Ambil 10 kartu acak dari deck yang sudah di-shuffle
         deck = new List<Card>(deck.GetRange(0, totalCardsToGive));
     }
+}
+
+private string GetRandomColor(List<string> colorOptions)
+{
+    return colorOptions[Random.Range(0, colorOptions.Count)];
 }
 
 
@@ -243,6 +328,11 @@ private void AssignTickets()
     // Ambil Text untuk nama kartu
     Text cardText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
     if (cardText != null) cardText.text = card.cardName;
+
+    // Ambil Text untuk warna kartu
+Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
+if (cardColorText != null) cardColorText.text = card.color;
+
 
     // Ambil Text untuk nilai kartu
     Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
@@ -353,8 +443,23 @@ private IEnumerator NextTurn()
     yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
     ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
 
+    yield return new WaitForSeconds(2f); // ##Berganti Semester
+    if (resetSemesterButton != null)
+{
+    if (resetCount < maxResetCount)
+    {
+        resetSemesterButton.SetActive(true); // Tampilkan hanya jika belum 3x
+    }
+    else
+    {
+        resetSemesterButton.SetActive(false); // Sembunyikan selamanya
+    }
+}
+// 🔥 Tampilkan tombol reset semester
+
     yield break;
 }
+
 
 }
 private void ClearHiddenCards()
@@ -426,14 +531,30 @@ private void ClearHiddenCards()
 {
     if (cardObj == null || takenCards.Contains(cardObj)) return;
 
-    // 🔧 Ambil nama kartu
+    // Ambil nama kartu
     Text textComp = cardObj.GetComponentInChildren<Text>();
     string cardName = textComp != null ? textComp.text : "Unknown";
 
-    Card card = new Card(cardName, "");
+    // Ambil nilai kartu
+    Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
+    int cardValue = 0;
+    if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
+
+    // Kurangi finpoint sesuai nilai kartu
+    currentPlayer.finpoint -= cardValue;
+    if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
+
+    // Buat kartu dan tambahkan
+    // Ambil nilai warna dari UI
+Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
+string cardColor = cardColorText != null ? cardColorText.text : "Red"; // default Red jika null
+
+// Buat kartu dan tambahkan
+Card card = new Card(cardName, "", cardValue, cardColor);
+
     currentPlayer.AddCard(card);
 
-    // Tandai sebagai sudah diambil
+    // Tandai kartu sudah diambil
     takenCards.Add(cardObj);
 
     // Nonaktifkan klik dan buat buram
@@ -443,39 +564,62 @@ private void ClearHiddenCards()
     cg.interactable = false;
     cg.blocksRaycasts = false;
 
-    // 🔒 Sembunyikan semua anak dari kartu
+    // Sembunyikan semua anak dari kartu
     foreach (Transform child in cardObj.transform)
     {
         child.gameObject.SetActive(false);
     }
 
+    // Memperbarui UI dengan jumlah kartu berdasarkan warna
     UpdatePlayerUI();
 }
 
 
 
-    private void UpdatePlayerUI()
-    {
-        ClearPlayerListUI();
-        for (int i = 0; i < turnOrder.Count; i++)
-        {
-            var p = turnOrder[i];
-            AddPlayerEntry($"{i + 1}. {p.playerName}", p.lastRoll, p.cardCount);
-        }
-    }
 
-    private void AddPlayerEntry(string name, int ticket, int cardCount)
+    private void UpdatePlayerUI()
+{
+    ClearPlayerListUI();
+    for (int i = 0; i < turnOrder.Count; i++)
+    {
+        var p = turnOrder[i];
+        AddPlayerEntry($"{i + 1}. {p.playerName}", p.ticketNumber, p.cardCount, p.finpoint);
+    }
+}
+
+
+    private void AddPlayerEntry(string name, int ticket, int cardCount, int finpoint)
 {
     GameObject entry = Instantiate(playerEntryPrefab, playerListContainer);
     Text[] texts = entry.GetComponentsInChildren<Text>();
     foreach (Text t in texts)
     {
         if (t.name == "NameText") t.text = name;
-        else if (t.name == "ScoreText") t.text = $"Tiket {ticket}";  // ✨ Ubah ke tiket
+        else if (t.name == "ScoreText") t.text = $"Tiket {ticket}";
         else if (t.name == "CardText") t.text = $"{cardCount} kartu";
+        else if (t.name == "Finpoint") t.text = $"FP {finpoint}";
     }
+
+    // Ambil jumlah kartu berdasarkan warna dari player yang sedang diproses (bisa player atau bot)
+    var colorCounts = turnOrder.Find(p => $"{turnOrder.IndexOf(p) + 1}. {p.playerName}" == name)?.GetCardColorCounts() ?? new Dictionary<string, int>();
+
+    Text redCardText = entry.transform.Find("RedCardText")?.GetComponent<Text>();
+    Text blueCardText = entry.transform.Find("BlueCardText")?.GetComponent<Text>();
+    Text greenCardText = entry.transform.Find("GreenCardText")?.GetComponent<Text>();
+    Text orangeCardText = entry.transform.Find("OrangeCardText")?.GetComponent<Text>();
+
+    if (redCardText != null)
+        redCardText.text = $"M: {(colorCounts.ContainsKey("Red") ? colorCounts["Red"] : 0)}";
+    if (blueCardText != null)
+        blueCardText.text = $"B: {(colorCounts.ContainsKey("Blue") ? colorCounts["Blue"] : 0)}";
+    if (greenCardText != null)
+        greenCardText.text = $"H: {(colorCounts.ContainsKey("Green") ? colorCounts["Green"] : 0)}";
+    if (orangeCardText != null)
+        orangeCardText.text = $"O: {(colorCounts.ContainsKey("Orange") ? colorCounts["Orange"] : 0)}";
+
     playerEntries.Add(entry);
 }
+
 
 
     private void ClearPlayerListUI()
@@ -495,19 +639,5 @@ private void ClearHiddenCards()
         }
     }
 
-    [System.Serializable]
-    public class Card
-    {
-        public string cardName;
-        public string description;
-        public int value;
-
-
-        public Card(string name, string desc, int val = 0)
-        {
-            cardName = name;
-            description = desc;
-            value = val;
-        }
-    }
+    
 }
