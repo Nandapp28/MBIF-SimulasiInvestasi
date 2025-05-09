@@ -1,4 +1,6 @@
+using UnityEngine;
 using System.Collections.Generic;
+
 
 
 [System.Serializable]
@@ -9,7 +11,7 @@ public class PlayerProfile
     public int finpoint; 
     public int lastRoll;
     public int cardCount => cards.Count;
-    public List<GameManager.Card> cards = new List<GameManager.Card>();
+    public List<Card> cards = new List<Card>();
 
     public PlayerProfile(string name)
     {
@@ -18,14 +20,32 @@ public class PlayerProfile
         
     }
 
-    
+    public Dictionary<string, int> GetCardColorCounts()
+{
+    Dictionary<string, int> colorCounts = new Dictionary<string, int>
+    {
+        { "Red", 0 },
+        { "Blue", 0 },
+        { "Green", 0 },
+        { "Orange", 0 }
+    };
+
+    foreach (var card in cards)
+    {
+        if (colorCounts.ContainsKey(card.color))
+            colorCounts[card.color]++;
+    }
+
+    return colorCounts;
+}
+
 
     public void SetLastRoll(int roll)
     {
         lastRoll = roll;
     }
 
-    public void AddCard(GameManager.Card card)
+    public void AddCard(Card card)
     {
         cards.Add(card);
     }
