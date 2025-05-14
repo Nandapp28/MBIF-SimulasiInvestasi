@@ -19,6 +19,9 @@ public Transform ticketListContainer;
     public Button bot3Button;
     public Button bot4Button;
 public GameObject resetSemesterButton;
+public int skipCount = 0;
+public GameObject skipButton;
+
 
 
     private PlayerProfile player;
@@ -70,6 +73,7 @@ private void Awake()
 
     currentCardIndex = 0;
     currentTurnIndex = 0;
+        skipCount = 0;
     ticketChosen = false;
     takenCards.Clear();
     turnOrder.Clear();
@@ -147,25 +151,8 @@ private void ShowTicketChoices()
         }
     }
     // Jalankan timer auto-pilih jika player tidak klik
-autoSelectCoroutine = StartCoroutine(AutoSelectTicket());
 
-}
-private IEnumerator AutoSelectTicket()
-{
-    yield return new WaitForSeconds(4f);
 
-    if (ticketChosen) yield break; // kalau udah dipilih, keluar
-
-    // Pilih tombol acak
-    int randomIndex = UnityEngine.Random.Range(0, ticketButtons.Count);
-    GameObject randomBtn = ticketButtons[randomIndex];
-
-    // Ambil ticket dari text listener
-    Button btn = randomBtn.GetComponent<Button>();
-    if (btn != null)
-    {
-        btn.onClick.Invoke(); // simulasi klik tombol
-    }
 }
 
 private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
@@ -358,84 +345,80 @@ private IEnumerator NextTurn()
     PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
 
     if (currentPlayer.playerName.Contains("You"))
+{
+    bool cardTaken = false;
+    List<Button> clickableButtons = new List<Button>();
+
+    // Tampilkan tombol skip
+    if (skipButton != null)
     {
-        bool cardTaken = false;
-        List<Button> clickableButtons = new List<Button>();
-
-        for (int i = 0; i < cardObjects.Count; i++)
+        skipButton.SetActive(true);
+        skipButton.GetComponent<Button>().onClick.RemoveAllListeners();
+        skipButton.GetComponent<Button>().onClick.AddListener(() =>
         {
-            GameObject obj = cardObjects[i];
-            if (obj == null) continue;
+            skipButton.SetActive(false);
+            skipCount++;
+            currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+            StartCoroutine(NextTurn());
+        });
+    }
 
-            Button btn = obj.GetComponent<Button>();
-            if (btn != null)
-            {
-                btn.onClick.RemoveAllListeners();
-                int index = i;
+    for (int i = 0; i < cardObjects.Count; i++)
+    {
+        GameObject obj = cardObjects[i];
+        if (obj == null || takenCards.Contains(obj)) continue;
 
-                btn.onClick.AddListener(() =>
-                {
-                    if (!cardTaken)
-                    {
-                        TakeCard(cardObjects[index], currentPlayer);
-                        cardTaken = true;
-
-                        currentCardIndex++;
-                        currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-
-                        StartCoroutine(NextTurn()); // Lanjut ke turn berikutnya
-                    }
-                });
-
-                clickableButtons.Add(btn);
-            }
-        }
-
-        // Timer 10 detik
-        float timer = 0f;
-        while (!cardTaken && timer < 10f)
+        Button btn = obj.GetComponent<Button>();
+        if (btn != null)
         {
-            timer += Time.deltaTime;
-            yield return null;
-        }
-
-        if (!cardTaken)
-        {
-            // Ambil acak jika tidak sempat pilih
-            List<GameObject> available = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
-
-            if (available.Count > 0)
-            {
-                GameObject randomCard = available[Random.Range(0, available.Count)];
-                TakeCard(randomCard, currentPlayer);
-                cardTaken = true;
-
-                currentCardIndex++;
-                currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-                StartCoroutine(NextTurn()); // Lanjut
-            }
-        }
-
-        foreach (var btn in clickableButtons)
             btn.onClick.RemoveAllListeners();
+            int index = i;
+
+            btn.onClick.AddListener(() =>
+            {
+                if (!cardTaken)
+                {
+                    TakeCard(cardObjects[index], currentPlayer);
+                    cardTaken = true;
+
+                    skipCount = 0; // RESET skip karena ada yang ambil kartu
+
+                    currentCardIndex++;
+                    currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+                    if (skipButton != null) skipButton.SetActive(false);
+                    StartCoroutine(NextTurn());
+                }
+            });
+
+            clickableButtons.Add(btn);
+        }
+    }
+}
+
+    else
+{
+    yield return new WaitForSeconds(1f);
+
+    List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
+
+    bool botSkips = Random.value < 0.3f; // 30% kemungkinan bot skip
+    if (botSkips || availableCards.Count == 0)
+    {
+        skipCount++;
+        Debug.Log($"{currentPlayer.playerName} skipped their turn.");
     }
     else
     {
-        yield return new WaitForSeconds(1f);
-
-        List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
-
-        if (availableCards.Count > 0)
-        {
-            GameObject randomCard = availableCards[Random.Range(0, availableCards.Count)];
-            TakeCard(randomCard, currentPlayer);
-
-            currentCardIndex++;
-        }
-
-        currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-        StartCoroutine(NextTurn());
+        GameObject randomCard = availableCards[Random.Range(0, availableCards.Count)];
+        TakeCard(randomCard, currentPlayer);
+        currentCardIndex++;
+        skipCount = 0; // reset jika ada yang ambil
     }
+
+    currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+    StartCoroutine(NextTurn());
+}
+
     if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
 {
     Debug.Log("✅ Semua kartu sudah dibagikan.");
@@ -459,6 +442,27 @@ private IEnumerator NextTurn()
 
     yield break;
 }
+// 🔚 Deteksi jika semua pemain skip
+if (skipCount >= turnOrder.Count)
+{
+    Debug.Log("🚫 Semua pemain skip. Menghapus kartu yang tersisa.");
+    ClearHiddenCards();
+    currentCardIndex = totalCardsToGive; // anggap sudah selesai
+    skipCount = 0;
+
+    yield return new WaitForSeconds(2f);
+
+    if (resetSemesterButton != null)
+    {
+        if (resetCount < maxResetCount)
+            resetSemesterButton.SetActive(true);
+        else
+            resetSemesterButton.SetActive(false);
+    }
+
+    yield break;
+}
+
 
 
 }
