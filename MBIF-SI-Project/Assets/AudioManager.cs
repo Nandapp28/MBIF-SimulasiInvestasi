@@ -1,48 +1,98 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using TMPro;
 
 public class AudioManager : MonoBehaviour
 {
-    public AudioSource audioSource; // Drag your AudioSource here in the Inspector
+    public static AudioManager Instance { get; private set; }
+
+    [Header("Audio Source")]
+    public AudioSource musicAudioSource; // Hanya untuk musik latar
+
+    [Header("UI Elements")]
     public Slider volumeSlider;
-    public TextMeshProUGUI volumeText; // Drag your Text UI element here in the Inspector
+    public TextMeshProUGUI volumeText;
 
     private const string VolumeKey = "MusicVolume";
 
-    void Start()
+    private void Awake()
     {
-        // Load the saved volume from PlayerPrefs
-        float savedVolume = PlayerPrefs.GetFloat(VolumeKey, 1f); // Default to 1 if not set
-        SetVolume(savedVolume);
-        volumeSlider.value = savedVolume;
-        
-        // Add listener to the slider
-        volumeSlider.onValueChanged.AddListener(SetVolume);
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
     }
+
+    private void Start()
+    {
+        float savedVolume = PlayerPrefs.GetFloat(VolumeKey, 1f);
+        musicAudioSource.volume = savedVolume;
+        musicAudioSource.loop = true;
+        musicAudioSource.Play();
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        FindUIReferences();
+
+        if (volumeSlider != null)
+        {
+            volumeSlider.onValueChanged.RemoveAllListeners();
+            volumeSlider.value = musicAudioSource.volume;
+            volumeSlider.onValueChanged.AddListener(SetVolume);
+        }
+
+        if (volumeText != null)
+        {
+            UpdateVolumeText(musicAudioSource.volume);
+        }
+    }
+
+    private void FindUIReferences()
+{
+    GameObject sliderObject = GameObject.Find("Music (Slider)");
+    if (sliderObject != null)
+    {
+        volumeSlider = sliderObject.GetComponent<Slider>();
+    }
+
+    GameObject textObject = GameObject.Find("Music (Text)");
+    if (textObject != null)
+    {
+        volumeText = textObject.GetComponent<TextMeshProUGUI>();
+    }
+}
 
     public void SetVolume(float volume)
     {
-        audioSource.volume = volume;
-        PlayerPrefs.SetFloat(VolumeKey, volume); // Save the volume to PlayerPrefs
-        PlayerPrefs.Save(); // Ensure the data is saved
+        musicAudioSource.volume = volume;
+        PlayerPrefs.SetFloat(VolumeKey, volume);
+        PlayerPrefs.Save();
 
-        // Update the volume text
         UpdateVolumeText(volume);
     }
 
     private void UpdateVolumeText(float volume)
     {
-        // Convert volume to percentage and update the text
         int percentage = Mathf.RoundToInt(volume * 100);
-        volumeText.text = "Volume: " + percentage + "%";
+        if (volumeText != null)
+        {
+            volumeText.text = "Music: " + percentage + "%";
+        }
     }
 
     private void OnDestroy()
     {
-        // Optionally, you can save the volume when the object is destroyed
-        PlayerPrefs.SetFloat(VolumeKey, audioSource.volume);
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        PlayerPrefs.SetFloat(VolumeKey, musicAudioSource.volume);
         PlayerPrefs.Save();
     }
 }
