@@ -6,6 +6,9 @@ using System.Collections.Generic;
 public class GameManager : MonoBehaviour
 {
     public TicketManager ticketManager;
+    private CardEffectManager cardEffect;
+    private PlayerProfile player;
+
 
     [Header("UI References")]
     public GameObject playerEntryPrefab;
@@ -15,16 +18,19 @@ public class GameManager : MonoBehaviour
     public GameObject ticketButtonPrefab;
 public Transform ticketListContainer;
 
+[Header("Button References")]
     public Button bot2Button;
     public Button bot3Button;
     public Button bot4Button;
 public GameObject resetSemesterButton;
-public int skipCount = 0;
 public GameObject skipButton;
+public GameObject activateButtonPrefab;
+public GameObject saveButtonPrefab;
 
 
 
-    private PlayerProfile player;
+
+    
     public static GameManager Instance;
     private List<PlayerProfile> bots = new List<PlayerProfile>();
     private List<GameObject> playerEntries = new List<GameObject>();
@@ -38,8 +44,9 @@ private bool ticketChosen = false;
     
     private int totalCardsToGive = 10;
 
-    private int currentCardIndex = 0;
+    public int currentCardIndex = 0;
     private int currentTurnIndex = 0;
+    public int skipCount = 0;
 private int resetCount = 0;
 private int maxResetCount = 3;
 
@@ -336,12 +343,7 @@ if (cardColorText != null) cardColorText.text = card.color;
 
 private IEnumerator NextTurn()
 {
-    if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
-    {
-        Debug.Log("✅ Semua kartu sudah dibagikan.");
-        yield break;
-    }
-
+    
     PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
 
     if (currentPlayer.playerName.Contains("You"))
@@ -364,35 +366,53 @@ private IEnumerator NextTurn()
     }
 
     for (int i = 0; i < cardObjects.Count; i++)
+{
+    GameObject obj = cardObjects[i];
+    if (obj == null || takenCards.Contains(obj)) continue;
+
+    Button cardBtn = obj.GetComponent<Button>();
+    if (cardBtn != null)
     {
-        GameObject obj = cardObjects[i];
-        if (obj == null || takenCards.Contains(obj)) continue;
+        cardBtn.onClick.RemoveAllListeners();
+        int index = i;
 
-        Button btn = obj.GetComponent<Button>();
-        if (btn != null)
+        cardBtn.onClick.AddListener(() =>
         {
-            btn.onClick.RemoveAllListeners();
-            int index = i;
-
-            btn.onClick.AddListener(() =>
+            if (!cardTaken)
             {
-                if (!cardTaken)
+                // Buat dua tombol pilihan
+                GameObject activateBtn = Instantiate(activateButtonPrefab, obj.transform);
+                GameObject saveBtn = Instantiate(saveButtonPrefab, obj.transform);
+
+                activateBtn.GetComponentInChildren<Text>().text = "Activate";
+                saveBtn.GetComponentInChildren<Text>().text = "Save";
+
+                activateBtn.GetComponent<Button>().onClick.AddListener(() =>
                 {
-                    TakeCard(cardObjects[index], currentPlayer);
                     cardTaken = true;
-
-                    skipCount = 0; // RESET skip karena ada yang ambil kartu
-
+                    ActivateCard(obj, currentPlayer); // Efek dijalankan
+                    skipCount = 0;
                     currentCardIndex++;
                     currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
                     if (skipButton != null) skipButton.SetActive(false);
                     StartCoroutine(NextTurn());
-                }
-            });
+                });
 
-            clickableButtons.Add(btn);
-        }
+                saveBtn.GetComponent<Button>().onClick.AddListener(() =>
+                {
+                    cardTaken = true;
+                    TakeCard(obj, currentPlayer); // Simpan seperti biasa
+                    skipCount = 0;
+                    currentCardIndex++;
+                    currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+                    if (skipButton != null) skipButton.SetActive(false);
+                    StartCoroutine(NextTurn());
+                });
+            }
+        });
     }
+}
+
 }
 
     else
@@ -406,6 +426,14 @@ private IEnumerator NextTurn()
     {
         skipCount++;
         Debug.Log($"{currentPlayer.playerName} skipped their turn.");
+    }
+    bool botActivates = Random.value < 1f; // 30% bot mengatifkan kartu
+    if (botActivates)
+    {
+    GameObject randomCard = availableCards[Random.Range(0, availableCards.Count)];
+    ActivateCard(randomCard, currentPlayer);
+    currentCardIndex++;
+    skipCount = 0;
     }
     else
     {
@@ -462,10 +490,59 @@ if (skipCount >= turnOrder.Count)
 
     yield break;
 }
-
-
-
 }
+private void ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
+{
+    if (cardObj == null || takenCards.Contains(cardObj)) return;
+
+    // Ambil nama kartu dari UI
+    Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+    string cardName = cardNameText != null ? cardNameText.text : "";
+
+    if (!string.IsNullOrEmpty(cardName))
+    {
+        // Aktifkan efek berdasarkan nama kartu
+        CardEffectManager.ApplyEffect(cardName, currentPlayer);
+        Debug.Log($"🎴 Kartu '{cardName}' diaktifkan untuk {currentPlayer.playerName}");
+    }
+    else
+    {
+        Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
+        return;
+    }
+
+    // Ambil nilai kartu
+    Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
+    int cardValue = 0;
+    if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
+
+    // Kurangi finpoint sesuai nilai kartu
+    currentPlayer.finpoint -= cardValue;
+    if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
+
+    // Tandai kartu sudah diambil
+    takenCards.Add(cardObj);
+
+    // Nonaktifkan klik dan buat buram
+    CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
+    if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
+    cg.alpha = 0.3f;
+    cg.interactable = false;
+    cg.blocksRaycasts = false;
+
+    // Sembunyikan semua anak dari kartu
+    foreach (Transform child in cardObj.transform)
+    {
+        child.gameObject.SetActive(false);
+    }
+
+    // Perbarui UI
+    UpdatePlayerUI();
+}
+
+
+
+
 private void ClearHiddenCards()
 {
     foreach (var cardObj in cardObjects)
@@ -577,7 +654,6 @@ Card card = new Card(cardName, "", cardValue, cardColor);
     // Memperbarui UI dengan jumlah kartu berdasarkan warna
     UpdatePlayerUI();
 }
-
 
 
 
