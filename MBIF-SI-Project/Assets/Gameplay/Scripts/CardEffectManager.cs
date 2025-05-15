@@ -4,6 +4,7 @@ using System.Linq;
 
 public class CardEffectManager
 {
+    
     public static void ApplyEffect(string cardName, PlayerProfile player)
     {
         Debug.Log($"🧪 Menjalankan efek untuk kartu: {cardName}");

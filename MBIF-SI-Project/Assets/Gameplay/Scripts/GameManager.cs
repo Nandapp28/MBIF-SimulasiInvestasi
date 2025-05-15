@@ -16,7 +16,9 @@ public class GameManager : MonoBehaviour
     public GameObject cardPrefab;
     public Transform cardHolderParent;
     public GameObject ticketButtonPrefab;
-public Transform ticketListContainer;
+    public Transform ticketListContainer;
+public Transform canvasTransform;
+
 
 [Header("Button References")]
     public Button bot2Button;
@@ -43,6 +45,11 @@ private bool ticketChosen = false;
 
     
     private int totalCardsToGive = 10;
+    GameObject currentlySelectedCard = null;
+GameObject activateBtnInstance = null;
+GameObject saveBtnInstance = null;
+Vector3 originalScale = Vector3.one;
+
 
     public int currentCardIndex = 0;
     private int currentTurnIndex = 0;
@@ -95,14 +102,18 @@ private void Awake()
     // Tampilkan kembali pilihan tiket
     ShowTicketChoices();
      resetSemesterButton.SetActive(false);
+     
 }
 
 
-    private void Start()
+private void Start()
     {
         player = new PlayerProfile("You");
         if (resetSemesterButton != null)
         resetSemesterButton.SetActive(false);
+        canvasTransform = GameObject.Find("ActiveSaveCard").transform; // ganti dengan nama canvas kamu
+        skipButton.SetActive(false);
+
 
 
         bot2Button.onClick.AddListener(() => SetBotCount(2));
@@ -359,6 +370,7 @@ private IEnumerator NextTurn()
         skipButton.GetComponent<Button>().onClick.AddListener(() =>
         {
             skipButton.SetActive(false);
+            ResetCardSelection();
             skipCount++;
             currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
             StartCoroutine(NextTurn());
@@ -378,40 +390,56 @@ private IEnumerator NextTurn()
 
         cardBtn.onClick.AddListener(() =>
         {
-            if (!cardTaken)
+            if (cardTaken) return;
+
+            // Jika sudah ada kartu lain yang dipilih, reset dulu
+            if (currentlySelectedCard != null && currentlySelectedCard != obj)
             {
-                // Buat dua tombol pilihan
-                GameObject activateBtn = Instantiate(activateButtonPrefab, obj.transform);
-                GameObject saveBtn = Instantiate(saveButtonPrefab, obj.transform);
-
-                activateBtn.GetComponentInChildren<Text>().text = "Activate";
-                saveBtn.GetComponentInChildren<Text>().text = "Save";
-
-                activateBtn.GetComponent<Button>().onClick.AddListener(() =>
-                {
-                    cardTaken = true;
-                    ActivateCard(obj, currentPlayer); // Efek dijalankan
-                    skipCount = 0;
-                    currentCardIndex++;
-                    currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-                    if (skipButton != null) skipButton.SetActive(false);
-                    StartCoroutine(NextTurn());
-                });
-
-                saveBtn.GetComponent<Button>().onClick.AddListener(() =>
-                {
-                    cardTaken = true;
-                    TakeCard(obj, currentPlayer); // Simpan seperti biasa
-                    skipCount = 0;
-                    currentCardIndex++;
-                    currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-                    if (skipButton != null) skipButton.SetActive(false);
-                    StartCoroutine(NextTurn());
-                });
+                ResetCardSelection();
             }
+
+            if (currentlySelectedCard == obj) return; // Sudah aktif
+
+            currentlySelectedCard = obj;
+            originalScale = obj.transform.localScale;
+            obj.transform.localScale = originalScale * 1.1f;
+
+            // Ganti canvasTransform dengan reference ke Canvas utama
+            
+            activateBtnInstance = Instantiate(activateButtonPrefab, canvasTransform);
+            saveBtnInstance = Instantiate(saveButtonPrefab, canvasTransform);
+            // Set posisi tetap di layar (misalnya di tengah bawah laya
+            activateBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(-100, -150);
+            saveBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(100, -150);
+
+
+            activateBtnInstance.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                cardTaken = true;
+                ActivateCard(obj, currentPlayer);
+                ResetCardSelection();
+                skipCount = 0;
+                currentCardIndex++;
+                currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+                if (skipButton != null) skipButton.SetActive(false);
+                StartCoroutine(NextTurn());
+            });
+
+            saveBtnInstance.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                cardTaken = true;
+                TakeCard(obj, currentPlayer);
+                ResetCardSelection();
+                skipCount = 0;
+                currentCardIndex++;
+                currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+                if (skipButton != null) skipButton.SetActive(false);
+                StartCoroutine(NextTurn());
+            });
         });
     }
 }
+
 
 }
 
@@ -427,7 +455,7 @@ private IEnumerator NextTurn()
         skipCount++;
         Debug.Log($"{currentPlayer.playerName} skipped their turn.");
     }
-    bool botActivates = Random.value < 1f; // 30% bot mengatifkan kartu
+    bool botActivates = Random.value < 0.3f; // 30% bot mengatifkan kartu
     if (botActivates)
     {
     GameObject randomCard = availableCards[Random.Range(0, availableCards.Count)];
@@ -540,6 +568,20 @@ private void ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     UpdatePlayerUI();
 }
 
+void ResetCardSelection()
+{
+    if (currentlySelectedCard != null)
+    {
+        currentlySelectedCard.transform.localScale = originalScale;
+    }
+
+    if (activateBtnInstance != null) Destroy(activateBtnInstance);
+    if (saveBtnInstance != null) Destroy(saveBtnInstance);
+
+    currentlySelectedCard = null;
+    activateBtnInstance = null;
+    saveBtnInstance = null;
+}
 
 
 
