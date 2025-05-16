@@ -17,7 +17,9 @@ public class GameManager : MonoBehaviour
     public Transform cardHolderParent;
     public GameObject ticketButtonPrefab;
     public Transform ticketListContainer;
-public Transform canvasTransform;
+    public GameObject activateButtonPrefab;
+    public GameObject saveButtonPrefab;
+    public Transform ActiveSaveContainer;
 
 
 [Header("Button References")]
@@ -26,8 +28,6 @@ public Transform canvasTransform;
     public Button bot4Button;
 public GameObject resetSemesterButton;
 public GameObject skipButton;
-public GameObject activateButtonPrefab;
-public GameObject saveButtonPrefab;
 
 
 
@@ -110,8 +110,7 @@ private void Start()
     {
         player = new PlayerProfile("You");
         if (resetSemesterButton != null)
-        resetSemesterButton.SetActive(false);
-        canvasTransform = GameObject.Find("ActiveSaveCard").transform; // ganti dengan nama canvas kamu
+        resetSemesterButton.SetActive(false); // ganti dengan nama canvas kamu
         skipButton.SetActive(false);
 
 
@@ -406,8 +405,8 @@ private IEnumerator NextTurn()
 
             // Ganti canvasTransform dengan reference ke Canvas utama
             
-            activateBtnInstance = Instantiate(activateButtonPrefab, canvasTransform);
-            saveBtnInstance = Instantiate(saveButtonPrefab, canvasTransform);
+            activateBtnInstance = Instantiate(activateButtonPrefab, ActiveSaveContainer);
+            saveBtnInstance = Instantiate(saveButtonPrefab, ActiveSaveContainer);
             // Set posisi tetap di layar (misalnya di tengah bawah laya
             activateBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(-100, -150);
             saveBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(100, -150);
