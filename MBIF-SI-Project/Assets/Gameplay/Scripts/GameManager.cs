@@ -54,7 +54,7 @@ Vector3 originalScale = Vector3.one;
     public int currentCardIndex = 0;
     private int currentTurnIndex = 0;
     public int skipCount = 0;
-private int resetCount = 0;
+public int resetCount = 0;
 private int maxResetCount = 3;
 
     private Coroutine autoSelectCoroutine; 
@@ -360,21 +360,20 @@ private IEnumerator NextTurn()
 {
     bool cardTaken = false;
     List<Button> clickableButtons = new List<Button>();
-
-    // Tampilkan tombol skip
-    if (skipButton != null)
-    {
-        skipButton.SetActive(true);
-        skipButton.GetComponent<Button>().onClick.RemoveAllListeners();
-        skipButton.GetComponent<Button>().onClick.AddListener(() =>
-        {
-            skipButton.SetActive(false);
-            ResetCardSelection();
-            skipCount++;
-            currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-            StartCoroutine(NextTurn());
-        });
-    }
+ 
+    if (skipButton != null && currentCardIndex < Mathf.Min(totalCardsToGive, cardObjects.Count))
+            {
+                skipButton.SetActive(true);
+                skipButton.GetComponent<Button>().onClick.RemoveAllListeners();
+                skipButton.GetComponent<Button>().onClick.AddListener(() =>
+                {
+                    skipButton.SetActive(false);
+                    ResetCardSelection();
+                    skipCount++;
+                    currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+                    StartCoroutine(NextTurn());
+                });
+            }
 
     for (int i = 0; i < cardObjects.Count; i++)
 {
@@ -446,32 +445,44 @@ private IEnumerator NextTurn()
 {
     yield return new WaitForSeconds(1f);
 
-    List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
+// Cari kartu yang masih tersedia
+List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
 
-    bool botSkips = Random.value < 0.3f; // 30% kemungkinan bot skip
-    if (botSkips || availableCards.Count == 0)
-    {
-        skipCount++;
-        Debug.Log($"{currentPlayer.playerName} skipped their turn.");
-    }
-    bool botActivates = Random.value < 0.3f; // 30% bot mengatifkan kartu
-    if (botActivates)
-    {
-    GameObject randomCard = availableCards[Random.Range(0, availableCards.Count)];
-    ActivateCard(randomCard, currentPlayer);
-    currentCardIndex++;
-    skipCount = 0;
-    }
-    else
-    {
-        GameObject randomCard = availableCards[Random.Range(0, availableCards.Count)];
-        TakeCard(randomCard, currentPlayer);
-        currentCardIndex++;
-        skipCount = 0; // reset jika ada yang ambil
-    }
+// Periksa apakah bot akan skip
+bool botSkips = Random.value < 0.3f; // 30% kemungkinan skip
+if (botSkips || availableCards.Count == 0 || currentPlayer.finpoint <=0)
+{
+    skipCount++;
+    Debug.Log($"{currentPlayer.playerName} skipped their turn.");
 
+    // Ganti giliran ke pemain berikutnya
     currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
     StartCoroutine(NextTurn());
+    yield break; // keluar dari coroutine untuk mencegah aksi lanjutan
+}
+
+// Jika tidak skip, lanjut ke ambil/aktifkan kartu
+bool botActivates = Random.value < 0.7f; // 70% kemungkinan bot menyimpan kartu
+GameObject randomCard = availableCards[Random.Range(0, availableCards.Count)];
+
+if (botActivates)
+{
+    TakeCard(randomCard, currentPlayer);
+    Debug.Log($"{currentPlayer.playerName} took a card.");
+}
+else
+{
+    ActivateCard(randomCard, currentPlayer);
+}
+
+// Reset skip counter karena aksi diambil
+currentCardIndex++;
+skipCount = 0;
+
+// Lanjut ke giliran berikutnya
+currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+StartCoroutine(NextTurn());
+
 }
 
     if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
@@ -490,7 +501,8 @@ private IEnumerator NextTurn()
     }
     else
     {
-        resetSemesterButton.SetActive(false); // Sembunyikan selamanya
+        resetSemesterButton.SetActive(false); 
+        Debug.Log($" Semester Sudah Berakhir");// Sembunyikan selamanya
     }
 }
 // 🔥 Tampilkan tombol reset semester
