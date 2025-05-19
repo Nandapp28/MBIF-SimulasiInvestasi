@@ -110,7 +110,7 @@ private void Awake()
     ShowTicketChoices();
 }
 private void ShowTicketChoices()
-{
+{ 
     ClearTicketButtons();
 
     ticketChosen = false;
