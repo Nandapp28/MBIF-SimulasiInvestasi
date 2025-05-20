@@ -16,7 +16,7 @@ public class PlayerProfile
     public PlayerProfile(string name)
     {
         playerName = name;
-        finpoint = 5; 
+        finpoint = 20; 
         
     }
 
