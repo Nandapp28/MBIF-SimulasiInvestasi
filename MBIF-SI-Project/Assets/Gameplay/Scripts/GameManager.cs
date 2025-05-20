@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
-
+using System.Linq;
 public class GameManager : MonoBehaviour
 {
     public TicketManager ticketManager;
@@ -20,6 +20,9 @@ public class GameManager : MonoBehaviour
     public GameObject activateButtonPrefab;
     public GameObject saveButtonPrefab;
     public Transform ActiveSaveContainer;
+    public GameObject leaderboardPanel;
+    public Transform leaderboardContainer;
+    public GameObject leaderboardEntryPrefab;
 
 
     [Header("Button References")]
@@ -55,7 +58,7 @@ public class GameManager : MonoBehaviour
     private int currentTurnIndex = 0;
     public int skipCount = 0;
     public int resetCount = 0;
-    private int maxResetCount = 3;
+    private int maxResetCount = 1;
 
     private Coroutine autoSelectCoroutine;
 
@@ -397,6 +400,7 @@ public class GameManager : MonoBehaviour
                 else
                 {
                     resetSemesterButton.SetActive(false);
+                    ShowLeaderboard();
                     Debug.Log($" Semester Sudah Berakhir");// Sembunyikan selamanya
                 }
             }
@@ -808,6 +812,44 @@ public class GameManager : MonoBehaviour
             Destroy(child.gameObject);
         }
     }
+private void ShowLeaderboard()
+{
+    leaderboardPanel.SetActive(true);
+
+    // Bersihkan entri sebelumnya
+    foreach (Transform child in leaderboardContainer)
+    {
+        Destroy(child.gameObject);
+    }
+
+    // Gabungkan player dan bot
+    List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
+    allPlayers.AddRange(bots);
+
+    // Urutkan berdasarkan finpoint secara menurun
+    var rankedPlayers = allPlayers.OrderByDescending(p => p.finpoint).ToList();
+
+    // Buat entri leaderboard
+    for (int i = 0; i < rankedPlayers.Count; i++)
+    {
+        PlayerProfile p = rankedPlayers[i];
+
+        GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContainer);
+
+        // Ambil semua komponen Text anak
+        Text[] texts = entry.GetComponentsInChildren<Text>();
+
+        if (texts.Length >= 2)
+        {
+            texts[0].text = $"{i + 1}. {p.playerName}";
+            texts[1].text = $"{p.finpoint} FP";
+        }
+        else
+        {
+            Debug.LogWarning("Leaderboard entry prefab tidak memiliki cukup komponen Text!");
+        }
+    }
+}
 
 
 }

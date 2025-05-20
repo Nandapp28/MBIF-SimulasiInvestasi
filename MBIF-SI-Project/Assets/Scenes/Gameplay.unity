@@ -448,6 +448,10 @@ MonoBehaviour:
   saveButtonPrefab: {fileID: 6948458229094972117, guid: c2ad22c01fce69b4c8bf01e67d090bf5,
     type: 3}
   ActiveSaveContainer: {fileID: 1538081184}
+  leaderboardPanel: {fileID: 1922848544}
+  leaderboardContainer: {fileID: 1922848545}
+  leaderboardEntryPrefab: {fileID: 4197979355773733037, guid: 2f5ebf47fb2a81b4db04c585506efe3e,
+    type: 3}
   bot2Button: {fileID: 97189792}
   bot3Button: {fileID: 58595914}
   bot4Button: {fileID: 1059155221}
@@ -1219,6 +1223,7 @@ RectTransform:
   - {fileID: 1039320210}
   - {fileID: 1108295882}
   - {fileID: 793638544}
+  - {fileID: 1922848545}
   - {fileID: 854983946}
   - {fileID: 1066039579}
   - {fileID: 1538081184}
@@ -2479,6 +2484,68 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1774313967}
   m_CullTransparentMesh: 1
+--- !u!1 &1922848544
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1922848545}
+  - component: {fileID: 1922848546}
+  m_Layer: 5
+  m_Name: ListLeaderboard
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1922848545
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1922848544}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 979288698}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -102, y: 141}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1922848546
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1922848544}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Padding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
+  m_ChildAlignment: 0
+  m_Spacing: 0
+  m_ChildForceExpandWidth: 1
+  m_ChildForceExpandHeight: 1
+  m_ChildControlWidth: 0
+  m_ChildControlHeight: 0
+  m_ChildScaleWidth: 0
+  m_ChildScaleHeight: 0
+  m_ReverseArrangement: 0
 --- !u!1 &2103213291
 GameObject:
   m_ObjectHideFlags: 0
