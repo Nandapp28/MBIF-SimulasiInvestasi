@@ -46,8 +46,7 @@ public class GameManager : MonoBehaviour
     private List<GameObject> ticketButtons = new List<GameObject>();
     private bool ticketChosen = false;
 
-
-    private int totalCardsToGive = 10;
+    private int totalCards = 2;
     GameObject currentlySelectedCard = null;
     GameObject activateBtnInstance = null;
     GameObject saveBtnInstance = null;
@@ -74,7 +73,6 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
-
     // Fungsi yang dipanggil saat semester direset
     public void ResetSemester()
     {
@@ -132,6 +130,12 @@ public class GameManager : MonoBehaviour
         }
 
         ShowTicketChoices();
+        
+    }
+    public int GetPlayerCount()
+    {
+        int totalPlayers = bots.Count +1;
+        return totalPlayers;
     }
     private void ShowTicketChoices()
     {
@@ -139,9 +143,9 @@ public class GameManager : MonoBehaviour
 
         ticketChosen = false;
 
-        int totalPlayers = bots.Count + 1; // 1 player + bots
+        int totalPlayers = bots.Count + 1;
+        // 1 player + bots
         ticketManager.InitializeTickets(totalPlayers); // Isi tiket 1..n
-
         List<int> availableTickets = new List<int>();
         for (int i = 1; i <= totalPlayers; i++)
         {
@@ -288,6 +292,7 @@ public class GameManager : MonoBehaviour
         deck.Add(new Card("Flashbuy", "Take 2 more cards", 8, GetRandomColor(colors)));
 
         ShuffleDeck();
+        int totalCardsToGive = totalCards * (bots.Count + 1);
 
         if (deck.Count < totalCardsToGive)
         {
@@ -333,6 +338,7 @@ public class GameManager : MonoBehaviour
         InitializeDeck();
         ClearAllCardsInHolder();
         cardObjects.Clear();
+        int totalCardsToGive = totalCards * (bots.Count + 1);
 
         for (int i = 0; i < totalCardsToGive && i < deck.Count; i++)
         {
@@ -363,6 +369,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator NextTurn()
     {
+        int totalCardsToGive = totalCards * (bots.Count + 1);
         if (skipCount >= turnOrder.Count)
         {
 
@@ -668,6 +675,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator AutoBotTurn()
     {
+        int totalCardsToGive = totalCards * (bots.Count + 1);
         while (currentCardIndex < totalCardsToGive)
         {
             PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
