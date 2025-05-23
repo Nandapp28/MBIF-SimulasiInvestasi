@@ -6,6 +6,8 @@ using System.Linq;
 public class GameManager : MonoBehaviour
 {
     public TicketManager ticketManager;
+    [SerializeField] private SellingPhaseManager sellingManager;
+
     private CardEffectManager cardEffect;
     private PlayerProfile player;
 
@@ -380,15 +382,12 @@ public class GameManager : MonoBehaviour
 
             yield return new WaitForSeconds(2f);
 
-            if (resetSemesterButton != null)
-            {
-                if (resetCount < maxResetCount)
-                    resetSemesterButton.SetActive(true);
-                else
-                    resetSemesterButton.SetActive(false);
-            }
+            Debug.Log("Memulai fase penjualan...");
+    sellingManager.StartSellingPhase(turnOrder, resetCount, maxResetCount, resetSemesterButton);
 
-            yield break;
+
+    yield break;
+
         }
         if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
         {
@@ -397,23 +396,11 @@ public class GameManager : MonoBehaviour
             yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
             ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
 
-            yield return new WaitForSeconds(2f); // ##Berganti Semester
-            if (resetSemesterButton != null)
-            {
-                if (resetCount < maxResetCount)
-                {
-                    resetSemesterButton.SetActive(true); // Tampilkan hanya jika belum 3x
-                }
-                else
-                {
-                    resetSemesterButton.SetActive(false);
-                    ShowLeaderboard();
-                    Debug.Log($" Semester Sudah Berakhir");// Sembunyikan selamanya
-                }
-            }
-            // 🔥 Tampilkan tombol reset semester
+            Debug.Log("Memulai fase penjualan...");
+    sellingManager.StartSellingPhase(turnOrder, resetCount, maxResetCount, resetSemesterButton);
 
-            yield break;
+
+    yield break;
         }
 
         PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
@@ -578,6 +565,55 @@ public class GameManager : MonoBehaviour
 
 
     }
+    private void StartSellingPhase()
+{
+    Dictionary<string, int> colorSellValues = new Dictionary<string, int>
+    {
+        { "Red", 30 },
+        { "Blue", 20 },
+        { "Green", 15 },
+        { "Orange", 10 }
+    };
+
+    foreach (var player in turnOrder)
+    {
+        int earnedFinpoints = 0;
+        List<Card> soldCards = new List<Card>();
+
+        foreach (var card in player.cards)
+        {
+            if (colorSellValues.TryGetValue(card.color, out int sellValue))
+            {
+                earnedFinpoints += sellValue;
+                soldCards.Add(card);
+            }
+        }
+
+        // Tambah finpoint pemain
+        player.finpoint += earnedFinpoints;
+
+        // Hapus kartu yang dijual
+        foreach (var sold in soldCards)
+        {
+            player.cards.Remove(sold);
+        }
+        UpdatePlayerUI();
+        if (resetSemesterButton != null)
+            {
+                if (resetCount < maxResetCount)
+                    resetSemesterButton.SetActive(true);
+                else
+                    resetSemesterButton.SetActive(false);
+            }
+
+
+        Debug.Log($"{player.playerName} menjual {soldCards.Count} kartu dan mendapatkan {earnedFinpoints} finpoints. Finpoint sekarang: {player.finpoint}");
+    }
+
+    // Setelah fase penjualan, kamu bisa lanjut ke fase berikutnya atau tampilkan hasil.
+    Debug.Log("Fase penjualan selesai.");
+}
+
     private void ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     {
         if (cardObj == null || takenCards.Contains(cardObj)) return;
@@ -759,7 +795,7 @@ public class GameManager : MonoBehaviour
 
 
 
-    private void UpdatePlayerUI()
+    public void UpdatePlayerUI()
     {
         ClearPlayerListUI();
         for (int i = 0; i < turnOrder.Count; i++)
@@ -820,7 +856,7 @@ public class GameManager : MonoBehaviour
             Destroy(child.gameObject);
         }
     }
-private void ShowLeaderboard()
+public void ShowLeaderboard()
 {
     leaderboardPanel.SetActive(true);
 
