@@ -510,7 +510,7 @@ public class GameManager : MonoBehaviour
             List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
 
             // Periksa apakah bot akan skip
-            bool botSkips = Random.value < 0.3f; // 30% kemungkinan skip
+            bool botSkips = Random.value < 0f; // 30% kemungkinan skip
             if (botSkips)
             {
                 skipCount++;
@@ -523,7 +523,7 @@ public class GameManager : MonoBehaviour
             }
 
             // Jika tidak skip, lanjut ke ambil/aktifkan kartu
-            bool botActivates = Random.value < 0.7f; // 70% kemungkinan bot menyimpan kartu
+            bool botActivates = Random.value < 1f; // 70% kemungkinan bot menyimpan kartu
                                                      // Filter kartu yang bisa diambil oleh bot berdasarkan finpoint
             List<GameObject> affordableCards = availableCards.FindAll(card =>
             {
@@ -565,55 +565,6 @@ public class GameManager : MonoBehaviour
 
 
     }
-    private void StartSellingPhase()
-{
-    Dictionary<string, int> colorSellValues = new Dictionary<string, int>
-    {
-        { "Red", 30 },
-        { "Blue", 20 },
-        { "Green", 15 },
-        { "Orange", 10 }
-    };
-
-    foreach (var player in turnOrder)
-    {
-        int earnedFinpoints = 0;
-        List<Card> soldCards = new List<Card>();
-
-        foreach (var card in player.cards)
-        {
-            if (colorSellValues.TryGetValue(card.color, out int sellValue))
-            {
-                earnedFinpoints += sellValue;
-                soldCards.Add(card);
-            }
-        }
-
-        // Tambah finpoint pemain
-        player.finpoint += earnedFinpoints;
-
-        // Hapus kartu yang dijual
-        foreach (var sold in soldCards)
-        {
-            player.cards.Remove(sold);
-        }
-        UpdatePlayerUI();
-        if (resetSemesterButton != null)
-            {
-                if (resetCount < maxResetCount)
-                    resetSemesterButton.SetActive(true);
-                else
-                    resetSemesterButton.SetActive(false);
-            }
-
-
-        Debug.Log($"{player.playerName} menjual {soldCards.Count} kartu dan mendapatkan {earnedFinpoints} finpoints. Finpoint sekarang: {player.finpoint}");
-    }
-
-    // Setelah fase penjualan, kamu bisa lanjut ke fase berikutnya atau tampilkan hasil.
-    Debug.Log("Fase penjualan selesai.");
-}
-
     private void ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     {
         if (cardObj == null || takenCards.Contains(cardObj)) return;
