@@ -510,7 +510,7 @@ public class GameManager : MonoBehaviour
             List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
 
             // Periksa apakah bot akan skip
-            bool botSkips = Random.value < 0f; // 30% kemungkinan skip
+            bool botSkips = Random.value < 0.3f; // 30% kemungkinan skip
             if (botSkips)
             {
                 skipCount++;
@@ -523,7 +523,7 @@ public class GameManager : MonoBehaviour
             }
 
             // Jika tidak skip, lanjut ke ambil/aktifkan kartu
-            bool botActivates = Random.value < 1f; // 70% kemungkinan bot menyimpan kartu
+            bool botActivates = Random.value < 0.7f; // 70% kemungkinan bot menyimpan kartu
                                                      // Filter kartu yang bisa diambil oleh bot berdasarkan finpoint
             List<GameObject> affordableCards = availableCards.FindAll(card =>
             {

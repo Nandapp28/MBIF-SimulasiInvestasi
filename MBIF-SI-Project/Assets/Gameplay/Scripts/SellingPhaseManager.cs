@@ -74,51 +74,59 @@ public class SellingPhaseManager : MonoBehaviour
         confirmSellButton.onClick.RemoveAllListeners();
         foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
 
-        colorSliders.Clear();
-        sliderValueTexts.Clear();
-
-        var groupedCards = player.cards.GroupBy(c => c.color).ToDictionary(g => g.Key, g => g.Count());
+        Dictionary<string, int> currentValues = new Dictionary<string, int>();
+        Dictionary<string, int> maxValues = player.cards
+            .GroupBy(c => c.color)
+            .ToDictionary(g => g.Key, g => g.Count());
 
         foreach (var color in colorSellValues.Keys)
         {
             GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
-            row.transform.Find("ColorLabel").GetComponent<Text>().text = $"{color}";
-            Slider slider = row.transform.Find("SellSlider").GetComponent<Slider>();
+            row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
+
             Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
+            Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
+            Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
 
-            int maxCards = groupedCards.ContainsKey(color) ? groupedCards[color] : 0;
-            slider.maxValue = maxCards;
-            slider.value = 0;
-            valueText.text = "0";
+            int currentValue = 0;
+            int maxValue = maxValues.ContainsKey(color) ? maxValues[color] : 0;
+            currentValues[color] = currentValue;
 
-            colorSliders[color] = slider;
-            sliderValueTexts[color] = valueText;
+            valueText.text = currentValue.ToString();
 
-            slider.onValueChanged.AddListener((val) =>
+            plusButton.onClick.AddListener(() =>
             {
-                valueText.text = ((int)val).ToString();
+                if (currentValues[color] < maxValue)
+                {
+                    currentValues[color]++;
+                    valueText.text = currentValues[color].ToString();
+                }
+            });
+
+            minusButton.onClick.AddListener(() =>
+            {
+                if (currentValues[color] > 0)
+                {
+                    currentValues[color]--;
+                    valueText.text = currentValues[color].ToString();
+                }
             });
         }
 
         confirmSellButton.onClick.AddListener(() =>
-{
-    SellInput input = new SellInput();
-    foreach (var color in colorSellValues.Keys)
-    {
-        input.colorSellCounts[color] = (int)colorSliders[color].value;
+        {
+            SellInput input = new SellInput();
+            foreach (var color in colorSellValues.Keys)
+            {
+                input.colorSellCounts[color] = currentValues[color];
+            }
+
+            playerSellInputs[currentPlayer.playerName] = input;
+            sellingUI.SetActive(false);
+            ProcessSellingPhase();
+        });
     }
 
-    playerSellInputs[currentPlayer.playerName] = input;
-
-    sellingUI.SetActive(false);
-
-    // 🔥 Tambahkan ini
-
-    // 🔥 Baru jalankan proses seluruh pemain
-    ProcessSellingPhase();
-});
-
-    }
 
 
     private void ProcessSellingPhase()
