@@ -13,15 +13,13 @@ public class SellingPhaseManager : MonoBehaviour
     public GameObject sellingUI;
     public Button confirmSellButton;
     public Transform colorSellPanelContainer;
-    public GameObject colorSellRowPrefab; // Prefab: satu baris warna, slider, text
+    public GameObject colorSellRowPrefab;
 
-    private Dictionary<string, int> colorSellValues = new Dictionary<string, int>
-    {
-        { "Red", 2 },
-        { "Blue", 4 },
-        { "Green", 5 },
-        { "Orange", 6 }
-    };
+    [Header("IPO Settings")]
+    public List<IPOData> ipoDataList = new List<IPOData>();
+    public float ipoSpacing = 0.5f;
+    private Dictionary<string, Vector3> initialPositions = new Dictionary<string, Vector3>();
+
 
     private Dictionary<string, SellInput> playerSellInputs = new Dictionary<string, SellInput>();
     private PlayerProfile currentPlayer;
@@ -29,9 +27,21 @@ public class SellingPhaseManager : MonoBehaviour
     private int currentResetCount;
     private int currentMaxResetCount;
 
-    // Store UI sliders for easy access
-    private Dictionary<string, Slider> colorSliders = new Dictionary<string, Slider>();
-    private Dictionary<string, Text> sliderValueTexts = new Dictionary<string, Text>();
+    private Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
+    {
+        { "Red",    new int[] { 1, 3, 4, 5, 6, 8, 9 } },
+        { "Blue",   new int[] { 1, 3, 4, 5, 6, 8, 9 } },
+        { "Green",  new int[] { 1, 3, 4, 5, 6, 8, 9 } },
+        { "Orange", new int[] { 1, 3, 4, 5, 6, 8, 9 } }
+    };
+
+    [System.Serializable]
+    public class IPOData
+    {
+        public string color;
+        public int ipoIndex; // Range: -3 to 3
+        public GameObject colorObject;
+    }
 
     public class SellInput
     {
@@ -43,6 +53,22 @@ public class SellingPhaseManager : MonoBehaviour
             { "Orange", 0 }
         };
     }
+    private void Start()
+    {
+        foreach (var data in ipoDataList)
+{
+    if (data.colorObject != null && !initialPositions.ContainsKey(data.color))
+    {
+        initialPositions[data.color] = data.colorObject.transform.position;
+    }
+}
+
+    }
+    private void Update()
+    {
+        UpdateIPOVisuals();
+    }
+
 
     public void StartSellingPhase(List<PlayerProfile> players, int resetCount, int maxResetCount, GameObject resetButton)
     {
@@ -52,11 +78,9 @@ public class SellingPhaseManager : MonoBehaviour
         resetSemesterButton = resetButton;
 
         playerSellInputs.Clear();
-
-        // Ambil pemain manusia pertama (misal game 1p)
         currentPlayer = players.FirstOrDefault(p => p.playerName == "You");
 
-
+        UpdateIPOVisuals();
 
         if (currentPlayer != null)
         {
@@ -79,7 +103,7 @@ public class SellingPhaseManager : MonoBehaviour
             .GroupBy(c => c.color)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        foreach (var color in colorSellValues.Keys)
+        foreach (var color in ipoPriceMap.Keys)
         {
             GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
             row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
@@ -91,7 +115,6 @@ public class SellingPhaseManager : MonoBehaviour
             int currentValue = 0;
             int maxValue = maxValues.ContainsKey(color) ? maxValues[color] : 0;
             currentValues[color] = currentValue;
-
             valueText.text = currentValue.ToString();
 
             plusButton.onClick.AddListener(() =>
@@ -116,7 +139,7 @@ public class SellingPhaseManager : MonoBehaviour
         confirmSellButton.onClick.AddListener(() =>
         {
             SellInput input = new SellInput();
-            foreach (var color in colorSellValues.Keys)
+            foreach (var color in ipoPriceMap.Keys)
             {
                 input.colorSellCounts[color] = currentValues[color];
             }
@@ -126,8 +149,6 @@ public class SellingPhaseManager : MonoBehaviour
             ProcessSellingPhase();
         });
     }
-
-
 
     private void ProcessSellingPhase()
     {
@@ -156,11 +177,9 @@ public class SellingPhaseManager : MonoBehaviour
             }
             else
             {
-                // Bot: jual acak berdasarkan peluang
-                foreach (var color in colorSellValues.Keys)
+                foreach (var color in ipoPriceMap.Keys)
                 {
                     int countToSell = 0;
-
                     if (cardsByColor.ContainsKey(color))
                     {
                         List<Card> ownedCards = cardsByColor[color];
@@ -174,17 +193,14 @@ public class SellingPhaseManager : MonoBehaviour
                             _ => 0.5f
                         };
 
-                        // Uji peluang untuk setiap kartu yang dimiliki
                         foreach (var card in ownedCards)
                         {
                             if (Random.value < sellChance)
                                 countToSell++;
                         }
                     }
-
                     sellCounts[color] = countToSell;
                 }
-
             }
 
             foreach (var color in sellCounts.Keys)
@@ -194,7 +210,8 @@ public class SellingPhaseManager : MonoBehaviour
                 {
                     var availableCards = cardsByColor[color];
                     int actualSell = Mathf.Min(toSell, availableCards.Count);
-                    earnedFinpoints += actualSell * colorSellValues[color];
+                    int price = GetCurrentColorValue(color);
+                    earnedFinpoints += actualSell * price;
                     soldCards.AddRange(availableCards.Take(actualSell));
                 }
             }
@@ -212,13 +229,9 @@ public class SellingPhaseManager : MonoBehaviour
 
         if (resetSemesterButton != null)
         {
-            if (currentResetCount < currentMaxResetCount)
+            resetSemesterButton.SetActive(currentResetCount < currentMaxResetCount);
+            if (currentResetCount >= currentMaxResetCount)
             {
-                resetSemesterButton.SetActive(true);
-            }
-            else
-            {
-                resetSemesterButton.SetActive(false);
                 gameManager.ShowLeaderboard();
                 Debug.Log("Semester sudah berakhir");
             }
@@ -226,5 +239,32 @@ public class SellingPhaseManager : MonoBehaviour
 
         Debug.Log("Fase penjualan selesai.");
     }
+
+    private int GetCurrentColorValue(string color)
+    {
+        IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);
+        if (data != null && ipoPriceMap.ContainsKey(color))
+        {
+            int clampedIndex = Mathf.Clamp(data.ipoIndex + 3, 0, 6); // Index: -3..3 → 0..6
+            return ipoPriceMap[color][clampedIndex];
+        }
+        return 0;
+    }
+
+    private void UpdateIPOVisuals()
+{
+    foreach (var data in ipoDataList)
+    {
+        if (data.colorObject != null && initialPositions.ContainsKey(data.color))
+        {
+            Vector3 basePos = initialPositions[data.color];
+            Vector3 offset = new Vector3(data.ipoIndex * ipoSpacing, 0, 0); // Atau ubah ke .z jika perlu
+            data.colorObject.transform.position = basePos + offset;
+
+            Debug.Log($"[{data.color}] Posisi awal: {basePos}, Index: {data.ipoIndex}, Posisi baru: {basePos + offset}");
+        }
+    }
+}
+
 
 }
