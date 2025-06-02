@@ -19,6 +19,7 @@ public class SellingPhaseManager : MonoBehaviour
     public List<IPOData> ipoDataList = new List<IPOData>();
     public float ipoSpacing = 0.5f;
     private Dictionary<string, Vector3> initialPositions = new Dictionary<string, Vector3>();
+    private HashSet<string> bonusMultiplierColors = new HashSet<string>();
 
 
     private Dictionary<string, SellInput> playerSellInputs = new Dictionary<string, SellInput>();
@@ -42,6 +43,25 @@ public class SellingPhaseManager : MonoBehaviour
         public int ipoIndex; // Range: -3 to 3
         public GameObject colorObject;
     }
+    private int GetCurrentColorValue(string color)
+    {
+        IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);
+        if (data != null && ipoPriceMap.ContainsKey(color))
+        {
+            int index = data.ipoIndex;
+
+            // Clamp khusus Green
+            if (color == "Green")
+                index = Mathf.Clamp(index, -2, 2);
+            else
+                index = Mathf.Clamp(index, -3, 3);
+
+            int clampedIndex = index + 3; // convert -3..3 → 0..6
+            return ipoPriceMap[color][clampedIndex];
+        }
+        return 0;
+    }
+
 
     public class SellInput
     {
@@ -56,18 +76,24 @@ public class SellingPhaseManager : MonoBehaviour
     private void Start()
     {
         foreach (var data in ipoDataList)
-{
-    if (data.colorObject != null && !initialPositions.ContainsKey(data.color))
-    {
-        initialPositions[data.color] = data.colorObject.transform.position;
-    }
-}
+        {
+            if (data.colorObject != null && !initialPositions.ContainsKey(data.color))
+            {
+                initialPositions[data.color] = data.colorObject.transform.position;
+            }
+        }
 
     }
     private void Update()
     {
+        foreach (var data in ipoDataList)
+        {
+            ValidateAndForceSellIfNeeded(data);
+        }
+
         UpdateIPOVisuals();
     }
+
 
 
     public void StartSellingPhase(List<PlayerProfile> players, int resetCount, int maxResetCount, GameObject resetButton)
@@ -152,6 +178,8 @@ public class SellingPhaseManager : MonoBehaviour
 
     private void ProcessSellingPhase()
     {
+
+
         foreach (var player in currentPlayers)
         {
             int earnedFinpoints = 0;
@@ -211,6 +239,11 @@ public class SellingPhaseManager : MonoBehaviour
                     var availableCards = cardsByColor[color];
                     int actualSell = Mathf.Min(toSell, availableCards.Count);
                     int price = GetCurrentColorValue(color);
+                    if (bonusMultiplierColors.Contains(color))
+                    {
+                        price *= 2;
+                    }
+
                     earnedFinpoints += actualSell * price;
                     soldCards.AddRange(availableCards.Take(actualSell));
                 }
@@ -239,32 +272,72 @@ public class SellingPhaseManager : MonoBehaviour
 
         Debug.Log("Fase penjualan selesai.");
     }
-
-    private int GetCurrentColorValue(string color)
+    private void ValidateAndForceSellIfNeeded(IPOData data)
     {
-        IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);
-        if (data != null && ipoPriceMap.ContainsKey(color))
+        int index = data.ipoIndex;
+        bool isGreen = data.color == "Green";
+        int min = isGreen ? -2 : -3;
+        int max = isGreen ? 2 : 3;
+
+        if (index < min)
         {
-            int clampedIndex = Mathf.Clamp(data.ipoIndex + 3, 0, 6); // Index: -3..3 → 0..6
-            return ipoPriceMap[color][clampedIndex];
+            Debug.LogWarning($"[FORCED SELL] {data.color} index terlalu rendah ({index}) — Forced sell dijalankan.");
+
+            data.ipoIndex = 0;
+
+            foreach (var player in currentPlayers)
+            {
+                var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
+                int cardCount = cardsToSell.Count;
+                if (cardCount == 0) continue;
+
+                int totalValue = 0;
+
+                player.finpoint += totalValue;
+                foreach (var c in cardsToSell)
+                    player.cards.Remove(c);
+
+                gameManager.UpdatePlayerUI();
+                Debug.Log($"[FORCED SELL] {player.playerName} menjual {cardCount} kartu {data.color} & mendapat {totalValue} finpoints.");
+            }
         }
-        return 0;
+        else if (index > max)
+        {
+            Debug.LogWarning($"[IPO HIGH] {data.color} index terlalu tinggi ({index}) — index direset ke 0, harga jual {data.color} dikali 2.");
+            data.ipoIndex = 0;
+
+            // Flag bonus multiplier saat jual (gunakan di ProcessSellingPhase)
+            bonusMultiplierColors.Add(data.color);
+        }
     }
+
+
+
+
 
     private void UpdateIPOVisuals()
-{
-    foreach (var data in ipoDataList)
     {
-        if (data.colorObject != null && initialPositions.ContainsKey(data.color))
+        foreach (var data in ipoDataList)
         {
-            Vector3 basePos = initialPositions[data.color];
-            Vector3 offset = new Vector3(data.ipoIndex * ipoSpacing, 0, 0); // Atau ubah ke .z jika perlu
-            data.colorObject.transform.position = basePos + offset;
+            if (data.colorObject != null && initialPositions.ContainsKey(data.color))
+            {
+                int clampedIndex = data.ipoIndex;
 
-            Debug.Log($"[{data.color}] Posisi awal: {basePos}, Index: {data.ipoIndex}, Posisi baru: {basePos + offset}");
+                // Clamp khusus untuk Green
+                if (data.color == "Green")
+                    clampedIndex = Mathf.Clamp(clampedIndex, -2, 2);
+                else
+                    clampedIndex = Mathf.Clamp(clampedIndex, -3, 3);
+
+                Vector3 basePos = initialPositions[data.color];
+                Vector3 offset = new Vector3(clampedIndex * ipoSpacing, 0, 0); // Atau ubah ke .z kalau pakai sumbu Z
+                data.colorObject.transform.position = basePos + offset;
+
+                Debug.Log($"[{data.color}] Posisi awal: {basePos}, Index: {clampedIndex}, Posisi baru: {basePos + offset}");
+            }
         }
     }
-}
+
 
 
 }
