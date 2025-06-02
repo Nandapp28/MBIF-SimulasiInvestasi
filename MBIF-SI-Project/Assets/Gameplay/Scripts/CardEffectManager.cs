@@ -4,8 +4,8 @@ using System.Linq;
 
 public class CardEffectManager
 {
-    
-    public static void ApplyEffect(string cardName, PlayerProfile player)
+
+    public static void ApplyEffect(string cardName, PlayerProfile player, string color)
     {
         Debug.Log($"🧪 Menjalankan efek untuk kartu: {cardName}");
 
@@ -21,6 +21,9 @@ public class CardEffectManager
 
             case "Trade Offer":
                 TradeOfferEffect(player);
+                break;
+            case "Stock Split":
+                StockSplitEffect(player, color);
                 break;
 
             default:
@@ -46,4 +49,34 @@ public class CardEffectManager
     {
         Debug.Log("📦 Efek trade offer dijalankan (placeholder)");
     }
+    
+    private static void StockSplitEffect(PlayerProfile player, string color)
+{
+    int reductionAmount = 1;
+    string affectedColor = color;
+
+    // Cari instance SellingPhaseManager di scene
+    SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
+    if (spm == null)
+    {
+        Debug.LogError("SellingPhaseManager tidak ditemukan di scene!");
+        return;
+    }
+
+    // Misalnya kita ingin mengurangi ipoIndex warna "Red"
+    var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == affectedColor);
+    if (ipoData != null)
+    {
+        ipoData.ipoIndex -= reductionAmount; // Cegah nilai negatif
+
+        Debug.Log($"📉 Stock Split: IPO index warna {ipoData.color} dikurangi sebanyak -{reductionAmount}. Nilai sekarang: {ipoData.ipoIndex}");
+    }
+    else
+    {
+        Debug.LogWarning("IPOData untuk warna 'Red' tidak ditemukan.");
+    }
+}
+
+
+
 }

@@ -40,7 +40,7 @@ public class SellingPhaseManager : MonoBehaviour
     public class IPOData
     {
         public string color;
-        public int ipoIndex; // Range: -3 to 3
+        public int ipoIndex = 0; // Range: -3 to 3
         public GameObject colorObject;
     }
     private int GetCurrentColorValue(string color)
@@ -88,7 +88,7 @@ public class SellingPhaseManager : MonoBehaviour
     {
         foreach (var data in ipoDataList)
         {
-            ValidateAndForceSellIfNeeded(data);
+           HandleCrashMultiplier(data);
         }
 
         UpdateIPOVisuals();
@@ -272,45 +272,43 @@ public class SellingPhaseManager : MonoBehaviour
 
         Debug.Log("Fase penjualan selesai.");
     }
-    private void ValidateAndForceSellIfNeeded(IPOData data)
+    private void HandleCrashMultiplier(IPOData data)
+{
+    int index = data.ipoIndex;
+    bool isGreen = data.color == "Green";
+    int min = isGreen ? -2 : -3;
+    int max = isGreen ? 2 : 3;
+
+    if (index < min)
     {
-        int index = data.ipoIndex;
-        bool isGreen = data.color == "Green";
-        int min = isGreen ? -2 : -3;
-        int max = isGreen ? 2 : 3;
+        Debug.LogWarning($"[CRASH] {data.color} index terlalu rendah ({index}) — Market crash, semua kartu dijual otomatis.");
+        data.ipoIndex = 0;
 
-        if (index < min)
+        foreach (var player in currentPlayers)
         {
-            Debug.LogWarning($"[FORCED SELL] {data.color} index terlalu rendah ({index}) — Forced sell dijalankan.");
+            var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
+            int cardCount = cardsToSell.Count;
+            if (cardCount == 0) continue;
 
-            data.ipoIndex = 0;
+            int totalValue = 0;
 
-            foreach (var player in currentPlayers)
-            {
-                var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
-                int cardCount = cardsToSell.Count;
-                if (cardCount == 0) continue;
+            player.finpoint += totalValue;
+            foreach (var c in cardsToSell)
+                player.cards.Remove(c);
 
-                int totalValue = 0;
-
-                player.finpoint += totalValue;
-                foreach (var c in cardsToSell)
-                    player.cards.Remove(c);
-
-                gameManager.UpdatePlayerUI();
-                Debug.Log($"[FORCED SELL] {player.playerName} menjual {cardCount} kartu {data.color} & mendapat {totalValue} finpoints.");
-            }
-        }
-        else if (index > max)
-        {
-            Debug.LogWarning($"[IPO HIGH] {data.color} index terlalu tinggi ({index}) — index direset ke 0, harga jual {data.color} dikali 2.");
-            data.ipoIndex = 0;
-
-            // Flag bonus multiplier saat jual (gunakan di ProcessSellingPhase)
-            bonusMultiplierColors.Add(data.color);
+            gameManager.UpdatePlayerUI();
+            Debug.Log($"[CRASH] {player.playerName} menjual {cardCount} kartu {data.color} & mendapat {totalValue} finpoints.");
         }
     }
+    else if (index > max)
+    {
+        Debug.LogWarning($"[MULTIPLIER] {data.color} index terlalu tinggi ({index}) — index direset ke 0, harga jual {data.color} dikali 2.");
+        data.ipoIndex = 0;
 
+        // Flag bonus multiplier saat jual (digunakan di ProcessSellingPhase)
+        bonusMultiplierColors.Add(data.color);
+    }
+}
 
 
 

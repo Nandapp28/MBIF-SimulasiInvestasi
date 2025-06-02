@@ -289,7 +289,7 @@ public class GameManager : MonoBehaviour
         // Tambahkan kartu default dengan warna acak
         deck.Add(new Card("Trade Offer", "Deal 5 damage", 4, GetRandomColor(colors)));
         deck.Add(new Card("Heal", "Recover 3 HP", 2, GetRandomColor(colors)));
-        deck.Add(new Card("Shield", "Block next attack", 3, GetRandomColor(colors)));
+        deck.Add(new Card("Stock Split", "Block next attack", 3, GetRandomColor(colors)));
         deck.Add(new Card("Steal", "Take 1 card", 5, GetRandomColor(colors)));
         deck.Add(new Card("Flashbuy", "Take 2 more cards", 8, GetRandomColor(colors)));
 
@@ -570,20 +570,26 @@ public class GameManager : MonoBehaviour
         if (cardObj == null || takenCards.Contains(cardObj)) return;
 
         // Ambil nama kartu dari UI
-        Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
-        string cardName = cardNameText != null ? cardNameText.text : "";
+        // Ambil nama kartu
+Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+string cardName = cardNameText != null ? cardNameText.text : "";
 
-        if (!string.IsNullOrEmpty(cardName))
-        {
-            // Aktifkan efek berdasarkan nama kartu
-            CardEffectManager.ApplyEffect(cardName, currentPlayer);
-            Debug.Log($"🎴 Kartu '{cardName}' diaktifkan untuk {currentPlayer.playerName}");
-        }
-        else
-        {
-            Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
-            return;
-        }
+// Ambil warna kartu
+Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
+string cardColor = cardColorText != null ? cardColorText.text : "Red";
+
+if (!string.IsNullOrEmpty(cardName))
+{
+    // Kirim nama, pemain, dan warna ke efek
+    CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor);
+    Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
+}
+else
+{
+    Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
+    return;
+}
+
 
         // Ambil nilai kartu
         Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
