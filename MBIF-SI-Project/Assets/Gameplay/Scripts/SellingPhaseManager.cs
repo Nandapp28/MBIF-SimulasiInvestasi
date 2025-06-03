@@ -28,12 +28,12 @@ public class SellingPhaseManager : MonoBehaviour
     private int currentResetCount;
     private int currentMaxResetCount;
 
-    private Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
+    public Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
-        { "Red",    new int[] { 1, 3, 4, 5, 6, 8, 9 } },
-        { "Blue",   new int[] { 1, 3, 4, 5, 6, 8, 9 } },
-        { "Green",  new int[] { 1, 3, 4, 5, 6, 8, 9 } },
-        { "Orange", new int[] { 1, 3, 4, 5, 6, 8, 9 } }
+        { "Red",    new int[] { 1, 2, 3, 5, 6, 7, 8 } },
+        { "Blue",   new int[] { 1, 3, 4, 5, 6, 7, 9 } },
+        { "Green",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
+        { "Orange", new int[] { 1, 2, 4, 5, 6, 8, 9 } }
     };
 
     [System.Serializable]
@@ -86,10 +86,7 @@ public class SellingPhaseManager : MonoBehaviour
     }
     private void Update()
     {
-        foreach (var data in ipoDataList)
-        {
-           HandleCrashMultiplier(data);
-        }
+
 
         UpdateIPOVisuals();
     }
@@ -272,7 +269,7 @@ public class SellingPhaseManager : MonoBehaviour
 
         Debug.Log("Fase penjualan selesai.");
     }
-    private void HandleCrashMultiplier(IPOData data)
+    public void HandleCrashMultiplier(IPOData data, PlayerProfile affectedPlayer)
 {
     int index = data.ipoIndex;
     bool isGreen = data.color == "Green";
@@ -284,31 +281,32 @@ public class SellingPhaseManager : MonoBehaviour
         Debug.LogWarning($"[CRASH] {data.color} index terlalu rendah ({index}) — Market crash, semua kartu dijual otomatis.");
         data.ipoIndex = 0;
 
-        foreach (var player in currentPlayers)
+        // ❗ Hanya pemain yang terkena efek
+        var cardsToSell = affectedPlayer.cards.Where(card => card.color == data.color).ToList();
+        int cardCount = cardsToSell.Count;
+        if (cardCount > 0)
         {
-            var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
-            int cardCount = cardsToSell.Count;
-            if (cardCount == 0) continue;
-
             int totalValue = 0;
-
-            player.finpoint += totalValue;
             foreach (var c in cardsToSell)
-                player.cards.Remove(c);
-
-            gameManager.UpdatePlayerUI();
-            Debug.Log($"[CRASH] {player.playerName} menjual {cardCount} kartu {data.color} & mendapat {totalValue} finpoints.");
+            {
+                totalValue += GetCurrentColorValue(data.color); // Gunakan metode existing untuk ambil nilai
+                affectedPlayer.cards.Remove(c);
+            }
+            affectedPlayer.finpoint += 0;
+            Debug.Log($"[CRASH] {affectedPlayer.playerName} mengembalikan {cardCount} saham {data.color} ke bank dan tidak mendapatkan apa apa.");
         }
+
+        gameManager.UpdatePlayerUI();
     }
     else if (index > max)
     {
         Debug.LogWarning($"[MULTIPLIER] {data.color} index terlalu tinggi ({index}) — index direset ke 0, harga jual {data.color} dikali 2.");
         data.ipoIndex = 0;
 
-        // Flag bonus multiplier saat jual (digunakan di ProcessSellingPhase)
-        bonusMultiplierColors.Add(data.color);
+        bonusMultiplierColors.Add(data.color); // Tetap global
     }
 }
+
 
 
 

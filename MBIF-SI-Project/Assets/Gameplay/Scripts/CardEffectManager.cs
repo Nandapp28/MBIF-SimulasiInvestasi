@@ -52,10 +52,6 @@ public class CardEffectManager
     
     private static void StockSplitEffect(PlayerProfile player, string color)
 {
-    int reductionAmount = 1;
-    string affectedColor = color;
-
-    // Cari instance SellingPhaseManager di scene
     SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
     if (spm == null)
     {
@@ -63,19 +59,49 @@ public class CardEffectManager
         return;
     }
 
-    // Misalnya kita ingin mengurangi ipoIndex warna "Red"
-    var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == affectedColor);
-    if (ipoData != null)
+    var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
+    if (ipoData == null)
     {
-        ipoData.ipoIndex -= reductionAmount; // Cegah nilai negatif
+        Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
+        return;
+    }
 
-        Debug.Log($"📉 Stock Split: IPO index warna {ipoData.color} dikurangi sebanyak -{reductionAmount}. Nilai sekarang: {ipoData.ipoIndex}");
-    }
-    else
+    int currentIndex = ipoData.ipoIndex;
+
+    // ✅ Jika sudah di -3, kurangi lagi jadi -4 (walau harga tidak ada)
+    if (currentIndex == -3)
     {
-        Debug.LogWarning("IPOData untuk warna 'Red' tidak ditemukan.");
+        ipoData.ipoIndex = -4;
+        Debug.LogWarning($"⚠️ IPO index untuk {color} sudah di -3, diturunkan paksa ke -4.");
+        spm.HandleCrashMultiplier(ipoData, player);
+        return;
     }
+
+    // 1. Dapatkan harga sekarang
+    int clampedIndex = color == "Green"
+        ? Mathf.Clamp(currentIndex, -2, 2)
+        : Mathf.Clamp(currentIndex, -3, 3);
+
+    int priceIndex = clampedIndex + 3;
+    int currentPrice = spm.ipoPriceMap[color][priceIndex];
+
+    // 2. Hitung harga baru & cari index baru
+    int newPrice = Mathf.CeilToInt(currentPrice / 2f);
+    int[] priceArray = spm.ipoPriceMap[color];
+    int closestPrice = priceArray.OrderBy(p => Mathf.Abs(p - newPrice)).First();
+    int newIndexInArray = System.Array.IndexOf(priceArray, closestPrice);
+    int newIpoIndex = newIndexInArray - 3;
+
+    ipoData.ipoIndex = newIpoIndex;
+
+    Debug.Log($"📉 Stock Split: IPO {color} turun dari {currentPrice} ke {closestPrice} (Index {ipoData.ipoIndex})");
+
+    // 3. Jalankan pengecekan crash
+    spm.HandleCrashMultiplier(ipoData, player);
 }
+
+
+
 
 
 
