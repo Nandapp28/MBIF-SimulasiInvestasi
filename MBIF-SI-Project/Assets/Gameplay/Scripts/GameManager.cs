@@ -75,6 +75,20 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
+    public void ResetButton() {
+        if (resetSemesterButton != null)
+        {
+            resetSemesterButton.SetActive(resetCount < maxResetCount);
+            if (resetCount >= maxResetCount)
+            {
+                ShowLeaderboard();
+                Debug.Log("Semester sudah berakhir");
+            }
+        }
+
+        Debug.Log("Fase penjualan selesai.");
+    }
     // Fungsi yang dipanggil saat semester direset
     public void ResetSemester()
     {

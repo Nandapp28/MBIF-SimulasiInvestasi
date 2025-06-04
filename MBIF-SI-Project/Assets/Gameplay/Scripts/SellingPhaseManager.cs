@@ -7,6 +7,7 @@ public class SellingPhaseManager : MonoBehaviour
 {
     [Header("Game References")]
     public GameManager gameManager;
+    public RumorPhaseManager rumorPhaseManager;
     public GameObject resetSemesterButton;
 
     [Header("UI Elements")]
@@ -257,15 +258,7 @@ public class SellingPhaseManager : MonoBehaviour
             Debug.Log($"{player.playerName} menjual {soldCards.Count} kartu dan mendapatkan {earnedFinpoints} finpoints. Finpoint sekarang: {player.finpoint}");
         }
 
-        if (resetSemesterButton != null)
-        {
-            resetSemesterButton.SetActive(currentResetCount < currentMaxResetCount);
-            if (currentResetCount >= currentMaxResetCount)
-            {
-                gameManager.ShowLeaderboard();
-                Debug.Log("Semester sudah berakhir");
-            }
-        }
+        rumorPhaseManager.StartRumorPhase(currentPlayers);
 
         Debug.Log("Fase penjualan selesai.");
     }
