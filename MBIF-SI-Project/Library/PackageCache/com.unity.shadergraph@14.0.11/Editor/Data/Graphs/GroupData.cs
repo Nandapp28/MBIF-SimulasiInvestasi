@@ -5,7 +5,7 @@ using UnityEngine;
 namespace UnityEditor.ShaderGraph
 {
     [Serializable]
-    public class GroupData : JsonObject, IRectInterface
+    public class GroupData : JsonObject
     {
         [SerializeField]
         string m_Title;
@@ -16,7 +16,6 @@ namespace UnityEditor.ShaderGraph
             set { m_Title = value; }
         }
 
-
         [SerializeField]
         Vector2 m_Position;
 
@@ -25,16 +24,6 @@ namespace UnityEditor.ShaderGraph
             get { return m_Position; }
             set { m_Position = value; }
         }
-
-        Rect IRectInterface.rect
-        {
-            get => new Rect(position, Vector2.one);
-            set
-            {
-                position = value.position;
-            }
-        }
-
 
         public GroupData() : base() { }
 

@@ -290,12 +290,6 @@ namespace UnityEditor.Rendering.Universal
         {
             EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<Material>(m_AssetsToConvert[index]));
         }
-
-        internal static void DisableKeywords(Material material)
-        {
-            // LOD fade is now controlled by the render pipeline, and not the individual material, so disable it.
-            material.DisableKeyword("LOD_FADE_CROSSFADE");
-        }
     }
 
     /// <summary>
@@ -463,7 +457,6 @@ namespace UnityEditor.Rendering.Universal
             UpdateSurfaceTypeAndBlendMode(material);
             UpdateDetailScaleOffset(material);
             BaseShaderGUI.SetupMaterialBlendMode(material);
-            UniversalRenderPipelineMaterialUpgrader.DisableKeywords(material);
         }
 
         /// <summary>
@@ -488,7 +481,6 @@ namespace UnityEditor.Rendering.Universal
             UpdateSurfaceTypeAndBlendMode(material);
             UpdateDetailScaleOffset(material);
             BaseShaderGUI.SetupMaterialBlendMode(material);
-            UniversalRenderPipelineMaterialUpgrader.DisableKeywords(material);
         }
 
         static void UpdateDetailScaleOffset(Material material)
@@ -600,7 +592,6 @@ namespace UnityEditor.Rendering.Universal
             MaterialEditor.FixupEmissiveFlag(material);
             bool shouldEmissionBeEnabled = (material.globalIlluminationFlags & MaterialGlobalIlluminationFlags.EmissiveIsBlack) == 0;
             CoreUtils.SetKeyword(material, "_EMISSION", shouldEmissionBeEnabled);
-            UniversalRenderPipelineMaterialUpgrader.DisableKeywords(material);
         }
 
         private static void UpdateMaterialSpecularSource(Material material)
@@ -634,23 +625,22 @@ namespace UnityEditor.Rendering.Universal
         /// <param name="oldShaderName">The name of the old shader.</param>
         public TerrainUpgrader(string oldShaderName)
         {
-            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.TerrainLit), UniversalRenderPipelineMaterialUpgrader.DisableKeywords);
+            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.TerrainLit));
         }
-
     }
 
     internal class SpeedTreeUpgrader : MaterialUpgrader
     {
         internal SpeedTreeUpgrader(string oldShaderName)
         {
-            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.SpeedTree7), UniversalRenderPipelineMaterialUpgrader.DisableKeywords);
+            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.SpeedTree7));
         }
     }
     internal class SpeedTreeBillboardUpgrader : MaterialUpgrader
     {
         internal SpeedTreeBillboardUpgrader(string oldShaderName)
         {
-            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.SpeedTree7Billboard), UniversalRenderPipelineMaterialUpgrader.DisableKeywords);
+            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.SpeedTree7Billboard));
         }
     }
 
@@ -694,7 +684,6 @@ namespace UnityEditor.Rendering.Universal
         public static void UpdateStandardSurface(Material material)
         {
             UpdateSurfaceBlendModes(material);
-            UniversalRenderPipelineMaterialUpgrader.DisableKeywords(material);
         }
 
         /// <summary>
@@ -704,7 +693,6 @@ namespace UnityEditor.Rendering.Universal
         public static void UpdateUnlit(Material material)
         {
             UpdateSurfaceBlendModes(material);
-            UniversalRenderPipelineMaterialUpgrader.DisableKeywords(material);
         }
 
         /// <summary>
@@ -761,7 +749,7 @@ namespace UnityEditor.Rendering.Universal
         /// <param name="oldShaderName">The name of the old shader.</param>
         public AutodeskInteractiveUpgrader(string oldShaderName)
         {
-            RenameShader(oldShaderName, "Universal Render Pipeline/Autodesk Interactive/AutodeskInteractive", UniversalRenderPipelineMaterialUpgrader.DisableKeywords);
+            RenameShader(oldShaderName, "Universal Render Pipeline/Autodesk Interactive/AutodeskInteractive");
         }
 
         /// <inheritdoc/>

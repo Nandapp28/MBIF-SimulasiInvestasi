@@ -112,7 +112,7 @@ namespace UnityEngine.Rendering
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int GetFuncHashCode(Delegate del)
         {
-            return del.Method.GetHashCode() ^ (del.Target != null ? RuntimeHelpers.GetHashCode(del.Target) : 0);
+            return del.Method.GetHashCode() ^ RuntimeHelpers.GetHashCode(del.Target);
         }
 
         public int value => (int)m_Hash;

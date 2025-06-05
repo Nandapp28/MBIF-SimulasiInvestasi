@@ -488,16 +488,9 @@ namespace UnityEngine.Rendering.Universal
         /// <seealso cref="Configure"/>
         public void ConfigureTarget(RTHandle colorAttachment, RTHandle depthAttachment)
         {
-            overrideCameraTarget = true;
-            m_ColorAttachments[0] = colorAttachment;
-
             m_DepthAttachment = depthAttachment;
             m_DepthAttachmentId = m_DepthAttachment.nameID;
-            for (int i = 1; i < m_ColorAttachments.Length; ++i)
-            {
-                m_ColorAttachments[i] = null;
-                m_ColorAttachmentIds[i] = 0;
-            }
+            ConfigureTarget(colorAttachment);
         }
 
         /// <summary>
@@ -579,8 +572,15 @@ namespace UnityEngine.Rendering.Universal
         public void ConfigureTarget(RTHandle colorAttachment)
         {
             m_UsesRTHandles = true;
+            overrideCameraTarget = true;
+
+            m_ColorAttachments[0] = colorAttachment;
             m_ColorAttachmentIds[0] = new RenderTargetIdentifier(colorAttachment.nameID, 0, CubemapFace.Unknown, -1);
-            ConfigureTarget(colorAttachment, k_CameraTarget);
+            for (int i = 1; i < m_ColorAttachments.Length; ++i)
+            {
+                m_ColorAttachments[i] = null;
+                m_ColorAttachmentIds[i] = 0;
+            }
         }
 
         /// <summary>

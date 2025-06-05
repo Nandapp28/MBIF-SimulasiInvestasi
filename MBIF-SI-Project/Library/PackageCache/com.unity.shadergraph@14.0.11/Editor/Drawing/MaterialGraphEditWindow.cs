@@ -78,7 +78,6 @@ namespace UnityEditor.ShaderGraph.Drawing
             {
                 if (m_GraphEditorView != null)
                 {
-                    m_GraphEditorView.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
                     m_GraphEditorView.RemoveFromHierarchy();
                     m_GraphEditorView.Dispose();
                 }
@@ -415,8 +414,12 @@ namespace UnityEditor.ShaderGraph.Drawing
 
         void OnDisable()
         {
+            m_GraphEditorView?.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
+            m_GraphEditorView?.Dispose();
             messageManager.ClearAll();
 
+            m_GraphEditorView = null;
+            m_GraphObject = null;
             m_MessageManager = null;
             m_RenderPipelineAsset = null;
 
