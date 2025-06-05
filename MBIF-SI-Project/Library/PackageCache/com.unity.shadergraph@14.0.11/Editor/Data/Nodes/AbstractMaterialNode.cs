@@ -90,8 +90,6 @@ namespace UnityEditor.ShaderGraph
             set { m_Name = value; }
         }
 
-        public virtual string displayName => name;
-
         public string[] synonyms;
 
         protected virtual string documentationPage => name;

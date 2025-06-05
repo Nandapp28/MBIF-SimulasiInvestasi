@@ -92,7 +92,7 @@ float3x3 BuildTangentToWorld(float4 tangentWS, float3 normalWS)
 
 float3 shadergraph_MainLightDirection()
 {
-    return -_WorldSpaceLightPos0.xyz * (1.0 - _WorldSpaceLightPos0.w);
+    return 0.0f;
 }
 
 float3 shadergraph_RendererBoundsWS_Min()
