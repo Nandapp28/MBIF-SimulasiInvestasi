@@ -52,7 +52,7 @@ namespace UnityEditor.ShaderGraph.Drawing
             m_UndoRedoPerformedMethodInfo = graphViewType?.GetMethod("UndoRedoPerformed",
                 BindingFlags.FlattenHierarchy | BindingFlags.Instance | BindingFlags.NonPublic,
                 null,
-                new Type[] { typeof(UndoRedoInfo).MakeByRefType()},
+                new Type[] { },
                 null);
         }
 
@@ -684,13 +684,10 @@ namespace UnityEditor.ShaderGraph.Drawing
         {
             get
             {
-                return selection.Any(x =>
-                {
-                    if (x is ContextView) return false; //< context view must not be deleted. ( eg, Vertex, Fragment )
-                    return !(x is IShaderNodeView nodeView) || nodeView.node.canDeleteNode;
-                });
+                return selection.Any(x => !(x is IShaderNodeView nodeView) || nodeView.node.canDeleteNode);
             }
         }
+
         public void GroupSelection()
         {
             var title = "New Group";
@@ -1102,8 +1099,7 @@ namespace UnityEditor.ShaderGraph.Drawing
         internal void RestorePersistentSelectionAfterUndoRedo()
         {
             wasUndoRedoPerformed = true;
-            UndoRedoInfo info = new UndoRedoInfo();
-            m_UndoRedoPerformedMethodInfo?.Invoke(this, new object[] {info});
+            m_UndoRedoPerformedMethodInfo?.Invoke(this, new object[] { });
         }
 
         #region Drag and drop
@@ -1482,12 +1478,7 @@ namespace UnityEditor.ShaderGraph.Drawing
                 {
                     var nodeList = copyGraph.GetNodes<AbstractMaterialNode>();
 
-                    ClampNodesWithinView(graphView,
-                        new List<IRectInterface>()
-                            .Union(nodeList)
-                            .Union(copyGraph.stickyNotes)
-                            .Union(copyGraph.groups)
-                    );
+                    ClampNodesWithinView(graphView, new List<IRectInterface>().Union(nodeList).Union(copyGraph.stickyNotes));
 
                     graphView.graph.PasteGraph(copyGraph, remappedNodes, remappedEdges);
 
