@@ -15,6 +15,7 @@ public class RumorPhaseManager : MonoBehaviour
     {
         public string color;
         public string description;
+        public string cardName;
 
         public enum EffectType
         {
@@ -33,31 +34,64 @@ public class RumorPhaseManager : MonoBehaviour
     private bool rumorRunning = false;
 
     private List<PlayerProfile> players;
+    [Header("Kartu Rumor Per Warna")]
+public GameObject cardRed;
+public GameObject cardBlue;
+public GameObject cardGreen;
+public GameObject cardOrange;
+
+[System.Serializable]
+public class CardVisual
+{
+    public string cardName;
+    public Texture texture;
+}
+
+public List<CardVisual> cardVisuals = new List<CardVisual>();
+
+public Renderer rendererRed;
+public Renderer rendererBlue;
+public Renderer rendererGreen;
+public Renderer rendererOrange;
+
 
     public void StartRumorPhase(List<PlayerProfile> currentPlayers)
-{
-    if (rumorRunning) return; // Jangan mulai dua kali
-    rumorRunning = true;
-
-    players = currentPlayers;
-    Debug.Log("Memulai fase rumor...");
-
-    rumorEffects = new List<RumorEffect>
     {
-        new RumorEffect { color = "Red", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
-        new RumorEffect { color = "Red", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
-        new RumorEffect { color = "Red", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
-        new RumorEffect { color = "Red", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
-        new RumorEffect { color = "Blue", effectType = RumorEffect.EffectType.BonusFinpoint, value = 10, description = "Investor Blue bagi-bagi bonus +10" },
-        new RumorEffect { color = "Blue", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
-        
-        new RumorEffect { color = "Green", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Green market booming!" },
-        new RumorEffect { color = "Orange", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 5, description = "Skandal Orange! -5 finpoint" }
+        if (rumorRunning) return; // Jangan mulai dua kali
+        rumorRunning = true;
+
+        players = currentPlayers;
+        Debug.Log("Memulai fase rumor...");
+
+        rumorEffects = new List<RumorEffect>
+    {
+        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Red",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = 3, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.BonusFinpoint, value = 10, description = "Investor Blue bagi-bagi bonus +10" },
+        new RumorEffect { color = "Red",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.BonusFinpoint, value = 5, description = "Investor Blue bagi-bagi bonus +10" },
+
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 3, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.BonusFinpoint, value = 10, description = "Investor Blue bagi-bagi bonus +10" },
+        new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+
+        new RumorEffect { color = "Green",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Green market booming!" },
+        new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 5, description = "Skandal Orange! -5 finpoint" }
     };
 
-    StartCoroutine(RunRumorSequence());
-}
-private IEnumerator RunRumorSequence()
+        StartCoroutine(RunRumorSequence());
+    }
+    private IEnumerator RunRumorSequence()
 {
     List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
 
@@ -67,19 +101,87 @@ private IEnumerator RunRumorSequence()
         if (effectsForColor.Count == 0) continue;
 
         RumorEffect selected = effectsForColor[Random.Range(0, effectsForColor.Count)];
+
+        // Tampilkan kartu sesuai warna dan cardName
+        ShowCardByColorAndName(selected.color, selected.cardName);
+
         Debug.Log($"[Rumor] Warna {color}: {selected.description}");
+
+        yield return new WaitForSeconds(1.5f); // waktu tampil sebelum efek
 
         ApplyRumorEffect(selected);
 
         gameManager.UpdatePlayerUI();
 
-        yield return new WaitForSeconds(5f); // Delay antar rumor
+        yield return new WaitForSeconds(2.5f); // waktu tampil setelah efek
+
+        // Sembunyikan kartu
+        HideAllCardObjects();
+
+        yield return new WaitForSeconds(1f); // delay sebelum lanjut warna berikutnya
     }
+
     rumorRunning = false;
-
-
     gameManager.ResetButton(); // Lanjut ke fase berikutnya
 }
+
+private void ShowCardByColorAndName(string color, string cardName)
+{
+    // Sembunyikan semua dulu
+    HideAllCardObjects();
+
+    Texture selectedTexture = cardVisuals.FirstOrDefault(v => v.cardName == cardName)?.texture;
+
+    if (selectedTexture == null)
+    {
+        Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{cardName}' tidak ditemukan!");
+        return;
+    }
+
+    switch (color)
+    {
+        case "Red":
+            if (cardRed && rendererRed)
+            {
+                rendererRed.material.mainTexture = selectedTexture;
+                cardRed.SetActive(true);
+            }
+            break;
+
+        case "Blue":
+            if (cardBlue && rendererBlue)
+            {
+                rendererBlue.material.mainTexture = selectedTexture;
+                cardBlue.SetActive(true);
+            }
+            break;
+
+        case "Green":
+            if (cardGreen && rendererGreen)
+            {
+                rendererGreen.material.mainTexture = selectedTexture;
+                cardGreen.SetActive(true);
+            }
+            break;
+
+        case "Orange":
+            if (cardOrange && rendererOrange)
+            {
+                rendererOrange.material.mainTexture = selectedTexture;
+                cardOrange.SetActive(true);
+            }
+            break;
+    }
+}
+
+private void HideAllCardObjects()
+{
+    if (cardRed) cardRed.SetActive(false);
+    if (cardBlue) cardBlue.SetActive(false);
+    if (cardGreen) cardGreen.SetActive(false);
+    if (cardOrange) cardOrange.SetActive(false);
+}
+
 
 
     private void ApplyRumorEffect(RumorEffect effect)
