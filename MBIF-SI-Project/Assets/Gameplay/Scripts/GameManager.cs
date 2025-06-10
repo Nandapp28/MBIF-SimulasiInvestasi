@@ -76,7 +76,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void ResetButton() {
+    public void ResetSemesterButton() {
         if (resetSemesterButton != null)
         {
             resetSemesterButton.SetActive(resetCount < maxResetCount);

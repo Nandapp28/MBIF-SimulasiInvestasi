@@ -41,7 +41,7 @@ public class RumorPhaseManager : MonoBehaviour
     public GameObject cardBlue;
     public GameObject cardGreen;
     public GameObject cardOrange;
-
+    
     [System.Serializable]
     public class CardVisual
     {
@@ -100,9 +100,11 @@ public class RumorPhaseManager : MonoBehaviour
     private IEnumerator RunRumorSequence()
     {
         List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
+        yield return new WaitForSeconds(2f);
 
         foreach (string color in colors)
         {
+            yield return new WaitForSeconds(1f);
             var effectsForColor = rumorEffects.Where(e => e.color == color).ToList();
             if (effectsForColor.Count == 0) continue;
 
@@ -124,61 +126,81 @@ public class RumorPhaseManager : MonoBehaviour
             // Sembunyikan kartu
             HideAllCardObjects();
 
-            yield return new WaitForSeconds(1f); // delay sebelum lanjut warna berikutnya
+         // delay sebelum lanjut warna berikutnya
         }
 
         rumorRunning = false;
-        gameManager.ResetButton(); // Lanjut ke fase berikutnya
+        gameManager.ResetSemesterButton(); // Lanjut ke fase berikutnya
     }
 
     private void ShowCardByColorAndName(string color, string cardName)
+{
+    HideAllCardObjects(); // Sembunyikan dulu semua kartu
+
+    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == cardName)?.texture;
+    if (frontTexture == null)
     {
-        // Sembunyikan semua dulu
-        HideAllCardObjects();
-
-        Texture selectedTexture = cardVisuals.FirstOrDefault(v => v.cardName == cardName)?.texture;
-
-        if (selectedTexture == null)
-        {
-            Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{cardName}' tidak ditemukan!");
-            return;
-        }
-
-        switch (color)
-        {
-            case "Red":
-                if (cardRed && rendererRed)
-                {
-                    rendererRed.material.mainTexture = selectedTexture;
-                    cardRed.SetActive(true);
-                }
-                break;
-
-            case "Blue":
-                if (cardBlue && rendererBlue)
-                {
-                    rendererBlue.material.mainTexture = selectedTexture;
-                    cardBlue.SetActive(true);
-                }
-                break;
-
-            case "Green":
-                if (cardGreen && rendererGreen)
-                {
-                    rendererGreen.material.mainTexture = selectedTexture;
-                    cardGreen.SetActive(true);
-                }
-                break;
-
-            case "Orange":
-                if (cardOrange && rendererOrange)
-                {
-                    rendererOrange.material.mainTexture = selectedTexture;
-                    cardOrange.SetActive(true);
-                }
-                break;
-        }
+        Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{cardName}' tidak ditemukan!");
+        return;
     }
+
+    GameObject card = null;
+    Renderer renderer = null;
+
+    switch (color)
+    {
+        case "Red":
+            card = cardRed;
+            renderer = rendererRed;
+            break;
+        case "Blue":
+            card = cardBlue;
+            renderer = rendererBlue;
+            break;
+        case "Green":
+            card = cardGreen;
+            renderer = rendererGreen;
+            break;
+        case "Orange":
+            card = cardOrange;
+            renderer = rendererOrange;
+            break;
+    }
+
+    if (card && renderer)
+    {
+        renderer.material.mainTexture = frontTexture; // ⬅️ langsung set texture di awal
+        StartCoroutine(FlipCard(card));
+    }
+}
+
+
+    private IEnumerator FlipCard(GameObject cardObject)
+{
+    cardObject.SetActive(true);
+
+    // Mulai dari kondisi terbalik
+    cardObject.transform.rotation = Quaternion.Euler(0, -180, 180);
+
+    float duration = 0.5f;
+    float elapsed = 0f;
+
+    Quaternion startRot = cardObject.transform.rotation;
+    Quaternion endRot = Quaternion.Euler(0, -180, 0); // Menghadap depan
+
+    yield return new WaitForSeconds(0.5f); // jeda sejenak sebelum animasi
+
+    while (elapsed < duration)
+    {
+        cardObject.transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed / duration);
+        elapsed += Time.deltaTime;
+        yield return null;
+    }
+
+    cardObject.transform.rotation = endRot;
+}
+
+
 
     private void HideAllCardObjects()
     {
