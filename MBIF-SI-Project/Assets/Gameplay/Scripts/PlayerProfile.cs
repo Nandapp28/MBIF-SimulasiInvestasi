@@ -12,12 +12,13 @@ public class PlayerProfile
     public int lastRoll;
     public int cardCount => cards.Count;
     public List<Card> cards = new List<Card>();
-    public bool isBot; 
+    public bool isBot;
 
     public PlayerProfile(string name)
     {
         playerName = name;
         finpoint = 100;
+        ticketNumber = 0;
 
     }
 
