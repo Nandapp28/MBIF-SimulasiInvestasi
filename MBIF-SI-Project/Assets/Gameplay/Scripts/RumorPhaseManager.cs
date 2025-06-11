@@ -9,6 +9,7 @@ public class RumorPhaseManager : MonoBehaviour
     [Header("Game References")]
     public GameManager gameManager;
     public SellingPhaseManager sellingPhaseManager;
+    public ResolutionPhaseManager resolutionPhaseManager;
 
     [System.Serializable]
     public class RumorEffect
@@ -90,7 +91,7 @@ public class RumorPhaseManager : MonoBehaviour
         new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
         new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" },
 
-        new RumorEffect { color = "Green",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
+        new RumorEffect { color = "Green",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Reformasi ekonomi" },
         new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
         new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" }
     };
@@ -130,7 +131,7 @@ public class RumorPhaseManager : MonoBehaviour
         }
 
         rumorRunning = false;
-        gameManager.ResetSemesterButton(); // Lanjut ke fase berikutnya
+        resolutionPhaseManager.StartResolutionPhase(players); // Lanjut ke fase berikutnya
     }
 
     private void ShowCardByColorAndName(string color, string cardName)

@@ -541,6 +541,7 @@ GameObject:
   - component: {fileID: 101139719}
   - component: {fileID: 101139720}
   - component: {fileID: 101139721}
+  - component: {fileID: 101139722}
   m_Layer: 0
   m_Name: Game Manager
   m_TagString: Untagged
@@ -663,6 +664,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gameManager: {fileID: 101139718}
   sellingPhaseManager: {fileID: 101139720}
+  resolutionPhaseManager: {fileID: 101139722}
   rumorEffects:
   - color: Red
     description: 
@@ -709,6 +711,29 @@ MonoBehaviour:
   rendererBlue: {fileID: 26179276}
   rendererGreen: {fileID: 810030806}
   rendererOrange: {fileID: 1099236594}
+--- !u!114 &101139722
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 101139711}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 459792795292c664a9a32e0dd1dbc645, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gameManager: {fileID: 101139718}
+  sellingPhaseManager: {fileID: 101139720}
+  dividendDataList:
+  - color: Red
+    dividendIndex: -1
+  - color: Blue
+    dividendIndex: 2
+  - color: Green
+    dividendIndex: 3
+  - color: Orange
+    dividendIndex: 0
 --- !u!1 &329092059
 GameObject:
   m_ObjectHideFlags: 0
