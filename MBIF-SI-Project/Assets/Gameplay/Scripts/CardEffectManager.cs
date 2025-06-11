@@ -49,55 +49,59 @@ public class CardEffectManager
     {
         Debug.Log("📦 Efek trade offer dijalankan (placeholder)");
     }
-    
+
     private static void StockSplitEffect(PlayerProfile player, string color)
-{
-    SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
-    if (spm == null)
     {
-        Debug.LogError("SellingPhaseManager tidak ditemukan di scene!");
-        return;
-    }
+        SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
+        GameManager gameManager = GameObject.FindObjectOfType<GameManager>();
+        if (spm == null)
+        {
+            Debug.LogError("SellingPhaseManager tidak ditemukan di scene!");
+            return;
+        }
 
-    var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
-    if (ipoData == null)
-    {
-        Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
-        return;
-    }
+        var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
+        if (ipoData == null)
+        {
+            Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
+            return;
+        }
 
-    int currentIndex = ipoData.ipoIndex;
+        int currentIndex = ipoData.ipoIndex;
 
-    // ✅ Jika sudah di -3, kurangi lagi jadi -4 (walau harga tidak ada)
-    if (currentIndex == -3)
-    {
-        ipoData.ipoIndex = -4;
-        Debug.LogWarning($"⚠️ IPO index untuk {color} sudah di -3, diturunkan paksa ke -4.");
+        // ✅ Jika sudah di -3, kurangi lagi jadi -4 (walau harga tidak ada)
+        if (currentIndex == -3)
+        {
+            ipoData.ipoIndex = -4;
+            Debug.LogWarning($"⚠️ IPO index untuk {color} sudah di -3, diturunkan paksa ke -4.");
+            spm.HandleCrashMultiplier(ipoData, player);
+            return;
+        }
+
+        // 1. Dapatkan harga sekarang
+        int clampedIndex = color == "Green"
+            ? Mathf.Clamp(currentIndex, -2, 2)
+            : Mathf.Clamp(currentIndex, -3, 3);
+
+        int priceIndex = clampedIndex + 3;
+        int currentPrice = spm.ipoPriceMap[color][priceIndex];
+
+        // 2. Hitung harga baru & cari index baru
+        int newPrice = Mathf.CeilToInt(currentPrice / 2f);
+        int[] priceArray = spm.ipoPriceMap[color];
+        int closestPrice = priceArray.OrderBy(p => Mathf.Abs(p - newPrice)).First();
+        int newIndexInArray = System.Array.IndexOf(priceArray, closestPrice);
+        int newIpoIndex = newIndexInArray - 3;
+
+        ipoData.ipoIndex = newIpoIndex;
+
+        Debug.Log($"📉 Stock Split: IPO {color} turun dari {currentPrice} ke {closestPrice} (Index {ipoData.ipoIndex})");
+
+        // 3. Jalankan pengecekan crash
         spm.HandleCrashMultiplier(ipoData, player);
-        return;
-    }
-
-    // 1. Dapatkan harga sekarang
-    int clampedIndex = color == "Green"
-        ? Mathf.Clamp(currentIndex, -2, 2)
-        : Mathf.Clamp(currentIndex, -3, 3);
-
-    int priceIndex = clampedIndex + 3;
-    int currentPrice = spm.ipoPriceMap[color][priceIndex];
-
-    // 2. Hitung harga baru & cari index baru
-    int newPrice = Mathf.CeilToInt(currentPrice / 2f);
-    int[] priceArray = spm.ipoPriceMap[color];
-    int closestPrice = priceArray.OrderBy(p => Mathf.Abs(p - newPrice)).First();
-    int newIndexInArray = System.Array.IndexOf(priceArray, closestPrice);
-    int newIpoIndex = newIndexInArray - 3;
-
-    ipoData.ipoIndex = newIpoIndex;
-
-    Debug.Log($"📉 Stock Split: IPO {color} turun dari {currentPrice} ke {closestPrice} (Index {ipoData.ipoIndex})");
-
-    // 3. Jalankan pengecekan crash
-    spm.HandleCrashMultiplier(ipoData, player);
+        spm.UpdateIPOVisuals();
+        gameManager.UpdateDeckCardValuesWithIPO();
+        
 }
 
 

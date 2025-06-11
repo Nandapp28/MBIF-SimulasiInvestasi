@@ -44,7 +44,7 @@ public class SellingPhaseManager : MonoBehaviour
         public int ipoIndex = 0; // Range: -3 to 3
         public GameObject colorObject;
     }
-    private int GetCurrentColorValue(string color)
+    public int GetCurrentColorValue(string color)
     {
         IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);
         if (data != null && ipoPriceMap.ContainsKey(color))
@@ -89,7 +89,7 @@ public class SellingPhaseManager : MonoBehaviour
     {
 
 
-        UpdateIPOVisuals();
+        
     }
 
 
@@ -304,7 +304,7 @@ public class SellingPhaseManager : MonoBehaviour
 
 
 
-    private void UpdateIPOVisuals()
+    public void UpdateIPOVisuals()
     {
         foreach (var data in ipoDataList)
         {

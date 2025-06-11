@@ -13,24 +13,53 @@ public class ResolutionPhaseManager : MonoBehaviour
     {
         public string color;
         public int dividendIndex; // Rentang: -3 hingga 3
+
+        public GameObject indicatorObject; // Referensi ke indikator visual (bisa berupa text, arrow, UI element, dll)
     }
 
+
+
     public List<DividendData> dividendDataList = new List<DividendData>();
+    public float dividendSpacing = 1.0f; // Atur sesuai jarak antar level dividen
+    private Dictionary<string, Vector3> dividendInitialPositions = new Dictionary<string, Vector3>();
+
 
     // Mapping dari dividendIndex ke jumlah finpoint per kartu
     private Dictionary<int, int> dividendRewards = new Dictionary<int, int>()
     {
         { -3, 0 },
-        { -2, 0 },
-        { -1, 0 },
+        { -2, 1 },
+        { -1, 1 },
         { 0, 1 },
-        { 1, 1 },
+        { 1, 2 },
         { 2, 2 },
         { 3, 3 }
     };
+    private void Start()
+    {
+        CacheDividendInitialPositions();
+    }
+    private void Update()
+    {
+        UpdateDividendVisuals();
+    }
+
+    private void CacheDividendInitialPositions()
+    {
+        dividendInitialPositions.Clear();
+        foreach (var data in dividendDataList)
+        {
+            if (data.indicatorObject != null && !dividendInitialPositions.ContainsKey(data.color))
+            {
+                dividendInitialPositions[data.color] = data.indicatorObject.transform.position;
+            }
+        }
+    }
 
     public void StartResolutionPhase(List<PlayerProfile> players)
     {
+        UpdateDividendVisuals(); // Update posisi indikator
+
         Debug.Log("[ResolutionPhase] Memulai fase resolusi...");
 
         foreach (var data in dividendDataList)
@@ -57,7 +86,25 @@ public class ResolutionPhaseManager : MonoBehaviour
             }
         }
 
+
         gameManager.UpdatePlayerUI();
         gameManager.ResetSemesterButton(); // Tampilkan tombol lanjut
     }
+    private void UpdateDividendVisuals()
+    {
+        foreach (var data in dividendDataList)
+        {
+            if (data.indicatorObject != null && dividendInitialPositions.ContainsKey(data.color))
+            {
+                int clampedIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
+                Vector3 basePos = dividendInitialPositions[data.color];
+                Vector3 offset = new Vector3(clampedIndex * dividendSpacing, 0, 0); // Ubah ke Y/Z jika diperlukan
+
+                data.indicatorObject.transform.position = basePos + offset;
+
+                Debug.Log($"[Dividend - {data.color}] Posisi awal: {basePos}, Index: {clampedIndex}, Posisi baru: {basePos + offset}");
+            }
+        }
+    }
+
 }

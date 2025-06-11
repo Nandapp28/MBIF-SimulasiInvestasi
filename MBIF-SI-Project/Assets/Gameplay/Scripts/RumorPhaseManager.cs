@@ -42,7 +42,7 @@ public class RumorPhaseManager : MonoBehaviour
     public GameObject cardBlue;
     public GameObject cardGreen;
     public GameObject cardOrange;
-    
+
     [System.Serializable]
     public class CardVisual
     {
@@ -91,7 +91,7 @@ public class RumorPhaseManager : MonoBehaviour
         new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
         new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" },
 
-        new RumorEffect { color = "Green",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Reformasi ekonomi" },
+        new RumorEffect { color = "Green",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
         new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
         new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" }
     };
@@ -100,6 +100,7 @@ public class RumorPhaseManager : MonoBehaviour
     }
     private IEnumerator RunRumorSequence()
     {
+
         List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
         yield return new WaitForSeconds(2f);
 
@@ -121,13 +122,23 @@ public class RumorPhaseManager : MonoBehaviour
             ApplyRumorEffect(selected);
 
             gameManager.UpdatePlayerUI();
+            foreach (var data in sellingPhaseManager.ipoDataList)
+            {
+                foreach (var player in players)
+                {
+                    sellingPhaseManager.HandleCrashMultiplier(data, player);
+                }
+            }
+
+            sellingPhaseManager.UpdateIPOVisuals();
+
 
             yield return new WaitForSeconds(2.5f); // waktu tampil setelah efek
 
             // Sembunyikan kartu
             HideAllCardObjects();
 
-         // delay sebelum lanjut warna berikutnya
+            // delay sebelum lanjut warna berikutnya
         }
 
         rumorRunning = false;
@@ -135,71 +146,71 @@ public class RumorPhaseManager : MonoBehaviour
     }
 
     private void ShowCardByColorAndName(string color, string cardName)
-{
-    HideAllCardObjects(); // Sembunyikan dulu semua kartu
-
-    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == cardName)?.texture;
-    if (frontTexture == null)
     {
-        Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{cardName}' tidak ditemukan!");
-        return;
-    }
+        HideAllCardObjects(); // Sembunyikan dulu semua kartu
 
-    GameObject card = null;
-    Renderer renderer = null;
+        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == cardName)?.texture;
+        if (frontTexture == null)
+        {
+            Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{cardName}' tidak ditemukan!");
+            return;
+        }
 
-    switch (color)
-    {
-        case "Red":
-            card = cardRed;
-            renderer = rendererRed;
-            break;
-        case "Blue":
-            card = cardBlue;
-            renderer = rendererBlue;
-            break;
-        case "Green":
-            card = cardGreen;
-            renderer = rendererGreen;
-            break;
-        case "Orange":
-            card = cardOrange;
-            renderer = rendererOrange;
-            break;
-    }
+        GameObject card = null;
+        Renderer renderer = null;
 
-    if (card && renderer)
-    {
-        renderer.material.mainTexture = frontTexture; // ⬅️ langsung set texture di awal
-        StartCoroutine(FlipCard(card));
+        switch (color)
+        {
+            case "Red":
+                card = cardRed;
+                renderer = rendererRed;
+                break;
+            case "Blue":
+                card = cardBlue;
+                renderer = rendererBlue;
+                break;
+            case "Green":
+                card = cardGreen;
+                renderer = rendererGreen;
+                break;
+            case "Orange":
+                card = cardOrange;
+                renderer = rendererOrange;
+                break;
+        }
+
+        if (card && renderer)
+        {
+            renderer.material.mainTexture = frontTexture; // ⬅️ langsung set texture di awal
+            StartCoroutine(FlipCard(card));
+        }
     }
-}
 
 
     private IEnumerator FlipCard(GameObject cardObject)
-{
-    cardObject.SetActive(true);
-
-    // Mulai dari kondisi terbalik
-    cardObject.transform.rotation = Quaternion.Euler(0, -180, 180);
-
-    float duration = 0.5f;
-    float elapsed = 0f;
-
-    Quaternion startRot = cardObject.transform.rotation;
-    Quaternion endRot = Quaternion.Euler(0, -180, 0); // Menghadap depan
-
-    yield return new WaitForSeconds(0.5f); // jeda sejenak sebelum animasi
-
-    while (elapsed < duration)
     {
-        cardObject.transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed / duration);
-        elapsed += Time.deltaTime;
-        yield return null;
-    }
+        cardObject.SetActive(true);
 
-    cardObject.transform.rotation = endRot;
-}
+        // Mulai dari kondisi terbalik
+        cardObject.transform.rotation = Quaternion.Euler(0, -180, 180);
+
+        float duration = 0.5f;
+        float elapsed = 0f;
+
+        Quaternion startRot = cardObject.transform.rotation;
+        Quaternion endRot = Quaternion.Euler(0, -180, 0); // Menghadap depan
+
+        yield return new WaitForSeconds(0.5f); // jeda sejenak sebelum animasi
+
+        while (elapsed < duration)
+        {
+            cardObject.transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed / duration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        cardObject.transform.rotation = endRot;
+    }
 
 
 
