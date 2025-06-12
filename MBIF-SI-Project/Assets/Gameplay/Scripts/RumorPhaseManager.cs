@@ -24,7 +24,8 @@ public class RumorPhaseManager : MonoBehaviour
             BonusFinpoint,
             PenaltyFinpoint,
             ResetAllIPO,
-            TaxByTurnOrder
+            TaxByTurnOrder,
+            StockDilution
             // Tambahkan efek lain jika perlu
         }
 
@@ -91,7 +92,7 @@ public class RumorPhaseManager : MonoBehaviour
         new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
         new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" },
 
-        new RumorEffect { color = "Green",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
+        new RumorEffect { color = "Green",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Reformasi ekonomi" },
         new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
         new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" }
     };
@@ -120,8 +121,6 @@ public class RumorPhaseManager : MonoBehaviour
             yield return new WaitForSeconds(1.5f); // waktu tampil sebelum efek
 
             ApplyRumorEffect(selected);
-
-            gameManager.UpdatePlayerUI();
             foreach (var data in sellingPhaseManager.ipoDataList)
             {
                 foreach (var player in players)
@@ -129,6 +128,8 @@ public class RumorPhaseManager : MonoBehaviour
                     sellingPhaseManager.HandleCrashMultiplier(data, player);
                 }
             }
+
+            gameManager.UpdatePlayerUI();
 
             sellingPhaseManager.UpdateIPOVisuals();
 
@@ -237,6 +238,24 @@ public class RumorPhaseManager : MonoBehaviour
             ResetAllIPOIndexes();
             return;
         }
+        if (effect.effectType == RumorEffect.EffectType.StockDilution)
+        {
+            ModifyIPOIndex(effect.color, effect.value);
+
+
+            // Berikan kartu tambahan untuk setiap pemain yang punya kartu warna effect.color
+            foreach (var p in players)
+            {
+                if (p.cards.Any(c => c.color == effect.color))
+                {
+                    var newCard = new Card($"{effect.color}_Extra", $"Kartu tambahan warna {effect.color}", 0, effect.color);
+                    p.AddCard(newCard);
+                    Debug.Log($"{p.playerName} menerima 1 kartu tambahan warna {effect.color}");
+                }
+            }
+            return;
+        }
+
 
 
         // Untuk efek yang tergantung pemain, baru gunakan loop

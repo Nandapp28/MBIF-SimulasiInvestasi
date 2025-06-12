@@ -41,7 +41,6 @@ public class ResolutionPhaseManager : MonoBehaviour
     }
     private void Update()
     {
-        UpdateDividendVisuals();
     }
 
     private void CacheDividendInitialPositions()

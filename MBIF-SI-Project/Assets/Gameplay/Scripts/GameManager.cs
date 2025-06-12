@@ -295,7 +295,6 @@ public class GameManager : MonoBehaviour
 
 
 
-
     private void InitializeDeck()
     {
         deck.Clear();
