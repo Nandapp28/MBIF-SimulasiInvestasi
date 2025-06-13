@@ -324,6 +324,7 @@ public class GameManager : MonoBehaviour
         {
             deck = new List<Card>(deck.GetRange(0, totalCardsToGive));
         }
+        
 
         // Update nilai kartu setelah deck dibuat
         UpdateDeckCardValuesWithIPO();
@@ -427,6 +428,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator NextTurn()
     {
+        sellingManager.InitializePlayers(turnOrder); 
         int totalCardsToGive = totalCards * (bots.Count + 1);
         if (skipCount >= turnOrder.Count)
         {

@@ -121,14 +121,6 @@ public class RumorPhaseManager : MonoBehaviour
             yield return new WaitForSeconds(1.5f); // waktu tampil sebelum efek
 
             ApplyRumorEffect(selected);
-            foreach (var data in sellingPhaseManager.ipoDataList)
-            {
-                foreach (var player in players)
-                {
-                    sellingPhaseManager.HandleCrashMultiplier(data, player);
-                }
-            }
-
             gameManager.UpdatePlayerUI();
 
             sellingPhaseManager.UpdateIPOVisuals();

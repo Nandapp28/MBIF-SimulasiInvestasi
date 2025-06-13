@@ -28,6 +28,7 @@ public class SellingPhaseManager : MonoBehaviour
     private List<PlayerProfile> currentPlayers;
     private int currentResetCount;
     private int currentMaxResetCount;
+    
 
     public Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
@@ -41,8 +42,20 @@ public class SellingPhaseManager : MonoBehaviour
     public class IPOData
     {
         public string color;
-        public int ipoIndex = 0; // Range: -3 to 3
+        public int _ipoIndex = 0; // Range: -3 to 3
         public GameObject colorObject;
+        [System.NonSerialized] public SellingPhaseManager manager;
+
+        public int ipoIndex
+        {
+            get => _ipoIndex;
+            set
+            {
+                _ipoIndex = value;
+                if (manager != null)
+                    manager.CheckCrashOrMultiplier(this);
+            }
+        }
     }
     public int GetCurrentColorValue(string color)
     {
@@ -82,15 +95,21 @@ public class SellingPhaseManager : MonoBehaviour
             {
                 initialPositions[data.color] = data.colorObject.transform.position;
             }
+            data.manager = this; // INJEKSI Referensi ke manager
         }
-
     }
+    
     private void Update()
     {
 
 
-        
+
     }
+    public void InitializePlayers(List<PlayerProfile> players)
+{
+    currentPlayers = players;
+}
+
 
 
 
@@ -262,43 +281,41 @@ public class SellingPhaseManager : MonoBehaviour
 
         Debug.Log("Fase penjualan selesai.");
     }
-    public void HandleCrashMultiplier(IPOData data, PlayerProfile affectedPlayer)
-{
-    int index = data.ipoIndex;
-    bool isGreen = data.color == "Green";
-    int min = isGreen ? -2 : -3;
-    int max = isGreen ? 2 : 3;
-
-    if (index < min)
+    public void CheckCrashOrMultiplier(IPOData data)
     {
-        Debug.LogWarning($"[CRASH] {data.color} index terlalu rendah ({index}) — Market crash, semua kartu dijual otomatis.");
-        data.ipoIndex = 0;
+        int index = data._ipoIndex;
+        bool isGreen = data.color == "Green";
+        int min = isGreen ? -2 : -3;
+        int max = isGreen ? 2 : 3;
 
-        // ❗ Hanya pemain yang terkena efek
-        var cardsToSell = affectedPlayer.cards.Where(card => card.color == data.color).ToList();
-        int cardCount = cardsToSell.Count;
-        if (cardCount > 0)
+        if (index < min)
         {
-            int totalValue = 0;
-            foreach (var c in cardsToSell)
+            Debug.LogWarning($"[CRASH] {data.color} index terlalu rendah ({index}) — Market crash, semua kartu dijual otomatis.");
+            data._ipoIndex = 0;
+
+            foreach (var player in currentPlayers)
             {
-                totalValue += GetCurrentColorValue(data.color); // Gunakan metode existing untuk ambil nilai
-                affectedPlayer.cards.Remove(c);
+                var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
+                int cardCount = cardsToSell.Count;
+                if (cardCount > 0)
+                {
+                    foreach (var c in cardsToSell)
+                    {
+                        player.cards.Remove(c);
+                    }
+                    Debug.Log($"[CRASH] {player.playerName} mengembalikan {cardCount} saham {data.color} ke bank dan tidak mendapatkan apa apa.");
+                }
             }
-            affectedPlayer.finpoint += 0;
-            Debug.Log($"[CRASH] {affectedPlayer.playerName} mengembalikan {cardCount} saham {data.color} ke bank dan tidak mendapatkan apa apa.");
+
+            gameManager.UpdatePlayerUI();
         }
-
-        gameManager.UpdatePlayerUI();
+        else if (index > max)
+        {
+            Debug.LogWarning($"[MULTIPLIER] {data.color} index terlalu tinggi ({index}) — index direset ke 0, harga jual {data.color} dikali 2.");
+            data._ipoIndex = 0;
+            bonusMultiplierColors.Add(data.color);
+        }
     }
-    else if (index > max)
-    {
-        Debug.LogWarning($"[MULTIPLIER] {data.color} index terlalu tinggi ({index}) — index direset ke 0, harga jual {data.color} dikali 2.");
-        data.ipoIndex = 0;
-
-        bonusMultiplierColors.Add(data.color); // Tetap global
-    }
-}
 
 
 

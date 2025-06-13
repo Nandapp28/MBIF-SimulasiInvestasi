@@ -74,7 +74,8 @@ public class CardEffectManager
         {
             ipoData.ipoIndex = -4;
             Debug.LogWarning($"⚠️ IPO index untuk {color} sudah di -3, diturunkan paksa ke -4.");
-            spm.HandleCrashMultiplier(ipoData, player);
+            spm.CheckCrashOrMultiplier(ipoData);
+
             return;
         }
 
@@ -98,7 +99,8 @@ public class CardEffectManager
         Debug.Log($"📉 Stock Split: IPO {color} turun dari {currentPrice} ke {closestPrice} (Index {ipoData.ipoIndex})");
 
         // 3. Jalankan pengecekan crash
-        spm.HandleCrashMultiplier(ipoData, player);
+        spm.CheckCrashOrMultiplier(ipoData);
+
         spm.UpdateIPOVisuals();
         gameManager.UpdateDeckCardValuesWithIPO();
         
