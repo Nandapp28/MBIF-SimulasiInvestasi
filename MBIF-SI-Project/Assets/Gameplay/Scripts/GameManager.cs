@@ -1,11 +1,18 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-public class GameManager : MonoBehaviour
+using TMPro;
+using Photon.Pun;
+using Photon.Realtime;
+public class GameManager : MonoBehaviourPunCallbacks
 {
     public TicketManager ticketManager;
+    [SerializeField] private SellingPhaseManager sellingManager;
+    
+
     private CardEffectManager cardEffect;
     private PlayerProfile player;
 
@@ -23,17 +30,17 @@ public class GameManager : MonoBehaviour
     public GameObject leaderboardPanel;
     public Transform leaderboardContainer;
     public GameObject leaderboardEntryPrefab;
+    public GameObject playerShowPrefab;        // Prefab berisi TMP_Text
+    public Transform playerShowContainer;
 
 
     [Header("Button References")]
+    public GameObject botSelection;
     public Button bot2Button;
     public Button bot3Button;
     public Button bot4Button;
     public GameObject resetSemesterButton;
     public GameObject skipButton;
-
-
-
 
 
     public static GameManager Instance;
@@ -73,6 +80,20 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
+    public void ResetButton() {
+        if (resetSemesterButton != null)
+        {
+            resetSemesterButton.SetActive(resetCount < maxResetCount);
+            if (resetCount >= maxResetCount)
+            {
+                ShowLeaderboard();
+                Debug.Log("Semester sudah berakhir");
+            }
+        }
+
+        Debug.Log("Fase penjualan selesai.");
+    }
     // Fungsi yang dipanggil saat semester direset
     public void ResetSemester()
     {
@@ -111,14 +132,34 @@ public class GameManager : MonoBehaviour
     {
         player = new PlayerProfile("You");
         if (resetSemesterButton != null)
-            resetSemesterButton.SetActive(false); // ganti dengan nama canvas kamu
+            resetSemesterButton.SetActive(false);
         skipButton.SetActive(false);
 
+        ShowAllPlayers();
 
+        if (PhotonNetwork.InRoom)
+        {
+            // Multiplayer
+            if (PhotonNetwork.IsMasterClient)
+            {
+                ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
+                {
+                    { "started", true }
+                };
+                PhotonNetwork.CurrentRoom.SetCustomProperties(props);
 
-        bot2Button.onClick.AddListener(() => SetBotCount(2));
-        bot3Button.onClick.AddListener(() => SetBotCount(3));
-        bot4Button.onClick.AddListener(() => SetBotCount(4));
+                // Panggil ShowTicketChoices ke semua pemain (termasuk MasterClient sendiri)
+                photonView.RPC(nameof(RPC_ShowTicketChoices), RpcTarget.AllBuffered);
+            }
+        }
+        else
+        {
+            botSelection.SetActive(true); // Tampilkan UI bot
+            bot2Button.onClick.AddListener(() => SetBotCount(2));
+            bot3Button.onClick.AddListener(() => SetBotCount(3));
+            bot4Button.onClick.AddListener(() => SetBotCount(4));
+        }
+        Debug.Log("Room started set to true in GameManager");
     }
 
     private void SetBotCount(int count)
@@ -132,11 +173,49 @@ public class GameManager : MonoBehaviour
         ShowTicketChoices();
         
     }
+    
+    void ShowAllPlayers()
+    {
+        // Bersihkan dulu isi lama
+        foreach (Transform child in playerShowContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        // Tampilkan semua pemain
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            GameObject go = Instantiate(playerShowPrefab, playerShowContainer);
+            TMP_Text text = go.GetComponentInChildren<TMP_Text>();
+
+            string role = player.IsMasterClient ? "(Host)" : "(Guest)";
+            text.text = $"{player.NickName} {role}";
+        }
+    }
+
+    // Update otomatis saat ada player baru join/keluar
+    public override void OnPlayerEnteredRoom(Player newPlayer)
+    {
+        ShowAllPlayers();
+    }
+
+    public override void OnPlayerLeftRoom(Player otherPlayer)
+    {
+        ShowAllPlayers();
+    }
+
     public int GetPlayerCount()
     {
-        int totalPlayers = bots.Count +1;
+        int totalPlayers = bots.Count + 1;
         return totalPlayers;
     }
+
+    [PunRPC]
+    private void RPC_ShowTicketChoices()
+    {
+        ShowTicketChoices();
+    }
+
     private void ShowTicketChoices()
     {
         ClearTicketButtons();
@@ -227,6 +306,7 @@ public class GameManager : MonoBehaviour
         }
         ticketButtons.Clear();
     }
+
     private void AssignTickets()
     {
         List<int> availableTickets = new List<int>();
@@ -287,7 +367,7 @@ public class GameManager : MonoBehaviour
         // Tambahkan kartu default dengan warna acak
         deck.Add(new Card("Trade Offer", "Deal 5 damage", 4, GetRandomColor(colors)));
         deck.Add(new Card("Heal", "Recover 3 HP", 2, GetRandomColor(colors)));
-        deck.Add(new Card("Shield", "Block next attack", 3, GetRandomColor(colors)));
+        deck.Add(new Card("Stock Split", "Block next attack", 3, GetRandomColor(colors)));
         deck.Add(new Card("Steal", "Take 1 card", 5, GetRandomColor(colors)));
         deck.Add(new Card("Flashbuy", "Take 2 more cards", 8, GetRandomColor(colors)));
 
@@ -308,6 +388,7 @@ public class GameManager : MonoBehaviour
             deck = new List<Card>(deck.GetRange(0, totalCardsToGive));
         }
     }
+
     private int GetCardValue(GameObject cardObj)
     {
         Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
@@ -380,15 +461,12 @@ public class GameManager : MonoBehaviour
 
             yield return new WaitForSeconds(2f);
 
-            if (resetSemesterButton != null)
-            {
-                if (resetCount < maxResetCount)
-                    resetSemesterButton.SetActive(true);
-                else
-                    resetSemesterButton.SetActive(false);
-            }
+            Debug.Log("Memulai fase penjualan...");
+    sellingManager.StartSellingPhase(turnOrder, resetCount, maxResetCount, resetSemesterButton);
 
-            yield break;
+
+    yield break;
+
         }
         if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
         {
@@ -397,23 +475,11 @@ public class GameManager : MonoBehaviour
             yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
             ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
 
-            yield return new WaitForSeconds(2f); // ##Berganti Semester
-            if (resetSemesterButton != null)
-            {
-                if (resetCount < maxResetCount)
-                {
-                    resetSemesterButton.SetActive(true); // Tampilkan hanya jika belum 3x
-                }
-                else
-                {
-                    resetSemesterButton.SetActive(false);
-                    ShowLeaderboard();
-                    Debug.Log($" Semester Sudah Berakhir");// Sembunyikan selamanya
-                }
-            }
-            // 🔥 Tampilkan tombol reset semester
+            Debug.Log("Memulai fase penjualan...");
+    sellingManager.StartSellingPhase(turnOrder, resetCount, maxResetCount, resetSemesterButton);
 
-            yield break;
+
+    yield break;
         }
 
         PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
@@ -578,25 +644,32 @@ public class GameManager : MonoBehaviour
 
 
     }
+    
     private void ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     {
         if (cardObj == null || takenCards.Contains(cardObj)) return;
 
         // Ambil nama kartu dari UI
+        // Ambil nama kartu
         Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
         string cardName = cardNameText != null ? cardNameText.text : "";
 
+        // Ambil warna kartu
+        Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
+        string cardColor = cardColorText != null ? cardColorText.text : "Red";
+
         if (!string.IsNullOrEmpty(cardName))
         {
-            // Aktifkan efek berdasarkan nama kartu
-            CardEffectManager.ApplyEffect(cardName, currentPlayer);
-            Debug.Log($"🎴 Kartu '{cardName}' diaktifkan untuk {currentPlayer.playerName}");
+            // Kirim nama, pemain, dan warna ke efek
+            CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor);
+            Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
         }
         else
         {
             Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
             return;
         }
+
 
         // Ambil nilai kartu
         Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
@@ -759,7 +832,7 @@ public class GameManager : MonoBehaviour
 
 
 
-    private void UpdatePlayerUI()
+    public void UpdatePlayerUI()
     {
         ClearPlayerListUI();
         for (int i = 0; i < turnOrder.Count; i++)
@@ -820,44 +893,43 @@ public class GameManager : MonoBehaviour
             Destroy(child.gameObject);
         }
     }
-private void ShowLeaderboard()
-{
-    leaderboardPanel.SetActive(true);
-
-    // Bersihkan entri sebelumnya
-    foreach (Transform child in leaderboardContainer)
+    
+    public void ShowLeaderboard()
     {
-        Destroy(child.gameObject);
-    }
+        leaderboardPanel.SetActive(true);
 
-    // Gabungkan player dan bot
-    List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
-    allPlayers.AddRange(bots);
-
-    // Urutkan berdasarkan finpoint secara menurun
-    var rankedPlayers = allPlayers.OrderByDescending(p => p.finpoint).ToList();
-
-    // Buat entri leaderboard
-    for (int i = 0; i < rankedPlayers.Count; i++)
-    {
-        PlayerProfile p = rankedPlayers[i];
-
-        GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContainer);
-
-        // Ambil semua komponen Text anak
-        Text[] texts = entry.GetComponentsInChildren<Text>();
-
-        if (texts.Length >= 2)
+        // Bersihkan entri sebelumnya
+        foreach (Transform child in leaderboardContainer)
         {
-            texts[0].text = $"{i + 1}. {p.playerName}";
-            texts[1].text = $"{p.finpoint} FP";
+            Destroy(child.gameObject);
         }
-        else
+
+        // Gabungkan player dan bot
+        List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
+        allPlayers.AddRange(bots);
+
+        // Urutkan berdasarkan finpoint secara menurun
+        var rankedPlayers = allPlayers.OrderByDescending(p => p.finpoint).ToList();
+
+        // Buat entri leaderboard
+        for (int i = 0; i < rankedPlayers.Count; i++)
         {
-            Debug.LogWarning("Leaderboard entry prefab tidak memiliki cukup komponen Text!");
+            PlayerProfile p = rankedPlayers[i];
+
+            GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContainer);
+
+            // Ambil semua komponen Text anak
+            Text[] texts = entry.GetComponentsInChildren<Text>();
+
+            if (texts.Length >= 2)
+            {
+                texts[0].text = $"{i + 1}. {p.playerName}";
+                texts[1].text = $"{p.finpoint} FP";
+            }
+            else
+            {
+                Debug.LogWarning("Leaderboard entry prefab tidak memiliki cukup komponen Text!");
+            }
         }
     }
-}
-
-
 }
