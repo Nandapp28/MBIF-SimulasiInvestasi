@@ -9,12 +9,13 @@ public class LoadingManager : MonoBehaviour
     public GameObject loadingPanel;
     public Slider slider;
 
-    public void LoadLevel(int sceneIndex)
+    // Ganti parameter dari int ke string
+    public void LoadLevel(string sceneName)
     {
-        StartCoroutine(LoadWithDelay(sceneIndex));
+        StartCoroutine(LoadWithDelay(sceneName));
     }
 
-    IEnumerator LoadWithDelay(int sceneIndex)
+    IEnumerator LoadWithDelay(string sceneName)
     {
         loadingPanel.SetActive(true);
         slider.value = 0;
@@ -23,7 +24,7 @@ public class LoadingManager : MonoBehaviour
         float elapsed = 0f;
 
         // Mulai proses loading di background
-        AsyncOperation operation = SceneManager.LoadSceneAsync(sceneIndex);
+        AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName);
         operation.allowSceneActivation = false; // mencegah scene langsung aktif setelah loading
 
         while (elapsed < totalDuration)
