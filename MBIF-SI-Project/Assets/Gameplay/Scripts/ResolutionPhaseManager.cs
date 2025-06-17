@@ -55,7 +55,7 @@ public Material tokenPlus2Material;
     }
     private void InitializeRamalanTokens()
 {
-    int[] possibleTokens = { -2 };
+    int[] possibleTokens = { -2,-1,1,2 };
 
     foreach (var data in dividendDataList)
     {
