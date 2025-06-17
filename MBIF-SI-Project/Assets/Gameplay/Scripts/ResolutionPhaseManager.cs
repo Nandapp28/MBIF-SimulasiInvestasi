@@ -20,6 +20,8 @@ public class ResolutionPhaseManager : MonoBehaviour
         public GameObject indicatorObject; // Referensi ke indikator visual (bisa berupa text, arrow, UI element, dll)
         public List<GameObject> tokenObjects;
     }
+    private List<string> resolutionOrder = new List<string> { "Red", "Blue", "Green", "Orange" };
+
     public Material tokenMinus2Material;
 public Material tokenMinus1Material;
 public Material tokenPlus1Material;
@@ -49,10 +51,11 @@ public Material tokenPlus2Material;
     {
         CacheDividendInitialPositions();
         InitializeRamalanTokens();
+        UpdateDividendVisuals();
     }
     private void InitializeRamalanTokens()
 {
-    int[] possibleTokens = { -2, -1, 1, 2 };
+    int[] possibleTokens = { -2 };
 
     foreach (var data in dividendDataList)
     {
@@ -112,15 +115,28 @@ public Material tokenPlus2Material;
 
     public void StartResolutionPhase(List<PlayerProfile> players)
 {
-    Debug.Log("[ResolutionPhase] Memulai fase resolusi...");
+    StartCoroutine(ResolutionSequence(players));
+}
+private IEnumerator<WaitForSeconds> ResolutionSequence(List<PlayerProfile> players)
+{
+    Debug.Log("[ResolutionPhase] Memulai fase resolusi secara berurutan...");
+    yield return new WaitForSeconds(2.0f); 
 
-    foreach (var data in dividendDataList)
+    foreach (string color in resolutionOrder)
     {
-        ApplyRamalanEffect(data); // Balik 1 token (secara logika & visual)
+        var data = dividendDataList.FirstOrDefault(d => d.color == color);
+        if (data != null)
+        {
+            ApplyRamalanEffect(data);
+            yield return new WaitForSeconds(1.5f);     // Balik token
+            UpdateDividendVisuals();
+            yield return new WaitForSeconds(1f); 
+            sellingPhaseManager.UpdateIPOVisuals(); // Perbarui posisi indikator
+            yield return new WaitForSeconds(2f); // Delay antar warna (ubah sesuai kebutuhan)
+        }
     }
 
-    UpdateDividendVisuals(); // Update indikator
-
+    // Proses pemberian finpoint
     foreach (var data in dividendDataList)
     {
         string color = data.color;
@@ -156,9 +172,26 @@ public Material tokenPlus2Material;
         int index = data.revealedTokenCount;
         int tokenEffect = data.ramalanTokens[index];
         data.dividendIndex += tokenEffect;
-        data.dividendIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
 
-        Debug.Log($"[Ramalan - {data.color}] Token #{index + 1}: {tokenEffect}, Index baru: {data.dividendIndex}");
+        Debug.Log($"[Ramalan - {data.color}] Token #{index + 1}: {tokenEffect}, Index sebelum clamp: {data.dividendIndex}");
+
+        // Cek overflow/underflow sebelum clamp
+        if (data.dividendIndex < -3)
+        {
+            Debug.LogWarning($"[Dividen Crash] {data.color} terlalu rendah (index: {data.dividendIndex}). Mengurangi IPO index.");
+            ModifyIPOIndex(data.color, -1);
+            data.dividendIndex = 0;
+        }
+        else if (data.dividendIndex > 3)
+        {
+            Debug.LogWarning($"[Dividen Boom] {data.color} terlalu tinggi (index: {data.dividendIndex}). Menambah IPO index.");
+            ModifyIPOIndex(data.color, 1);
+            data.dividendIndex = 0;
+        }
+        else
+        {
+            data.dividendIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
+        }
 
         // Tampilkan token yang dibalik
         if (index < data.tokenObjects.Count)
@@ -177,6 +210,20 @@ public Material tokenPlus2Material;
         Debug.LogWarning($"[Ramalan - {data.color}] Semua token telah dibalik.");
     }
 }
+private void ModifyIPOIndex(string color, int delta)
+{
+    var ipo = sellingPhaseManager.ipoDataList.FirstOrDefault(i => i.color == color);
+    if (ipo != null)
+    {
+        ipo.ipoIndex += delta;
+        Debug.Log($"[Modify IPO] {color} IPO index diubah menjadi {ipo.ipoIndex}");
+    }
+    else
+    {
+        Debug.LogWarning($"[Modify IPO] Tidak ditemukan IPOData untuk warna: {color}");
+    }
+}
+
     
 private IEnumerator<WaitForSeconds> AnimateTokenFlip(GameObject token)
 {
