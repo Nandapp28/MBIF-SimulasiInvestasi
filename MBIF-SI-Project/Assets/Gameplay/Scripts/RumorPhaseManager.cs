@@ -35,6 +35,8 @@ public class RumorPhaseManager : MonoBehaviour
     }
 
     public List<RumorEffect> rumorEffects = new List<RumorEffect>();
+    [Header("Debug - Urutan Kartu Rumor Terpilih")]
+public List<RumorEffect> shuffledRumorDeck = new List<RumorEffect>();
     private bool rumorRunning = false;
 
     private List<PlayerProfile> players;
@@ -57,28 +59,30 @@ public class RumorPhaseManager : MonoBehaviour
     public Renderer rendererBlue;
     public Renderer rendererGreen;
     public Renderer rendererOrange;
-
-
-    public void StartRumorPhase(List<PlayerProfile> currentPlayers)
+    private void Start()
+{
+    rumorEffects = new List<RumorEffect>
     {
-        if (rumorRunning) return; // Jangan mulai dua kali
-        rumorRunning = true;
-
-        players = currentPlayers;
-        Debug.Log("Memulai fase rumor...");
-
-        rumorEffects = new List<RumorEffect>
-    {
-        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
-        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Red",cardName = "Revaluasi_Asset", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Buyback", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Tender_Kompetitif", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Audit_Forensik", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Suap_Audit", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Depresiasi_Rupiah", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
         new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
-        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
-        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
-        new RumorEffect { color = "Red",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = 3, description = "Red market sedikit naik" },
-        new RumorEffect { color = "Red",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.BonusFinpoint, value = 10, description = "Investor Blue bagi-bagi bonus +10" },
-        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
-        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Extra Fee" },
-        new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Pajak Jalan" },
+        new RumorEffect { color = "Red",cardName = "Rencana_Ekspansi", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Ekspansi_Produk", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Investasi_Asing", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Kenaikan_Upah", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Siasat_Pajak", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Red",cardName = "Defisit_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Red",cardName = "Merger", effectType = RumorEffect.EffectType.ModifyIPO, value = 3, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Red",cardName = "Reformasi_Ekonomi", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
+        new RumorEffect { color = "Red",cardName = "Extra_Fee", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Extra Fee" },
+        new RumorEffect { color = "Red",cardName = "Pajak_Jalan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Pajak Jalan" },
+        new RumorEffect { color = "Red",cardName = "Penerbitan_Saham", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Reformasi ekonomi" },
 
 
         new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
@@ -96,47 +100,71 @@ public class RumorPhaseManager : MonoBehaviour
         new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
         new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" }
     };
+    InitializeRumorDeck(); // Atau panggil dari GameManager saat game dimulai
+}
+
+
+    public void InitializeRumorDeck()
+    {
+        shuffledRumorDeck.Clear();
+
+        // Ambil satu kartu acak dari tiap warna
+        List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
+
+        foreach (string color in colors)
+        {
+            var possibleRumors = rumorEffects.Where(r => r.color == color).ToList();
+            if (possibleRumors.Count > 0)
+            {
+                RumorEffect chosen = possibleRumors[Random.Range(0, possibleRumors.Count)];
+                shuffledRumorDeck.Add(chosen);
+            }
+        }
+        
+
+        Debug.Log("[RumorDeck] Kartu rumor telah diacak dan disiapkan:");
+        foreach (var effect in shuffledRumorDeck)
+        {
+            Debug.Log($"- {effect.color}: {effect.cardName} ({effect.description})");
+        }
+    }
+
+
+    public void StartRumorPhase(List<PlayerProfile> currentPlayers)
+    {
+        if (rumorRunning) return; // Jangan mulai dua kali
+        rumorRunning = true;
+
+        players = currentPlayers;
+        Debug.Log("Memulai fase rumor...");
 
         StartCoroutine(RunRumorSequence());
     }
     private IEnumerator RunRumorSequence()
+{
+    yield return new WaitForSeconds(2f);
+
+    foreach (var selected in shuffledRumorDeck)
     {
+        yield return new WaitForSeconds(1f);
 
-        List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
-        yield return new WaitForSeconds(2f);
+        ShowCardByColorAndName(selected.color, selected.cardName);
+        Debug.Log($"[Rumor] Warna {selected.color}: {selected.description}");
 
-        foreach (string color in colors)
-        {
-            yield return new WaitForSeconds(1f);
-            var effectsForColor = rumorEffects.Where(e => e.color == color).ToList();
-            if (effectsForColor.Count == 0) continue;
+        yield return new WaitForSeconds(1.5f);
 
-            RumorEffect selected = effectsForColor[Random.Range(0, effectsForColor.Count)];
+        ApplyRumorEffect(selected);
+        gameManager.UpdatePlayerUI();
+        sellingPhaseManager.UpdateIPOVisuals();
 
-            // Tampilkan kartu sesuai warna dan cardName
-            ShowCardByColorAndName(selected.color, selected.cardName);
-
-            Debug.Log($"[Rumor] Warna {color}: {selected.description}");
-
-            yield return new WaitForSeconds(1.5f); // waktu tampil sebelum efek
-
-            ApplyRumorEffect(selected);
-            gameManager.UpdatePlayerUI();
-
-            sellingPhaseManager.UpdateIPOVisuals();
-
-
-            yield return new WaitForSeconds(2.5f); // waktu tampil setelah efek
-
-            // Sembunyikan kartu
-            HideAllCardObjects();
-
-            // delay sebelum lanjut warna berikutnya
-        }
-
-        rumorRunning = false;
-        resolutionPhaseManager.StartResolutionPhase(players); // Lanjut ke fase berikutnya
+        yield return new WaitForSeconds(2.5f);
+        HideAllCardObjects();
     }
+
+    rumorRunning = false;
+    resolutionPhaseManager.StartResolutionPhase(players);
+}
+
 
     private void ShowCardByColorAndName(string color, string cardName)
     {

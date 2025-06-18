@@ -7,6 +7,7 @@ public class GameManager : MonoBehaviour
 {
     public TicketManager ticketManager;
     [SerializeField] private SellingPhaseManager sellingManager;
+    public RumorPhaseManager rumorPhaseManager;
 
     private CardEffectManager cardEffect;
     private PlayerProfile player;
@@ -102,6 +103,8 @@ public class GameManager : MonoBehaviour
             p.ticketNumber = 0;
             // Jika mau hapus kartu juga, bisa panggil: p.ClearCards(); (jika tersedia)
         }
+
+        rumorPhaseManager.InitializeRumorDeck();
 
         currentCardIndex = 0;
         currentTurnIndex = 0;
