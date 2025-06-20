@@ -30,8 +30,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     public GameObject leaderboardPanel;
     public Transform leaderboardContainer;
     public GameObject leaderboardEntryPrefab;
-    public GameObject playerShowPrefab;        // Prefab berisi TMP_Text
-    public Transform playerShowContainer;
 
 
     [Header("Button References")]
@@ -135,8 +133,6 @@ public class GameManager : MonoBehaviourPunCallbacks
             resetSemesterButton.SetActive(false);
         skipButton.SetActive(false);
 
-        ShowAllPlayers();
-
         if (PhotonNetwork.InRoom)
         {
             // Multiplayer
@@ -173,36 +169,7 @@ public class GameManager : MonoBehaviourPunCallbacks
         ShowTicketChoices();
         
     }
-    
-    void ShowAllPlayers()
-    {
-        // Bersihkan dulu isi lama
-        foreach (Transform child in playerShowContainer)
-        {
-            Destroy(child.gameObject);
-        }
 
-        // Tampilkan semua pemain
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            GameObject go = Instantiate(playerShowPrefab, playerShowContainer);
-            TMP_Text text = go.GetComponentInChildren<TMP_Text>();
-
-            string role = player.IsMasterClient ? "(Host)" : "(Guest)";
-            text.text = $"{player.NickName} {role}";
-        }
-    }
-
-    // Update otomatis saat ada player baru join/keluar
-    public override void OnPlayerEnteredRoom(Player newPlayer)
-    {
-        ShowAllPlayers();
-    }
-
-    public override void OnPlayerLeftRoom(Player otherPlayer)
-    {
-        ShowAllPlayers();
-    }
 
     public int GetPlayerCount()
     {

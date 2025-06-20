@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
-public class TicketManager : MonoBehaviour
+using Photon.Pun;
+public class TicketManager : MonoBehaviourPunCallbacks
 {
     private List<int> tickets = new List<int>();
 
