@@ -649,6 +649,7 @@ GameObject:
   - component: {fileID: 101139720}
   - component: {fileID: 101139721}
   - component: {fileID: 101139722}
+  - component: {fileID: 101139723}
   m_Layer: 0
   m_Name: Game Manager
   m_TagString: Untagged
@@ -835,6 +836,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gameManager: {fileID: 101139718}
   sellingPhaseManager: {fileID: 101139720}
+  helpCardPhaseManager: {fileID: 101139723}
   tokenMinus2Material: {fileID: 2100000, guid: 7b272e3166c326f4cb2baa63e86f1f6c, type: 2}
   tokenMinus1Material: {fileID: 2100000, guid: 4c0487c0506d1274188eef8ccd7af444, type: 2}
   tokenPlus1Material: {fileID: 2100000, guid: 20ac72379adb2814689a40cf59812370, type: 2}
@@ -881,6 +883,25 @@ MonoBehaviour:
     - {fileID: 1214856752}
     - {fileID: 202780788}
   dividendSpacing: 0.5
+--- !u!114 &101139723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 101139711}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd50008f759542845b2dc7b4bb2f9221, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gameManager: {fileID: 101139718}
+  sellingManager: {fileID: 101139720}
+  helpCardActivationPanel: {fileID: 0}
+  cardNameText: {fileID: 0}
+  cardDescriptionText: {fileID: 0}
+  activateButton: {fileID: 0}
+  skipButton: {fileID: 0}
 --- !u!1 &142608040
 GameObject:
   m_ObjectHideFlags: 0

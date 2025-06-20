@@ -6,6 +6,7 @@ public class ResolutionPhaseManager : MonoBehaviour
 {
     public GameManager gameManager;
     public SellingPhaseManager sellingPhaseManager;
+    public HelpCardPhaseManager helpCardPhaseManager;
 
 
     // Dividend Index disimpan terpisah dari IPO
@@ -162,7 +163,7 @@ private IEnumerator<WaitForSeconds> ResolutionSequence(List<PlayerProfile> playe
     }
 
     gameManager.UpdatePlayerUI();
-    gameManager.ResetSemesterButton();
+    helpCardPhaseManager.StartHelpCardPhase(players, gameManager.resetCount);
 }
 
     private void ApplyRamalanEffect(DividendData data)
