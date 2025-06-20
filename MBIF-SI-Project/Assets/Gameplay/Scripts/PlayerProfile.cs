@@ -12,8 +12,6 @@ public class PlayerProfile
     public List<Card> cards = new List<Card>();
     public bool isBot; 
     public int actorNumber; 
-
-    // --- PERBAIKAN: TAMBAHKAN BARIS INI ---
     public int bonusActions = 0;
 
     public int cardCount
@@ -27,7 +25,7 @@ public class PlayerProfile
         playerName = name;
         finpoint = 100;
         isBot = true; 
-        actorNumber = -1; // ID default untuk non-pemain online
+        actorNumber = -1;
     }
 
     // Constructor untuk Multiplayer
@@ -36,18 +34,36 @@ public class PlayerProfile
         playerName = name;
         finpoint = 100;
         isBot = false;
-        actorNumber = actorNum; // Simpan ID unik pemain
+        actorNumber = actorNum;
     }
 
     public Dictionary<string, int> GetCardColorCounts()
     {
-        Dictionary<string, int> colorCounts = new Dictionary<string, int> { { "Red", 0 }, { "Blue", 0 }, { "Green", 0 }, { "Orange", 0 } };
+        var colorCounts = new Dictionary<string, int> { { "Red", 0 }, { "Blue", 0 }, { "Green", 0 }, { "Orange", 0 } };
         foreach (var card in cards)
         {
             if (colorCounts.ContainsKey(card.color))
                 colorCounts[card.color]++;
         }
         return colorCounts;
+    }
+
+    // --- FUNGSI BARU UNTUK FASE PENJUALAN ---
+    // Fungsi ini akan menghapus kartu yang telah dijual dari tangan pemain.
+    public void RemoveSoldCards(string color, int amount)
+    {
+        int removedCount = 0;
+        // Kita menggunakan loop dari belakang agar aman saat menghapus item dari list
+        for (int i = cards.Count - 1; i >= 0; i--)
+        {
+            if (removedCount >= amount) break; // Keluar jika sudah cukup kartu yang dihapus
+
+            if (cards[i].color == color)
+            {
+                cards.RemoveAt(i);
+                removedCount++;
+            }
+        }
     }
 
     public void SetLastRoll(int roll) { lastRoll = roll; }

@@ -10,7 +10,6 @@ using Photon.Realtime;
 public class MultiplayerManager : MonoBehaviourPunCallbacks
 {
     public static MultiplayerManager Instance;
-
     [Header("Manager References")]
     public TicketManager ticketManager;
     [SerializeField] private SellingPhaseManager sellingManager;
@@ -39,7 +38,9 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     private List<GameObject> cardObjects = new List<GameObject>();
     private HashSet<int> takenCardIndices = new HashSet<int>();
     private Dictionary<int, Button> ticketButtons = new Dictionary<int, Button>();
-    
+
+    private HashSet<int> playersFinishedSelling = new HashSet<int>();
+
     private GameObject currentlySelectedCard = null;
     private int currentTurnIndex = 0;
     private int totalCardsInPlay = 0;
@@ -62,7 +63,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         resetSemesterButton.gameObject.SetActive(false);
         leaderboardPanel.SetActive(false);
     }
-    
+
     private void InitializePlayers()
     {
         foreach (Player p in PhotonNetwork.PlayerList)
@@ -85,10 +86,10 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         foreach(var btn in ticketButtons.Values) btn.interactable = false;
         photonView.RPC(nameof(Cmd_SelectTicket), RpcTarget.MasterClient, PhotonNetwork.LocalPlayer.ActorNumber, ticketNumber);
     }
-    
+
     private void StartCardPhase()
     {
-        StartCoroutine(StartCardPhaseAfterDelay(2.5f)); 
+        StartCoroutine(StartCardPhaseAfterDelay(2.5f));
     }
 
     private IEnumerator StartCardPhaseAfterDelay(float delay)
@@ -98,16 +99,14 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         {
             List<PlayerProfile> sortedPlayers = players.Values.OrderBy(p => p.ticketNumber).ToList();
             turnOrder = sortedPlayers.Select(p => p.actorNumber).ToList();
-            
             totalCardsInPlay = 2 * players.Count;
             InitializeDeck(out string[] cardNames, out string[] cardColors, out int[] cardValues);
             photonView.RPC(nameof(RPC_DrawCardsAndSetTurnOrder), RpcTarget.All, cardNames, cardColors, cardValues, turnOrder.ToArray());
-            
             currentTurnIndex = 0;
-            StartNextTurn(); // Panggil fungsi baru yang lebih aman
+            StartNextTurn();
         }
     }
-    
+
     private void InitializeDeck(out string[] cardNames, out string[] cardColors, out int[] cardValues)
     {
         List<Card> deck = new List<Card>();
@@ -117,11 +116,11 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         deck.Add(new Card("Stock Split", "", 3, colors[Random.Range(0, colors.Count)]));
         deck.Add(new Card("Steal", "", 5, colors[Random.Range(0, colors.Count)]));
         deck.Add(new Card("Flashbuy", "", 8, colors[Random.Range(0, colors.Count)]));
-        
+
         while (deck.Count < totalCardsInPlay) deck.Add(deck[Random.Range(0, deck.Count)]);
-        
+
         for (int i = 0; i < deck.Count; i++) { Card temp = deck[i]; int r = Random.Range(i, deck.Count); deck[i] = deck[r]; deck[r] = temp; }
-        
+
         if (deck.Count > totalCardsInPlay)
         {
             deck = deck.GetRange(0, totalCardsInPlay);
@@ -133,7 +132,6 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     }
 
     // --- LOGIKA GILIRAN YANG DIPERBAIKI ---
-    
     // Fungsi baru yang tugasnya HANYA mengumumkan giliran
     private void StartNextTurn()
     {
@@ -143,24 +141,22 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             photonView.RPC(nameof(RPC_StartSellingPhase), RpcTarget.All);
             return;
         }
-        
+
         // Ambil pemain saat ini dan umumkan gilirannya
         PlayerProfile currentPlayer = players[turnOrder[currentTurnIndex]];
         photonView.RPC(nameof(RPC_SetCurrentTurn), RpcTarget.All, currentPlayer.actorNumber);
     }
-    
-    // IEnumerator NextTurn() yang lama telah dihapus karena logikanya salah.
 
     public void OnCardClicked(GameObject cardObj, int cardIndex)
     {
         if (turnOrder.Count == 0 || turnOrder[currentTurnIndex] != PhotonNetwork.LocalPlayer.ActorNumber) return;
         if (takenCardIndices.Contains(cardIndex)) return;
-        
+
         if (currentlySelectedCard != null) ResetCardSelection();
-        
+
         currentlySelectedCard = cardObj;
         cardObj.transform.localScale = Vector3.one * 1.1f;
-        
+
         if (activateButtonPrefab != null)
         {
             GameObject activateBtn = Instantiate(activateButtonPrefab, ActiveSaveContainer);
@@ -172,7 +168,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             saveBtn.GetComponent<Button>().onClick.AddListener(() => OnPlayerAction(cardIndex, false));
         }
     }
-    
+
     private void OnPlayerAction(int cardIndex, bool isActivating)
     {
         ResetCardSelection();
@@ -195,7 +191,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         }
         UpdatePlayerUI();
     }
-    
+
     [PunRPC]
     private void RPC_DisplayTicketChoices(int[] ticketNumbers)
     {
@@ -237,7 +233,6 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         takenCardIndices.Clear();
         foreach (Transform child in cardHolderParent) Destroy(child.gameObject);
         cardObjects.Clear();
-
         for (int i = 0; i < names.Length; i++)
         {
             GameObject cardObj = Instantiate(cardPrefab, cardHolderParent);
@@ -249,7 +244,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             cardObjects.Add(cardObj);
         }
     }
-    
+
     [PunRPC]
     private void RPC_SetCurrentTurn(int actorNumber)
     {
@@ -266,7 +261,6 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         PlayerProfile p = players[actorNumber];
         int cardValue = int.Parse(cardObj.transform.Find("CardValue").GetComponent<Text>().text);
         if (p.finpoint < cardValue) return;
-
         p.finpoint -= cardValue;
         Card card = new Card(
             cardObj.transform.Find("CardText").GetComponent<Text>().text,
@@ -274,7 +268,6 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             cardValue,
             cardObj.transform.Find("CardColor").GetComponent<Text>().text
         );
-
         if (wasActivated)
         {
             CardEffectManager.ApplyEffect(card.cardName, p, card.color);
@@ -283,13 +276,12 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         {
             p.AddCard(card);
         }
-
         takenCardIndices.Add(cardIndex);
         cardObj.GetComponent<CanvasGroup>().alpha = 0.5f;
         cardObj.GetComponent<Button>().interactable = false;
         UpdatePlayerUI();
     }
-    
+
     [PunRPC]
     private void RPC_StartSellingPhase()
     {
@@ -299,35 +291,83 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         }
     }
 
+    public void PlayerFinishedSelling(int actorNumber)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+        playersFinishedSelling.Add(actorNumber);
+        if (playersFinishedSelling.Count >= players.Count)
+        {
+            Debug.Log("Semua pemain selesai menjual. Menampilkan tombol Reset.");
+            photonView.RPC(nameof(RPC_ShowResetButton), RpcTarget.All);
+        }
+    }
+
+    public PlayerProfile GetPlayerProfile(int actorNumber)
+    {
+        players.TryGetValue(actorNumber, out PlayerProfile profile);
+        return profile;
+    }
+
+    public void OnResetSemesterClicked()
+    {
+        if (PhotonNetwork.IsMasterClient)
+        {
+            photonView.RPC(nameof(RPC_ResetGame), RpcTarget.All);
+        }
+    }
+
+    [PunRPC]
+    private void RPC_ResetGame()
+    {
+        Debug.Log("--- MERESET PERMAINAN ---");
+        takenCardIndices.Clear();
+        turnOrder.Clear();
+        ticketButtons.Clear();
+        skipCount = 0;
+        currentTurnIndex = 0;
+        foreach (var p in players.Values)
+        {
+            p.ticketNumber = 0;
+            p.cards.Clear();
+            p.bonusActions = 0;
+        }
+        foreach (Transform child in ticketListContainer) Destroy(child.gameObject);
+        foreach (Transform child in cardHolderParent) Destroy(child.gameObject);
+        resetSemesterButton.gameObject.SetActive(false);
+        leaderboardPanel.SetActive(false);
+        if (PhotonNetwork.IsMasterClient)
+        {
+            ShowTicketChoices();
+        }
+    }
+
+    [PunRPC]
+    private void RPC_ShowResetButton()
+    {
+        resetSemesterButton.gameObject.SetActive(true);
+        resetSemesterButton.interactable = PhotonNetwork.IsMasterClient;
+    }
+
     [PunRPC]
     private void Cmd_SelectTicket(int actorNumber, int ticketNumber)
     {
         if (!PhotonNetwork.IsMasterClient) return;
         bool isTicketAlreadyTaken = players.Values.Any(p => p.ticketNumber == ticketNumber);
         if (isTicketAlreadyTaken) return;
-
         photonView.RPC(nameof(RPC_ClaimTicketAndUpdate), RpcTarget.AllBuffered, actorNumber, ticketNumber);
-
         bool allPlayersChose = players.Values.All(p => p.ticketNumber > 0);
         if (allPlayersChose)
         {
             StartCardPhase();
         }
     }
-    
-    // --- PERBAIKAN LOGIKA UTAMA ADA DI SINI ---
 
     [PunRPC]
     private void Cmd_PlayerAction(int actorNumber, int cardIndex, bool isActivating)
     {
         if (!PhotonNetwork.IsMasterClient) return;
-        // Validasi giliran: apakah pemain yang mengirim perintah ini memang yang sedang giliran?
         if (turnOrder.Count == 0 || turnOrder[currentTurnIndex] != actorNumber) return;
-
-        // Proses aksi pemain saat ini
         photonView.RPC(nameof(RPC_ProcessPlayerAction), RpcTarget.All, actorNumber, cardIndex, isActivating);
-        
-        // Setelah aksi diproses, baru kita tentukan giliran selanjutnya
         PlayerProfile p = players[actorNumber];
         if (p.bonusActions > 0)
         {
@@ -339,8 +379,6 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             skipCount = 0; // Reset skip count karena ada aksi
             currentTurnIndex = (currentTurnIndex + 1) % players.Count;
         }
-
-        // Panggil fungsi untuk mengumumkan giliran berikutnya
         StartNextTurn();
     }
 
@@ -349,37 +387,42 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     {
         if (!PhotonNetwork.IsMasterClient) return;
         if (turnOrder.Count == 0 || turnOrder[currentTurnIndex] != actorNumber) return;
-
         skipCount++;
         Debug.Log($"{players[actorNumber].playerName} has skipped.");
-        
-        // Langsung pindah ke giliran berikutnya
         currentTurnIndex = (currentTurnIndex + 1) % players.Count;
         StartNextTurn();
     }
-    
+
     public void UpdatePlayerUI()
     {
         if (playerListContainer == null) return;
         foreach (Transform child in playerListContainer) Destroy(child.gameObject);
         var sortedPlayers = players.Values.OrderBy(p => p.ticketNumber > 0 ? p.ticketNumber : p.actorNumber).ToList();
-        
         foreach (var p in sortedPlayers)
         {
             GameObject entry = Instantiate(playerEntryPrefab, playerListContainer);
             Text[] texts = entry.GetComponentsInChildren<Text>();
-
             var nameText = texts.FirstOrDefault(t => t.name == "NameText");
             if (nameText != null) nameText.text = p.playerName;
-            
             var scoreText = texts.FirstOrDefault(t => t.name == "ScoreText");
             if (scoreText != null) scoreText.text = $"Tiket {p.ticketNumber}";
-
             var cardText = texts.FirstOrDefault(t => t.name == "CardText");
             if (cardText != null) cardText.text = $"{p.cardCount} kartu";
-
             var finpointText = texts.FirstOrDefault(t => t.name == "Finpoint");
             if (finpointText != null) finpointText.text = $"FP {p.finpoint}";
+            var colorCounts = p.GetCardColorCounts();
+            Text redCardText = entry.transform.Find("RedCardText")?.GetComponent<Text>();
+            if (redCardText != null)
+                redCardText.text = $"M: {(colorCounts.ContainsKey("Red") ? colorCounts["Red"] : 0)}";
+            Text blueCardText = entry.transform.Find("BlueCardText")?.GetComponent<Text>();
+            if (blueCardText != null)
+                blueCardText.text = $"B: {(colorCounts.ContainsKey("Blue") ? colorCounts["Blue"] : 0)}";
+            Text greenCardText = entry.transform.Find("GreenCardText")?.GetComponent<Text>();
+            if (greenCardText != null)
+                greenCardText.text = $"H: {(colorCounts.ContainsKey("Green") ? colorCounts["Green"] : 0)}";
+            Text orangeCardText = entry.transform.Find("OrangeCardText")?.GetComponent<Text>();
+            if (orangeCardText != null)
+                orangeCardText.text = $"O: {(colorCounts.ContainsKey("Orange") ? colorCounts["Orange"] : 0)}";
         }
     }
 
@@ -396,14 +439,13 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             Destroy(child.gameObject);
         }
     }
-    
+
     public override void OnPlayerLeftRoom(Player otherPlayer)
     {
         if (players.ContainsKey(otherPlayer.ActorNumber))
         {
             players.Remove(otherPlayer.ActorNumber);
             UpdatePlayerUI();
-            
             if (PhotonNetwork.IsMasterClient && players.Count > 0 && turnOrder.Count > 0)
             {
                 if (currentTurnIndex < turnOrder.Count && turnOrder[currentTurnIndex] == otherPlayer.ActorNumber)

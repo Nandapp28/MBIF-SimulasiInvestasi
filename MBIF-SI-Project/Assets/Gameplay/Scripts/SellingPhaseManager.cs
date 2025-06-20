@@ -4,13 +4,14 @@ using UnityEngine.UI;
 using System.Linq;
 using Photon.Pun;
 
-public class SellingPhaseManager : MonoBehaviour
+// Pastikan GameObject yang memiliki skrip ini juga memiliki komponen "Photon View"
+[RequireComponent(typeof(PhotonView))]
+public class SellingPhaseManager : MonoBehaviourPunCallbacks
 {
-    // --- PENAMBAHAN BARU UNTUK MEMPERBAIKI ERROR ---
-    public static SellingPhaseManager Instance; // Singleton Instance
+    public static SellingPhaseManager Instance;
 
-    // Game References tidak lagi dibutuhkan di Inspector
-    public GameObject resetSemesterButton;
+    // Referensi ke GameManager dan RumorPhaseManager dihapus karena tidak lagi diperlukan di multiplayer
+    // public GameObject resetSemesterButton; // Ini dikontrol oleh MultiplayerManager
 
     [Header("UI Elements")]
     public GameObject sellingUI;
@@ -24,12 +25,6 @@ public class SellingPhaseManager : MonoBehaviour
     private Dictionary<string, Vector3> initialPositions = new Dictionary<string, Vector3>();
     private HashSet<string> bonusMultiplierColors = new HashSet<string>();
 
-    private Dictionary<int, SellInput> playerSellInputs = new Dictionary<int, SellInput>();
-    private PlayerProfile currentPlayer;
-    private List<PlayerProfile> currentPlayers;
-    private int currentResetCount;
-    private int currentMaxResetCount;
-    
     public Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
         { "Red",    new int[] { 1, 2, 3, 5, 6, 7, 8 } },
@@ -37,30 +32,14 @@ public class SellingPhaseManager : MonoBehaviour
         { "Green",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
         { "Orange", new int[] { 1, 2, 4, 5, 6, 8, 9 } }
     };
-    
-    [System.Serializable]
-    public class IPOData
-    {
-        public string color;
-        public int ipoIndex = 0;
-        public GameObject colorObject;
-    }
 
-    public class SellInput
+    [System.Serializable]
+    public class IPOData { public string color; public int ipoIndex = 0; public GameObject colorObject; }
+    public class SellInput { /* ... Definisi SellInput Anda ... */ }
+
+    private void Awake() 
     {
-        public Dictionary<string, int> colorSellCounts = new Dictionary<string, int>
-        {
-            { "Red", 0 }, { "Blue", 0 }, { "Green", 0 }, { "Orange", 0 }
-        };
-    }
-    
-    // --- FUNGSI BARU UNTUK MEMPERBAIKI ERROR ---
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
+        if (Instance == null) Instance = this;
     }
 
     private void Start()
@@ -72,33 +51,18 @@ public class SellingPhaseManager : MonoBehaviour
                 initialPositions[data.color] = data.colorObject.transform.position;
             }
         }
+        sellingUI.SetActive(false);
     }
 
     public void StartSellingPhase(List<PlayerProfile> players, int resetCount, int maxResetCount, GameObject resetButton)
     {
-        currentPlayers = players;
-        currentResetCount = resetCount;
-        currentMaxResetCount = maxResetCount;
-        resetSemesterButton = resetButton;
-        playerSellInputs.Clear();
+        sellingUI.SetActive(false); // Sembunyikan dulu untuk semua orang
         
-        // Cari pemain lokal berdasarkan ActorNumber
-        currentPlayer = players.FirstOrDefault(p => !p.isBot && p.actorNumber == PhotonNetwork.LocalPlayer.ActorNumber);
-
-        UpdateIPOVisuals();
-
-        if (currentPlayer != null)
+        // Tampilkan UI penjualan hanya untuk pemain lokal
+        PlayerProfile localPlayer = players.FirstOrDefault(p => p.actorNumber == PhotonNetwork.LocalPlayer.ActorNumber);
+        if (localPlayer != null)
         {
-            SetupSellingUI(currentPlayer);
-        }
-        else
-        {
-            // Jika ini bukan pemain lokal atau pemain lokal adalah bot, maka MasterClient akan menunggu input dari pemain lain melalui RPC
-            if (PhotonNetwork.IsMasterClient)
-            {
-                // Proses bot secara otomatis jika ada
-                ProcessSellingPhase();
-            }
+            SetupSellingUI(localPlayer);
         }
     }
 
@@ -108,90 +72,98 @@ public class SellingPhaseManager : MonoBehaviour
         confirmSellButton.onClick.RemoveAllListeners();
         foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
 
-        Dictionary<string, int> currentValues = new Dictionary<string, int>();
-        Dictionary<string, int> maxValues = player.GetCardColorCounts();
+        Dictionary<string, int> cardsToSell = new Dictionary<string, int>();
+        Dictionary<string, int> maxCards = player.GetCardColorCounts();
 
         foreach (var color in ipoPriceMap.Keys)
         {
             GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
             row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
-
             Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
             Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
             Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
 
-            int currentValue = 0;
-            int maxValue = maxValues.ContainsKey(color) ? maxValues[color] : 0;
-            currentValues[color] = currentValue;
-            valueText.text = currentValue.ToString();
+            cardsToSell[color] = 0;
+            int maxAmount = maxCards.ContainsKey(color) ? maxCards[color] : 0;
+            valueText.text = "0";
 
             plusButton.onClick.AddListener(() => {
-                if (currentValues[color] < maxValue)
+                if (cardsToSell[color] < maxAmount)
                 {
-                    currentValues[color]++;
-                    valueText.text = currentValues[color].ToString();
+                    cardsToSell[color]++;
+                    valueText.text = cardsToSell[color].ToString();
                 }
             });
             minusButton.onClick.AddListener(() => {
-                if (currentValues[color] > 0)
+                if (cardsToSell[color] > 0)
                 {
-                    currentValues[color]--;
-                    valueText.text = currentValues[color].ToString();
+                    cardsToSell[color]--;
+                    valueText.text = cardsToSell[color].ToString();
                 }
             });
         }
 
         confirmSellButton.onClick.AddListener(() => {
-            SellInput input = new SellInput();
-            foreach (var color in ipoPriceMap.Keys)
+            List<string> colorsSold = new List<string>();
+            List<int> countsSold = new List<int>();
+            foreach(var sale in cardsToSell)
             {
-                input.colorSellCounts[color] = currentValues[color];
+                if (sale.Value > 0)
+                {
+                    colorsSold.Add(sale.Key);
+                    countsSold.Add(sale.Value);
+                }
             }
             
-            // Di multiplayer, ini harus mengirim RPC ke MasterClient dengan input penjualan
-            // Contoh: photonView.RPC("Cmd_PlayerSells", RpcTarget.MasterClient, player.actorNumber, serializedInput);
-
-            playerSellInputs[player.actorNumber] = input;
+            // Kirim data penjualan ke MasterClient untuk diproses
+            photonView.RPC(nameof(Cmd_ProcessSale), RpcTarget.MasterClient, PhotonNetwork.LocalPlayer.ActorNumber, colorsSold.ToArray(), countsSold.ToArray());
+            
             sellingUI.SetActive(false);
+            confirmSellButton.interactable = false; // Mencegah klik ganda
         });
+        
+        confirmSellButton.interactable = true; // Aktifkan tombol saat UI muncul
     }
 
-    private void ProcessSellingPhase()
+    // [Dijalankan di MasterClient] Menerima perintah penjualan
+    [PunRPC]
+    private void Cmd_ProcessSale(int actorNumber, string[] colors, int[] counts)
     {
-        // Hanya MasterClient yang boleh memproses penjualan dan mengubah state game
-        if (!PhotonNetwork.IsMasterClient && PhotonNetwork.InRoom) return;
-        
-        foreach (var player in currentPlayers)
-        {
-            // Logika untuk bot atau pemain yang tidak memberikan input
-            if (!playerSellInputs.ContainsKey(player.actorNumber))
-            {
-                // Logika AI Bot Anda untuk menjual kartu
-            }
-            
-            // ... (logika penjualan Anda) ...
+        if (!PhotonNetwork.IsMasterClient) return;
 
-            CallUpdatePlayerUI();
-            Debug.Log($"{player.playerName} finpoint sekarang: {player.finpoint}");
+        int totalGains = 0;
+        for (int i = 0; i < colors.Length; i++)
+        {
+            int price = GetCurrentColorValue(colors[i]);
+            totalGains += price * counts[i];
         }
 
-        if (RumorPhaseManager.Instance != null)
-        {
-            RumorPhaseManager.Instance.StartRumorPhase(currentPlayers);
-        }
-        
-        Debug.Log("Fase penjualan selesai.");
+        // Kirim hasilnya kembali ke semua pemain
+        photonView.RPC(nameof(RPC_FinalizeSale), RpcTarget.All, actorNumber, totalGains, colors, counts);
     }
     
-    public void HandleCrashMultiplier(IPOData data, PlayerProfile affectedPlayer)
+    // [Dijalankan di SEMUA Pemain] Menerima hasil penjualan dari MasterClient
+    [PunRPC]
+    private void RPC_FinalizeSale(int actorNumber, int gainedFinpoints, string[] soldColors, int[] soldCounts)
     {
-        // ... (logika crash multiplier Anda) ...
-        CallUpdatePlayerUI();
-    }
+        // Cari profil pemain yang sesuai di setiap komputer
+        PlayerProfile player = MultiplayerManager.Instance.GetPlayerProfile(actorNumber);
+        if (player != null)
+        {
+            player.finpoint += gainedFinpoints;
+            for (int i = 0; i < soldColors.Length; i++)
+            {
+                player.RemoveSoldCards(soldColors[i], soldCounts[i]);
+            }
+            
+            Debug.Log($"{player.playerName} menjual kartu dan mendapat {gainedFinpoints} FP. Finpoint sekarang: {player.finpoint}");
+            MultiplayerManager.Instance.UpdatePlayerUI();
+        }
 
-    private void UpdateIPOVisuals()
-    {
-        // ... (logika visual IPO Anda) ...
+        if (PhotonNetwork.IsMasterClient)
+        {
+            MultiplayerManager.Instance.PlayerFinishedSelling(actorNumber);
+        }
     }
 
     private int GetCurrentColorValue(string color)
@@ -199,23 +171,25 @@ public class SellingPhaseManager : MonoBehaviour
         IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);
         if (data != null && ipoPriceMap.ContainsKey(color))
         {
-            int index = data.ipoIndex;
-            if (color == "Green") index = Mathf.Clamp(index, -2, 2);
-            else index = Mathf.Clamp(index, -3, 3);
+            int index = Mathf.Clamp(data.ipoIndex, -3, 3);
+            if (color == "Green") index = Mathf.Clamp(data.ipoIndex, -2, 2);
             return ipoPriceMap[color][index + 3];
         }
         return 0;
     }
     
-    private void CallUpdatePlayerUI()
+    private void UpdateIPOVisuals()
     {
-        if (GameManager.Instance != null)
+        foreach (var data in ipoDataList)
         {
-            GameManager.Instance.UpdatePlayerUI();
-        }
-        else if (MultiplayerManager.Instance != null)
-        {
-            MultiplayerManager.Instance.UpdatePlayerUI();
+            if (data.colorObject != null && initialPositions.ContainsKey(data.color))
+            {
+                Vector3 basePos = initialPositions[data.color];
+                Vector3 offset = new Vector3(data.ipoIndex * ipoSpacing, 0, 0);
+                data.colorObject.transform.position = basePos + offset;
+            }
         }
     }
+    
+    public void HandleCrashMultiplier(IPOData data, PlayerProfile affectedPlayer) { /* Implementasi Anda di sini */ }
 }
