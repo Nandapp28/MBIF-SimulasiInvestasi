@@ -212,7 +212,7 @@ GameObject:
   - component: {fileID: 34413215}
   - component: {fileID: 34413216}
   m_Layer: 5
-  m_Name: ListTicket
+  m_Name: ListTicketContainer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -350,7 +350,7 @@ GameObject:
   - component: {fileID: 234743694}
   - component: {fileID: 234743693}
   m_Layer: 5
-  m_Name: PlayerListPannel
+  m_Name: PlayerListContainer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -763,7 +763,7 @@ GameObject:
   - component: {fileID: 416247121}
   - component: {fileID: 416247122}
   m_Layer: 5
-  m_Name: Panel
+  m_Name: SellingPhaseUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -942,7 +942,7 @@ GameObject:
   - component: {fileID: 535496742}
   - component: {fileID: 535496743}
   m_Layer: 5
-  m_Name: PlayerListPannel (1)
+  m_Name: PlayerListPannelSellUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1004,7 +1004,7 @@ GameObject:
   - component: {fileID: 684229215}
   - component: {fileID: 684229214}
   m_Layer: 5
-  m_Name: Button (Legacy)
+  m_Name: ButtonSellConfirmUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1417,7 +1417,7 @@ GameObject:
   - component: {fileID: 788941105}
   - component: {fileID: 788941104}
   m_Layer: 5
-  m_Name: Text (Legacy)
+  m_Name: ResetText (Legacy)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1631,7 +1631,7 @@ GameObject:
   - component: {fileID: 1169515247}
   - component: {fileID: 1169515246}
   m_Layer: 5
-  m_Name: ListCard
+  m_Name: ListCardContainer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2074,11 +2074,11 @@ RectTransform:
   - {fileID: 1955818916}
   - {fileID: 276203532}
   - {fileID: 471423622}
-  - {fileID: 1169515245}
   - {fileID: 234743692}
-  - {fileID: 1857790690}
   - {fileID: 34413215}
+  - {fileID: 1169515245}
   - {fileID: 1604514893}
+  - {fileID: 1857790690}
   - {fileID: 416247121}
   - {fileID: 1756338204}
   m_Father: {fileID: 0}
@@ -2647,7 +2647,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 200}
-  m_SizeDelta: {x: 200, y: 50}
+  m_SizeDelta: {x: 260, y: 52}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1756338205
 CanvasRenderer:
@@ -2677,7 +2677,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: New Text
+  m_text: Choose a ticket
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -2740,7 +2740,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: -0.6306114, y: 0, z: 1.5788795, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -3045,9 +3045,9 @@ GameObject:
   - component: {fileID: 1868717266}
   - component: {fileID: 1868717272}
   - component: {fileID: 1868717273}
+  - component: {fileID: 1868717276}
   - component: {fileID: 1868717275}
   - component: {fileID: 1868717274}
-  - component: {fileID: 1868717276}
   m_Layer: 0
   m_Name: Multiplayer Manager
   m_TagString: Untagged
@@ -3101,28 +3101,26 @@ MonoBehaviour:
   m_GameObject: {fileID: 1868717265}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 13b5d16a72d21044fbe91507dd69f5ba, type: 3}
+  m_Script: {fileID: 11500000, guid: 9c9a564d832532d41bd0687c43839470, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ticketManager: {fileID: 1868717274}
-  sellingManager: {fileID: 1868717275}
+  ticketManager: {fileID: 1868717275}
+  sellingManager: {fileID: 1868717276}
   playerEntryPrefab: {fileID: 2782006688885770628, guid: 0cf11e83913ff2c4f98c7a88a56ab28e,
     type: 3}
   playerListContainer: {fileID: 234743692}
-  cardPrefab: {fileID: 1107398949898934401, guid: 020d6ccbe96fff0479f2dee93d44935b,
-    type: 3}
-  cardHolderParent: {fileID: 1169515245}
+  cardPrefab: {fileID: 34413214}
+  cardHolderParent: {fileID: 34413215}
   ticketButtonPrefab: {fileID: 6546561648869784219, guid: bbed8577435004d488bc1232f73a51b6,
     type: 3}
   ticketListContainer: {fileID: 34413215}
-  activateButtonPrefab: {fileID: 5457419439911542782, guid: aa7fdb9c06231f34392428f794c9f05e,
-    type: 3}
+  activateButtonPrefab: {fileID: 0}
   saveButtonPrefab: {fileID: 6948458229094972117, guid: c2ad22c01fce69b4c8bf01e67d090bf5,
     type: 3}
-  ActiveSaveContainer: {fileID: 1604514893}
+  ActiveSaveContainer: {fileID: 1169515245}
   leaderboardPanel: {fileID: 1857790689}
   leaderboardContainer: {fileID: 1857790690}
-  leaderboardEntryPrefab: {fileID: 4197979355773733037, guid: 2f5ebf47fb2a81b4db04c585506efe3e,
+  leaderboardEntryPrefab: {fileID: 1107398949898934401, guid: 020d6ccbe96fff0479f2dee93d44935b,
     type: 3}
   statusText: {fileID: 1756338206}
   skipButton: {fileID: 276203533}
@@ -3158,9 +3156,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1868717265}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 044481a9bdc7860469ebb04d3c2d7384, type: 3}
+  m_Script: {fileID: 11500000, guid: 4a4a931b404ad01499d492e52c09f5c2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  rumorEffects: []
 --- !u!114 &1868717275
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3170,16 +3169,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1868717265}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d0bc830002a6464898fdc2dc0e7407e, type: 3}
+  m_Script: {fileID: 11500000, guid: c49ab371fdf9bb240ba9e37b8cbff5c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sellingUI: {fileID: 416247120}
-  confirmSellButton: {fileID: 684229214}
-  colorSellPanelContainer: {fileID: 535496742}
-  colorSellRowPrefab: {fileID: 4098081277277506207, guid: 52fb1304ac4d7ce4180de441c5cba4df,
-    type: 3}
-  ipoDataList: []
-  ipoSpacing: 0.5
 --- !u!114 &1868717276
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3189,10 +3181,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 1868717265}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bf077f3f201a095409c7de1431cce2a9, type: 3}
+  m_Script: {fileID: 11500000, guid: abd9cd0e8ffed584c96a1bfbb24b0b62, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rumorEffects: []
+  sellingUI: {fileID: 416247120}
+  confirmSellButton: {fileID: 684229214}
+  colorSellPanelContainer: {fileID: 535496742}
+  colorSellRowPrefab: {fileID: 4098081277277506207, guid: 52fb1304ac4d7ce4180de441c5cba4df,
+    type: 3}
+  ipoDataList: []
+  ipoSpacing: 0.5
 --- !u!1 &1876229066
 GameObject:
   m_ObjectHideFlags: 0
@@ -3806,7 +3804,7 @@ GameObject:
   - component: {fileID: 2126128949}
   - component: {fileID: 2126128948}
   m_Layer: 5
-  m_Name: Text (Legacy)
+  m_Name: SkipText (Legacy)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
