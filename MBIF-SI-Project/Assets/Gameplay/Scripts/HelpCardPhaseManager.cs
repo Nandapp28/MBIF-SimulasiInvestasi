@@ -38,120 +38,134 @@ public class HelpCardPhaseManager : MonoBehaviour
     }
 
     private void DistributeHelpCards()
+{
+    Debug.Log("Membagikan Kartu Bantuan kepada semua pemain...");
+    foreach (var player in turnOrder)
     {
-        Debug.Log("Membagikan Kartu Bantuan kepada semua pemain...");
-        foreach (var player in turnOrder)
-        {
-            player.helpCard = GetRandomHelpCard();
-            Debug.Log($"{player.playerName} mendapatkan kartu: '{player.helpCard.cardName}'");
-        }
+        var card = GetRandomHelpCard();
+        player.helpCards.Add(card);
+        Debug.Log($"{player.playerName} mendapatkan kartu: '{card.cardName}'");
     }
+}
 
     private IEnumerator ActivationSequence()
+{
+    yield return new WaitForSeconds(1f);
+
+    foreach (var player in turnOrder)
     {
-        yield return new WaitForSeconds(1f);
-
-        foreach (var player in turnOrder)
+        if (player.helpCards.Count == 0)
         {
-            if (player.helpCard == null)
-            {
-                Debug.Log($"{player.playerName} tidak memiliki Kartu Bantuan untuk diaktifkan.");
-                continue;
-            }
+            Debug.Log($"{player.playerName} tidak memiliki Kartu Bantuan untuk diaktifkan.");
+            continue;
+        }
 
-            Debug.Log($"Giliran {player.playerName} untuk mengaktifkan kartu bantuan.");
+        Debug.Log($"Giliran {player.playerName} untuk mengaktifkan kartu bantuannya.");
+
+        for (int i = 0; i < player.helpCards.Count; i++)
+        {
+            HelpCard currentCard = player.helpCards[i];
 
             if (player.playerName.Contains("You"))
             {
-                // Tampilkan UI untuk pemain manusia
-                yield return HandlePlayerChoice(player);
+                yield return HandlePlayerChoice(player, currentCard);
+                
             }
             else
             {
-                // Logika untuk Bot
-                yield return HandleBotChoice(player);
+                yield return HandleBotChoice(player, currentCard);
             }
 
-            // Beri jeda antar giliran
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(1f);
         }
 
-        Debug.Log("--- Fase Kartu Bantuan Selesai ---");
-        // Panggil fungsi untuk melanjutkan ke siklus berikutnya (misal: reset semester)
-        gameManager.ResetSemesterButton();
+        // Kosongkan kartu setelah fase
+        
     }
 
-    private IEnumerator HandlePlayerChoice(PlayerProfile player)
-    {
-        helpCardActivationPanel.SetActive(true);
-        cardNameText.text = player.helpCard.cardName;
-        cardDescriptionText.text = player.helpCard.description;
+    Debug.Log("--- Fase Kartu Bantuan Selesai ---");
+    gameManager.ResetSemesterButton();
+}
 
-        bool choiceMade = false;
 
-        activateButton.onClick.RemoveAllListeners();
-        activateButton.onClick.AddListener(() => {
-            ApplyEffect(player);
-            player.helpCard = null; // Kartu hangus setelah dipakai
-            choiceMade = true;
-            helpCardActivationPanel.SetActive(false);
-        });
+    private IEnumerator HandlePlayerChoice(PlayerProfile player, HelpCard card)
+{
+    helpCardActivationPanel.SetActive(true);
+    cardNameText.text = card.cardName;
+    cardDescriptionText.text = card.description;
 
-        skipButton.onClick.RemoveAllListeners();
-        skipButton.onClick.AddListener(() => {
-            Debug.Log($"{player.playerName} memilih untuk tidak mengaktifkan kartunya.");
-            choiceMade = true;
-            helpCardActivationPanel.SetActive(false);
-        });
+    bool choiceMade = false;
 
-        // Tunggu sampai pemain membuat pilihan
-        yield return new WaitUntil(() => choiceMade);
-    }
+    activateButton.onClick.RemoveAllListeners();
+    activateButton.onClick.AddListener(() => {
+        ApplyEffect(player, card);
+        player.helpCards.Clear();
+        choiceMade = true;
+        helpCardActivationPanel.SetActive(false);
+    });
 
-    private IEnumerator HandleBotChoice(PlayerProfile bot)
-    {
-        yield return new WaitForSeconds(1.5f);
+    skipButton.onClick.RemoveAllListeners();
+    skipButton.onClick.AddListener(() => {
+        Debug.Log($"{player.playerName} memilih untuk tidak mengaktifkan kartu '{card.cardName}'.");
+        choiceMade = true;
+        helpCardActivationPanel.SetActive(false);
+    });
 
-        // 60% kemungkinan bot akan mengaktifkan kartunya
-        bool activate = Random.value < 0.6f;
+    yield return new WaitUntil(() => choiceMade);
+}
+
+
+    private IEnumerator HandleBotChoice(PlayerProfile bot, HelpCard card)
+{
+    yield return new WaitForSeconds(1.5f);
+
+    bool activate = Random.value < 0.6f;
 
         if (activate)
         {
-            ApplyEffect(bot);
-            bot.helpCard = null; // Kartu hangus
-        }
+            ApplyEffect(bot, card);
+        bot.helpCards.Remove(card);
+    }
         else
         {
-            Debug.Log($"{bot.playerName} (Bot) memilih untuk tidak mengaktifkan kartunya.");
+            Debug.Log($"{bot.playerName} (Bot) memilih untuk tidak mengaktifkan kartu '{card.cardName}'.");
         }
-    }
+}
 
-    private void ApplyEffect(PlayerProfile player)
+    private void ApplyEffect(PlayerProfile player, HelpCard card)
+{
+    Debug.Log($"{player.playerName} mengaktifkan '{card.cardName}'!");
+
+    switch (card.effectType)
     {
-        Debug.Log($"{player.playerName} mengaktifkan '{player.helpCard.cardName}'!");
-        switch (player.helpCard.effectType)
-        {
-            case HelpCardEffect.ExtraFinpoints:
-                player.finpoint += 10;
-                Debug.Log($"{player.playerName} mendapatkan 10 Finpoint. Total sekarang: {player.finpoint}");
-                break;
+        case HelpCardEffect.ExtraFinpoints:
+            player.finpoint += 10;
+            Debug.Log($"{player.playerName} mendapatkan 10 Finpoint. Total sekarang: {player.finpoint}");
+            break;
 
-            case HelpCardEffect.BoostRandomIPO:
-                var ipoToBoost = sellingManager.ipoDataList[Random.Range(0, sellingManager.ipoDataList.Count)];
-                ipoToBoost.ipoIndex++;
-                Debug.Log($"IPO {ipoToBoost.color} meningkat!");
-                sellingManager.UpdateIPOVisuals();
-                break;
+        case HelpCardEffect.BoostRandomIPO:
+            var ipoToBoost = sellingManager.ipoDataList[Random.Range(0, sellingManager.ipoDataList.Count)];
+            ipoToBoost.ipoIndex++;
+            Debug.Log($"IPO {ipoToBoost.color} meningkat!");
+            sellingManager.UpdateIPOVisuals();
+            break;
 
-            case HelpCardEffect.SabotageRandomIPO:
-                var ipoToSabotage = sellingManager.ipoDataList[Random.Range(0, sellingManager.ipoDataList.Count)];
-                ipoToSabotage.ipoIndex--;
-                Debug.Log($"IPO {ipoToSabotage.color} menurun!");
-                sellingManager.UpdateIPOVisuals();
-                break;
-        }
-        gameManager.UpdatePlayerUI();
+        case HelpCardEffect.SabotageRandomIPO:
+            var ipoToSabotage = sellingManager.ipoDataList[Random.Range(0, sellingManager.ipoDataList.Count)];
+            ipoToSabotage.ipoIndex--;
+            Debug.Log($"IPO {ipoToSabotage.color} menurun!");
+            sellingManager.UpdateIPOVisuals();
+            break;
+
+        case HelpCardEffect.FreeCardPurchase:
+            Debug.Log($"{player.playerName} akan mendapatkan kartu gratis di semester berikutnya.");
+            // Tambahkan logika sesuai implementasi kamu nanti
+            break;
     }
+
+    gameManager.UpdatePlayerUI();
+}
+
 
     private HelpCard GetRandomHelpCard()
     {

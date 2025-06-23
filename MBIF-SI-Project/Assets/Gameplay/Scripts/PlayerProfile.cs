@@ -13,7 +13,8 @@ public class PlayerProfile
     public int cardCount => cards.Count;
     public List<Card> cards = new List<Card>();
     public bool isBot;
-    public HelpCard helpCard;
+    public List<HelpCard> helpCards = new List<HelpCard>();
+
 
     public PlayerProfile(string name)
     {
