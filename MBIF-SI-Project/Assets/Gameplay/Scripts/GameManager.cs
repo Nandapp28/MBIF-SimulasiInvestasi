@@ -8,6 +8,7 @@ public class GameManager : MonoBehaviour
     public TicketManager ticketManager;
     [SerializeField] private SellingPhaseManager sellingManager;
     public RumorPhaseManager rumorPhaseManager;
+    public HelpCardPhaseManager helpCardPhaseManager;
 
     private CardEffectManager cardEffect;
     private PlayerProfile player;
@@ -60,7 +61,8 @@ public class GameManager : MonoBehaviour
     private int currentTurnIndex = 0;
     public int skipCount = 0;
     public int resetCount = 0;
-    private int maxResetCount = 3;
+    public int maxResetCount = 3
+    ;
 
     private Coroutine autoSelectCoroutine;
 
@@ -444,7 +446,7 @@ public class GameManager : MonoBehaviour
             yield return new WaitForSeconds(2f);
 
             Debug.Log("Memulai fase penjualan...");
-            sellingManager.StartSellingPhase(turnOrder, resetCount, maxResetCount, resetSemesterButton);
+           helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
 
 
             yield break;
@@ -458,7 +460,7 @@ public class GameManager : MonoBehaviour
             ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
 
             Debug.Log("Memulai fase penjualan...");
-            sellingManager.StartSellingPhase(turnOrder, resetCount, maxResetCount, resetSemesterButton);
+            helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
 
 
             yield break;

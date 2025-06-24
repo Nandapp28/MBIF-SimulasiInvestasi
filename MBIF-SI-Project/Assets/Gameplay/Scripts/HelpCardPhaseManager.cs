@@ -27,26 +27,24 @@ public class HelpCardPhaseManager : MonoBehaviour
         Debug.Log("--- Memulai Fase Kartu Bantuan ---");
         this.turnOrder = players.OrderBy(p => p.ticketNumber).ToList();
 
-        // Bagikan kartu bantuan hanya di awal permainan (ketika resetCount == 0)
-        if (resetCount == 0)
-        {
-            DistributeHelpCards();
-        }
-
-        // Mulai urutan aktivasi kartu
+        
         StartCoroutine(ActivationSequence());
     }
 
-    private void DistributeHelpCards()
-{
-    Debug.Log("Membagikan Kartu Bantuan kepada semua pemain...");
-    foreach (var player in turnOrder)
+    public void DistributeHelpCards(List<PlayerProfile> playersToDistribute)
     {
-        var card = GetRandomHelpCard();
-        player.helpCards.Add(card);
-        Debug.Log($"{player.playerName} mendapatkan kartu: '{card.cardName}'");
+        Debug.Log("Membagikan Kartu Bantuan kepada semua pemain...");
+        foreach (var player in playersToDistribute)
+        {
+            var card = GetRandomHelpCard();
+            if (player.helpCards == null)
+            {
+                player.helpCards = new List<HelpCard>();
+            }
+            player.helpCards.Add(card);
+            Debug.Log($"{player.playerName} mendapatkan kartu: '{card.cardName}'");
+        }
     }
-}
 
     private IEnumerator ActivationSequence()
 {
@@ -84,7 +82,9 @@ public class HelpCardPhaseManager : MonoBehaviour
     }
 
     Debug.Log("--- Fase Kartu Bantuan Selesai ---");
-    gameManager.ResetSemesterButton();
+    sellingManager.StartSellingPhase(turnOrder, gameManager.resetCount, gameManager.maxResetCount, gameManager.resetSemesterButton);
+
+
 }
 
 
