@@ -18,6 +18,12 @@ public class HelpCardPhaseManager : MonoBehaviour
     public UnityEngine.UI.Text cardDescriptionText;
     public UnityEngine.UI.Button activateButton;
     public UnityEngine.UI.Button skipButton;
+    [Header("IPO Selection UI")]
+    public GameObject ipoSelectionPanel;
+    public UnityEngine.UI.Button redButton;
+    public UnityEngine.UI.Button blueButton;
+    public UnityEngine.UI.Button greenButton;
+    public UnityEngine.UI.Button orangeButton;
 
     private List<PlayerProfile> turnOrder;
 
@@ -153,10 +159,24 @@ public class HelpCardPhaseManager : MonoBehaviour
                 break;
 
             case HelpCardEffect.SabotageRandomIPO:
-                var ipoToSabotage = sellingManager.ipoDataList[Random.Range(0, sellingManager.ipoDataList.Count)];
-                ipoToSabotage.ipoIndex--;
-                Debug.Log($"IPO {ipoToSabotage.color} menurun!");
-                sellingManager.UpdateIPOVisuals();
+                if (player.playerName.Contains("You"))
+                {
+                    // Tampilkan UI pemilihan warna (dibahas di bawah)
+                    StartCoroutine(ShowIPOSelectionUI(player));
+                }
+                else
+                {
+                    Dictionary<string, int> colorCounts = player.GetCardColorCounts();
+                    string targetColor = colorCounts.OrderBy(kv => kv.Value).First().Key;
+
+                    var targetIPO = sellingManager.ipoDataList.FirstOrDefault(i => i.color == targetColor);
+                    if (targetIPO != null)
+                    {
+                        targetIPO.ipoIndex-=2;
+                        Debug.Log($"{player.playerName} (Bot) menurunkan IPO warna {targetColor} karena hanya punya sedikit kartu itu.");
+                        sellingManager.UpdateIPOVisuals();
+                    }
+                }
                 break;
 
             case HelpCardEffect.FreeCardPurchase:
@@ -185,6 +205,39 @@ public class HelpCardPhaseManager : MonoBehaviour
 
         gameManager.UpdatePlayerUI();
     }
+    private IEnumerator ShowIPOSelectionUI(PlayerProfile player)
+    {
+        bool selectionMade = false;
+
+        ipoSelectionPanel.SetActive(true);
+
+        System.Action<string> SelectColor = (color) =>
+        {
+            var ipo = sellingManager.ipoDataList.FirstOrDefault(i => i.color == color);
+            if (ipo != null)
+            {
+                ipo.ipoIndex-=2;
+                Debug.Log($"{player.playerName} menurunkan IPO {color} secara manual.");
+                sellingManager.UpdateIPOVisuals();
+            }
+
+            selectionMade = true;
+            ipoSelectionPanel.SetActive(false);
+        };
+
+        redButton.onClick.RemoveAllListeners();
+        blueButton.onClick.RemoveAllListeners();
+        greenButton.onClick.RemoveAllListeners();
+        orangeButton.onClick.RemoveAllListeners();
+
+        redButton.onClick.AddListener(() => SelectColor("Red"));
+        blueButton.onClick.AddListener(() => SelectColor("Blue"));
+        greenButton.onClick.AddListener(() => SelectColor("Green"));
+        orangeButton.onClick.AddListener(() => SelectColor("Orange"));
+
+        yield return new WaitUntil(() => selectionMade);
+    }
+
 
     public bool isTesting = true;
     private HelpCard GetRandomHelpCard()
@@ -192,7 +245,7 @@ public class HelpCardPhaseManager : MonoBehaviour
         HelpCardEffect randomEffect;
         if (isTesting)
         {
-            randomEffect = HelpCardEffect.TaxEvasion; // Atur efek yang ingin dites
+            randomEffect = HelpCardEffect.SabotageRandomIPO; // Atur efek yang ingin dites
         }
         else
         {

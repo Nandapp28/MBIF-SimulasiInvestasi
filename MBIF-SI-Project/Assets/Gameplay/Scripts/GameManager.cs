@@ -61,8 +61,7 @@ public class GameManager : MonoBehaviour
     private int currentTurnIndex = 0;
     public int skipCount = 0;
     public int resetCount = 0;
-    public int maxResetCount = 3
-    ;
+    public int maxResetCount = 3;
 
     private Coroutine autoSelectCoroutine;
 
