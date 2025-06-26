@@ -7,7 +7,8 @@ public enum HelpCardEffect
 {
     ExtraFinpoints,
     BoostRandomIPO,      // Menaikkan IPO salah satu warna secara acak
-    SabotageRandomIPO,   // Menurunkan IPO salah satu warna secara acak
+    AdiministrativePenalties,
+    NegativeEquity,   // Menurunkan IPO salah satu warna secara acak
     FreeCardPurchase,
     TaxEvasion      
 }
