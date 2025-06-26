@@ -309,6 +309,72 @@ public class HelpCardPhaseManager : MonoBehaviour
                     }
                     break;
                 }
+            case HelpCardEffect.EyeOfTruth:
+                {
+                    string chosenColor = null;
+
+                    // ... (Bagian 1: Logika pemilihan warna tidak berubah) ...
+                    if (player.playerName.Contains("You"))
+                    {
+                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { chosenColor = selectedColor; }));
+                    }
+                    else // Logika untuk Bot
+                    {
+                        int randomIndex = UnityEngine.Random.Range(0, sellingManager.ipoDataList.Count);
+                        chosenColor = sellingManager.ipoDataList[randomIndex].color;
+                    }
+                    Debug.Log($"{player.playerName} mencoba memprediksi pasar untuk warna {chosenColor}.");
+
+                    // ... (Bagian 2 & 3: Logika mencari rumor dan menyimpan prediksi tidak berubah) ...
+                    RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == chosenColor && r.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO);
+
+                    // ...
+                    if (futureRumor != null)
+                    {
+                        // --- BAGIAN LOG YANG DIPERBAIKI ---
+                        if (futureRumor.value > 0)
+                        {
+                            player.marketPredictions[chosenColor] = MarketPredictionType.Rise;
+                            // Pesan ini sekarang jelas hanya untuk pemain yang bersangkutan
+                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan NAIK.");
+                        }
+                        else if (futureRumor.value < 0)
+                        {
+                            player.marketPredictions[chosenColor] = MarketPredictionType.Fall;
+                            // Pesan ini sekarang jelas hanya untuk pemain yang bersangkutan
+                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan TURUN.");
+                        }
+                        // --- AKHIR BAGIAN YANG DIPERBAIKI ---
+
+                        // Tampilkan kartu di tengah layar menggunakan metode baru yang sudah kita buat
+                        Debug.Log($"Menampilkan bocoran kartu rumor untuk {player.playerName}: {futureRumor.cardName}");
+
+                        // Panggil coroutine baru dan tunggu hingga animasinya selesai
+                        yield return rumorPhaseManager.ShowPredictionCardAtCenter(futureRumor);
+
+                        // Beri jeda tambahan agar pemain bisa mencerna informasi
+                        yield return new WaitForSeconds(2f);
+
+                        // Sembunyikan kembali kartu tersebut
+                        rumorPhaseManager.HideAllCardObjects();
+                    }
+                    // ...
+                    else
+                    {
+                        Debug.Log($"Tidak ada prediksi pergerakan IPO signifikan untuk {chosenColor}.");
+                    }
+                    break;
+
+                }
+            case HelpCardEffect.MarketStabilization:
+                {
+                    Debug.Log($"{player.playerName} menggunakan kartu 'Stabilisasi Pasar'. Mereset semua nilai IPO!");
+
+                    // Panggil fungsi reset yang ada di SellingPhaseManager
+                    rumorPhaseManager.ResetAllIPOIndexes();
+                    sellingManager.UpdateIPOVisuals();
+                    break;
+                }
         }
 
         gameManager.UpdatePlayerUI();
@@ -366,6 +432,11 @@ public class HelpCardPhaseManager : MonoBehaviour
                 return new HelpCard("Penghindaran Pajak", "Bayar 2 Finpoint untuk setiap kartu yang kamu miliki.", randomEffect);
             case HelpCardEffect.MarketPrediction:
                 return new HelpCard("Prediksi Pasar", "Dapatkan bocoran pergerakan pasar untuk satu warna pilihanmu.", randomEffect);
+            case HelpCardEffect.EyeOfTruth:
+                return new HelpCard("Prediksi Pasar", "Dapatkan bocoran pergerakan pasar untuk satu warna pilihanmu.", randomEffect);
+            case HelpCardEffect.MarketStabilization:
+                return new HelpCard("Stabilisasi Pasar", "Pemerintah turun tangan! Semua harga saham kembali ke nilai awal.", randomEffect);
+
 
             default:
                 return new HelpCard("Dana Hibah", "Langsung dapat 10 Finpoint.", HelpCardEffect.ExtraFinpoints);

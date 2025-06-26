@@ -11,7 +11,9 @@ public enum HelpCardEffect
     NegativeEquity,   // Menurunkan IPO salah satu warna secara acak
     FreeCardPurchase,
     TaxEvasion,
-     MarketPrediction       
+    MarketPrediction,
+    EyeOfTruth,
+    MarketStabilization
 }
 
 [System.Serializable]

@@ -375,13 +375,14 @@ public IEnumerator ShowPredictionCardAtCenter(RumorPhaseManager.RumorEffect rumo
         }
     }
 
-    private void ResetAllIPOIndexes()
+    public void ResetAllIPOIndexes()
     {
         foreach (var data in sellingPhaseManager.ipoDataList)
         {
             data.ipoIndex = 0;
             Debug.Log($"[IPO] IPO {data.color} di-reset ke 0");
         }
+        
     }
 
 
