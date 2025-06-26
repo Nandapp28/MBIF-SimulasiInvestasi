@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 
-
+public enum MarketPredictionType { Rise, Fall }
 [System.Serializable]
 public class PlayerProfile
 {
@@ -14,6 +14,8 @@ public class PlayerProfile
     public List<Card> cards = new List<Card>();
     public bool isBot;
     public List<HelpCard> helpCards = new List<HelpCard>();
+    public Dictionary<string, MarketPredictionType> marketPredictions = new Dictionary<string, MarketPredictionType>();
+
 
 
     public PlayerProfile(string name)

@@ -10,7 +10,8 @@ public class HelpCardPhaseManager : MonoBehaviour
 {
     [Header("Game References")]
     public GameManager gameManager;
-    public SellingPhaseManager sellingManager; // Diperlukan untuk efek IPO
+    public SellingPhaseManager sellingManager;
+    public RumorPhaseManager rumorPhaseManager;// Diperlukan untuk efek IPO
 
 
     [Header("UI Elements")]
@@ -153,109 +154,165 @@ public class HelpCardPhaseManager : MonoBehaviour
     }
 
     private IEnumerator ApplyEffect(PlayerProfile player, HelpCard card)
-{
-    Debug.Log($"{player.playerName} mengaktifkan '{card.cardName}'!");
-
-    // Kita tidak perlu lagi menebak tipe data di sini
-    string colorToSabotage = null;
-
-    switch (card.effectType)
     {
-        case HelpCardEffect.ExtraFinpoints:
-            player.finpoint += 10;
-            Debug.Log($"{player.playerName} mendapatkan 10 Finpoint. Total sekarang: {player.finpoint}");
-            break;
+        Debug.Log($"{player.playerName} mengaktifkan '{card.cardName}'!");
 
-        case HelpCardEffect.BoostRandomIPO:
-            // Kurung kurawal di sini menciptakan scope lokal, jadi 'ipoToBoost' aman.
-            {
-                var ipoToBoost = sellingManager.ipoDataList[UnityEngine.Random.Range(0, sellingManager.ipoDataList.Count)];
-                ipoToBoost.ipoIndex++;
-                Debug.Log($"IPO {ipoToBoost.color} meningkat!");
-                sellingManager.UpdateIPOVisuals();
-            }
-            break;
+        // Kita tidak perlu lagi menebak tipe data di sini
+        string colorToSabotage = null;
 
-        case HelpCardEffect.AdiministrativePenalties:
-            // Tambahkan kurung kurawal buka di sini untuk menciptakan scope baru
-            {
-                if (player.playerName.Contains("You"))
-                {
-                    yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToSabotage = selectedColor; }));
-                    Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
-                }
-                else // Logika untuk Bot
-                {
-                    Dictionary<string, int> colorCounts = player.GetCardColorCounts();
-                    int minCount = colorCounts.Values.Min();
-                    List<string> colorsWithMinCount = colorCounts
-                        .Where(pair => pair.Value == minCount)
-                        .Select(pair => pair.Key)
-                        .ToList();
-                    int randomIndex = UnityEngine.Random.Range(0, colorsWithMinCount.Count);
-                    colorToSabotage = colorsWithMinCount[randomIndex];
-                    Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
-                }
+        switch (card.effectType)
+        {
+            case HelpCardEffect.ExtraFinpoints:
+                player.finpoint += 10;
+                Debug.Log($"{player.playerName} mendapatkan 10 Finpoint. Total sekarang: {player.finpoint}");
+                break;
 
-                // 'var' aman digunakan di dalam scope baru ini
-                var targetIPO = sellingManager.ipoDataList.FirstOrDefault(i => i.color == colorToSabotage);
-                if (targetIPO != null)
+            case HelpCardEffect.BoostRandomIPO:
+                // Kurung kurawal di sini menciptakan scope lokal, jadi 'ipoToBoost' aman.
                 {
-                    targetIPO.ipoIndex -= 2;
+                    var ipoToBoost = sellingManager.ipoDataList[UnityEngine.Random.Range(0, sellingManager.ipoDataList.Count)];
+                    ipoToBoost.ipoIndex++;
+                    Debug.Log($"IPO {ipoToBoost.color} meningkat!");
                     sellingManager.UpdateIPOVisuals();
                 }
-            } // Tambahkan kurung kurawal tutup di sini
-            break;
+                break;
 
-        case HelpCardEffect.NegativeEquity:
-            // Tambahkan kurung kurawal buka di sini juga
-            {
-                if (player.playerName.Contains("You"))
+            case HelpCardEffect.AdiministrativePenalties:
+                // Tambahkan kurung kurawal buka di sini untuk menciptakan scope baru
                 {
-                    yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToSabotage = selectedColor; }));
-                    Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
-                }
-                else // Logika untuk Bot
+                    if (player.playerName.Contains("You"))
+                    {
+                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToSabotage = selectedColor; }));
+                        Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
+                    }
+                    else // Logika untuk Bot
+                    {
+                        Dictionary<string, int> colorCounts = player.GetCardColorCounts();
+                        int minCount = colorCounts.Values.Min();
+                        List<string> colorsWithMinCount = colorCounts
+                            .Where(pair => pair.Value == minCount)
+                            .Select(pair => pair.Key)
+                            .ToList();
+                        int randomIndex = UnityEngine.Random.Range(0, colorsWithMinCount.Count);
+                        colorToSabotage = colorsWithMinCount[randomIndex];
+                        Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
+                    }
+
+                    // 'var' aman digunakan di dalam scope baru ini
+                    var targetIPO = sellingManager.ipoDataList.FirstOrDefault(i => i.color == colorToSabotage);
+                    if (targetIPO != null)
+                    {
+                        targetIPO.ipoIndex -= 2;
+                        sellingManager.UpdateIPOVisuals();
+                    }
+                } // Tambahkan kurung kurawal tutup di sini
+                break;
+
+            case HelpCardEffect.NegativeEquity:
+                // Tambahkan kurung kurawal buka di sini juga
                 {
-                    Dictionary<string, int> colorCounts = player.GetCardColorCounts();
-                    int minCount = colorCounts.Values.Min();
-                    List<string> colorsWithMinCount = colorCounts
-                        .Where(pair => pair.Value == minCount)
-                        .Select(pair => pair.Key)
-                        .ToList();
-                    int randomIndex = UnityEngine.Random.Range(0, colorsWithMinCount.Count);
-                    colorToSabotage = colorsWithMinCount[randomIndex];
-                    Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
-                }
+                    if (player.playerName.Contains("You"))
+                    {
+                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToSabotage = selectedColor; }));
+                        Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
+                    }
+                    else // Logika untuk Bot
+                    {
+                        Dictionary<string, int> colorCounts = player.GetCardColorCounts();
+                        int minCount = colorCounts.Values.Min();
+                        List<string> colorsWithMinCount = colorCounts
+                            .Where(pair => pair.Value == minCount)
+                            .Select(pair => pair.Key)
+                            .ToList();
+                        int randomIndex = UnityEngine.Random.Range(0, colorsWithMinCount.Count);
+                        colorToSabotage = colorsWithMinCount[randomIndex];
+                        Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
+                    }
 
-                // 'var' juga aman digunakan di sini karena scope-nya terpisah dari case sebelumnya
-                var targetIPO = sellingManager.ipoDataList.FirstOrDefault(i => i.color == colorToSabotage);
-                if (targetIPO != null)
+                    // 'var' juga aman digunakan di sini karena scope-nya terpisah dari case sebelumnya
+                    var targetIPO = sellingManager.ipoDataList.FirstOrDefault(i => i.color == colorToSabotage);
+                    if (targetIPO != null)
+                    {
+                        targetIPO.ipoIndex -= 3;
+                        sellingManager.UpdateIPOVisuals();
+                    }
+                } // Tambahkan kurung kurawal tutup di sini
+                break;
+
+            case HelpCardEffect.FreeCardPurchase:
+                Debug.Log($"{player.playerName} akan mendapatkan kartu gratis di semester berikutnya.");
+                break;
+
+            case HelpCardEffect.TaxEvasion:
+                Debug.Log($"{player.playerName} mengaktifkan Penghindaran Pajak. Semua pemain harus membayar pajak berdasarkan jumlah kartu!");
+                foreach (var p in turnOrder)
                 {
-                    targetIPO.ipoIndex -= 3;
-                    sellingManager.UpdateIPOVisuals();
+                    int cardCount = p.cards.Count;
+                    int cost = cardCount * 2;
+                    p.DeductFinpoint(cost);
+                    Debug.Log($"{p.playerName} membayar {cost} Finpoint untuk {cardCount} kartu. Sisa: {p.finpoint}");
                 }
-            } // Tambahkan kurung kurawal tutup di sini
-            break;
+                break;
+            case HelpCardEffect.MarketPrediction:
+                {
+                    string chosenColor = null;
 
-        case HelpCardEffect.FreeCardPurchase:
-            Debug.Log($"{player.playerName} akan mendapatkan kartu gratis di semester berikutnya.");
-            break;
+                    // ... (Bagian 1: Logika pemilihan warna tidak berubah) ...
+                    if (player.playerName.Contains("You"))
+                    {
+                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { chosenColor = selectedColor; }));
+                    }
+                    else // Logika untuk Bot
+                    {
+                        int randomIndex = UnityEngine.Random.Range(0, sellingManager.ipoDataList.Count);
+                        chosenColor = sellingManager.ipoDataList[randomIndex].color;
+                    }
+                    Debug.Log($"{player.playerName} mencoba memprediksi pasar untuk warna {chosenColor}.");
 
-        case HelpCardEffect.TaxEvasion:
-            Debug.Log($"{player.playerName} mengaktifkan Penghindaran Pajak. Semua pemain harus membayar pajak berdasarkan jumlah kartu!");
-            foreach (var p in turnOrder)
-            {
-                int cardCount = p.cards.Count;
-                int cost = cardCount * 2;
-                p.DeductFinpoint(cost);
-                Debug.Log($"{p.playerName} membayar {cost} Finpoint untuk {cardCount} kartu. Sisa: {p.finpoint}");
-            }
-            break;
+                    // ... (Bagian 2 & 3: Logika mencari rumor dan menyimpan prediksi tidak berubah) ...
+                    RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == chosenColor && r.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO);
+
+                    // ...
+                    if (futureRumor != null)
+                    {
+                        // --- BAGIAN LOG YANG DIPERBAIKI ---
+                        if (futureRumor.value > 0)
+                        {
+                            player.marketPredictions[chosenColor] = MarketPredictionType.Rise;
+                            // Pesan ini sekarang jelas hanya untuk pemain yang bersangkutan
+                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan NAIK.");
+                        }
+                        else if (futureRumor.value < 0)
+                        {
+                            player.marketPredictions[chosenColor] = MarketPredictionType.Fall;
+                            // Pesan ini sekarang jelas hanya untuk pemain yang bersangkutan
+                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan TURUN.");
+                        }
+                        // --- AKHIR BAGIAN YANG DIPERBAIKI ---
+
+                        // Tampilkan kartu di tengah layar menggunakan metode baru yang sudah kita buat
+                        Debug.Log($"Menampilkan bocoran kartu rumor untuk {player.playerName}: {futureRumor.cardName}");
+
+                        // Panggil coroutine baru dan tunggu hingga animasinya selesai
+                        yield return rumorPhaseManager.ShowPredictionCardAtCenter(futureRumor);
+
+                        // Beri jeda tambahan agar pemain bisa mencerna informasi
+                        yield return new WaitForSeconds(2f);
+
+                        // Sembunyikan kembali kartu tersebut
+                        rumorPhaseManager.HideAllCardObjects();
+                    }
+                    // ...
+                    else
+                    {
+                        Debug.Log($"Tidak ada prediksi pergerakan IPO signifikan untuk {chosenColor}.");
+                    }
+                    break;
+                }
+        }
+
+        gameManager.UpdatePlayerUI();
     }
-
-    gameManager.UpdatePlayerUI();
-}
     private IEnumerator ShowIPOSelectionUI(Action<string> onColorSelected)
     {
         ipoSelectionPanel.SetActive(true);
@@ -307,6 +364,8 @@ public class HelpCardPhaseManager : MonoBehaviour
                 return new HelpCard("Bad News", "Menurunkan nilai IPO satu warna secara acak.", randomEffect);
             case HelpCardEffect.TaxEvasion:
                 return new HelpCard("Penghindaran Pajak", "Bayar 2 Finpoint untuk setiap kartu yang kamu miliki.", randomEffect);
+            case HelpCardEffect.MarketPrediction:
+                return new HelpCard("Prediksi Pasar", "Dapatkan bocoran pergerakan pasar untuk satu warna pilihanmu.", randomEffect);
 
             default:
                 return new HelpCard("Dana Hibah", "Langsung dapat 10 Finpoint.", HelpCardEffect.ExtraFinpoints);
