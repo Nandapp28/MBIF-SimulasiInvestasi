@@ -307,9 +307,9 @@ public class GameManager : MonoBehaviour
 
         deck.Add(new Card("Trade Offer", "Deal 5 damage", 0, GetRandomColor(colors)));
         deck.Add(new Card("Heal", "Recover 3 HP", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Stock Split", "Block next attack", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Steal", "Take 1 card", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Flashbuy", "Take 2 more cards", 0, GetRandomColor(colors)));
+        deck.Add(new Card("Stock Split", "Block next attack", 1, GetRandomColor(colors)));
+        deck.Add(new Card("Steal", "Take 1 card", 2, GetRandomColor(colors)));
+        deck.Add(new Card("Flashbuy", "Take 2 more cards", 3, GetRandomColor(colors)));
 
         ShuffleDeck();
 
@@ -338,7 +338,7 @@ public class GameManager : MonoBehaviour
     {
         foreach (Card card in deck)
         {
-            int ipoValue = sellingManager.GetCurrentColorValue(card.color);
+            int ipoValue = sellingManager.GetFullCardPrice(card.color);
             card.value = card.baseValue + ipoValue;
         }
         Debug.Log("Update harga");
@@ -638,8 +638,7 @@ public class GameManager : MonoBehaviour
         if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
         if (cardObj == null || takenCards.Contains(cardObj)) return;
 
-        // Ambil nama kartu dari UI
-        // Ambil nama kartu
+
         Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
         string cardName = cardNameText != null ? cardNameText.text : "";
 

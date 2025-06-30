@@ -21,7 +21,7 @@ public class PlayerProfile
     public PlayerProfile(string name)
     {
         playerName = name;
-        finpoint = 10;
+        finpoint = 100;
         ticketNumber = 0;
 
     }
