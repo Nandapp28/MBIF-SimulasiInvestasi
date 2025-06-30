@@ -385,6 +385,7 @@ public class HelpCardPhaseManager : MonoBehaviour
                     if (player.cards.Count == 0)
                     {
                         Debug.LogWarning($"[CardSwap] {player.playerName} tidak punya kartu, efek gagal.");
+                        player.helpCards.Add(card);
                         yield break; // Keluar dari coroutine
                     }
 
@@ -392,6 +393,7 @@ public class HelpCardPhaseManager : MonoBehaviour
                     if (validTargets.Count == 0)
                     {
                         Debug.LogWarning($"[CardSwap] Tidak ada target yang valid, efek gagal.");
+                        player.helpCards.Add(card);
                         yield break;
                     }
 
@@ -426,7 +428,7 @@ public class HelpCardPhaseManager : MonoBehaviour
                     Card cardFromPlayer = player.cards.FirstOrDefault(c => c.color == colorFromPlayer);
                     Card cardFromTarget = targetPlayer.cards.FirstOrDefault(c => c.color == colorFromTarget);
 
-                    if(cardFromPlayer != null && cardFromTarget != null)
+                    if (cardFromPlayer != null && cardFromTarget != null)
                     {
                         player.cards.Remove(cardFromPlayer);
                         targetPlayer.cards.Remove(cardFromTarget);
@@ -443,6 +445,69 @@ public class HelpCardPhaseManager : MonoBehaviour
                     }
                     break;
                 }
+            case HelpCardEffect.ForcedPurchase:
+            {
+                // Cek kondisi aktivasi: Apakah ada target yang valid?
+                List<PlayerProfile> validTargets = turnOrder.Where(p => p != player && p.cards.Count > 0).ToList();
+                if (validTargets.Count == 0)
+                {
+                    Debug.LogWarning($"[ForcedPurchase] Tidak ada target yang bisa dipilih, efek gagal diaktifkan.");
+                    player.helpCards.Add(card);
+                    yield break; // Keluar dari coroutine
+                }
+
+                PlayerProfile targetPlayer = null;
+                string colorToPurchase = null;
+
+                if (player.playerName.Contains("You"))
+                {
+                    // 1. Pemain memilih target
+                    yield return StartCoroutine(ShowPlayerSelectionUI(validTargets, selectedPlayer => { targetPlayer = selectedPlayer; }));
+
+                    // 2. Pemain memilih warna dari kartu target
+                    List<string> availableColors = targetPlayer.cards.Select(c => c.color).Distinct().ToList();
+                    yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToPurchase = selectedColor; }, availableColors));
+                }
+                else // Logika untuk Bot
+                {
+                    // 1. Bot memilih target secara acak
+                    targetPlayer = validTargets[UnityEngine.Random.Range(0, validTargets.Count)];
+
+                    // 2. Bot memilih warna secara acak dari kartu target
+                    colorToPurchase = targetPlayer.cards[UnityEngine.Random.Range(0, targetPlayer.cards.Count)].color;
+                }
+                
+                // 3. Hitung harga dan lakukan transaksi
+                int fullPrice = sellingManager.GetCurrentColorValue(colorToPurchase);
+                int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f); // Setengah harga, dibulatkan ke atas
+
+                Debug.Log($"[ForcedPurchase] Harga asli kartu {colorToPurchase} adalah {fullPrice}. Harga beli paksa: {purchasePrice}.");
+
+                if (player.CanAfford(purchasePrice))
+                {
+                    Card cardToMove = targetPlayer.cards.FirstOrDefault(c => c.color == colorToPurchase);
+                    if (cardToMove != null)
+                    {
+                        // Lakukan transaksi
+                        player.DeductFinpoint(purchasePrice);
+                        targetPlayer.cards.Remove(cardToMove);
+                        player.AddCard(cardToMove);
+
+                        Debug.Log($"[ForcedPurchase] {player.playerName} berhasil membeli kartu {colorToPurchase} dari {targetPlayer.playerName} seharga {purchasePrice} Finpoint.");
+                        gameManager.UpdatePlayerUI();
+                    }
+                    else
+                    {
+                         Debug.LogError($"[ForcedPurchase] Gagal menemukan kartu {colorToPurchase} milik {targetPlayer.playerName} meskipun seharusnya ada.");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[ForcedPurchase] {player.playerName} tidak memiliki cukup Finpoint untuk membeli kartu (butuh {purchasePrice}). Efek dibatalkan.");
+                }
+
+                break;
+            }
         }
 
         gameManager.UpdatePlayerUI();

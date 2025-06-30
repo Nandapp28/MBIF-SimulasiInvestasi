@@ -14,7 +14,8 @@ public enum HelpCardEffect
     MarketPrediction,
     EyeOfTruth,
     MarketStabilization,
-    CardSwap
+    CardSwap,
+    ForcedPurchase 
 }
 
 [System.Serializable]
