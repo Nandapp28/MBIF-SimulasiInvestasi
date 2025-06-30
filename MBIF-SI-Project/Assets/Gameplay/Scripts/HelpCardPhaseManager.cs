@@ -26,6 +26,10 @@ public class HelpCardPhaseManager : MonoBehaviour
     public UnityEngine.UI.Button blueButton;
     public UnityEngine.UI.Button greenButton;
     public UnityEngine.UI.Button orangeButton;
+    [Header("Player Selection UI")]
+    public GameObject playerSelectionPanel;
+    public Transform playerButtonContainer;
+    public GameObject playerButtonPrefab;
 
     private List<PlayerProfile> turnOrder;
 
@@ -375,18 +379,94 @@ public class HelpCardPhaseManager : MonoBehaviour
                     sellingManager.UpdateIPOVisuals();
                     break;
                 }
+            case HelpCardEffect.CardSwap:
+                {
+                    // Cek kondisi aktivasi
+                    if (player.cards.Count == 0)
+                    {
+                        Debug.LogWarning($"[CardSwap] {player.playerName} tidak punya kartu, efek gagal.");
+                        yield break; // Keluar dari coroutine
+                    }
+
+                    List<PlayerProfile> validTargets = turnOrder.Where(p => p != player && p.cards.Count > 0).ToList();
+                    if (validTargets.Count == 0)
+                    {
+                        Debug.LogWarning($"[CardSwap] Tidak ada target yang valid, efek gagal.");
+                        yield break;
+                    }
+
+                    string colorFromPlayer = null;
+                    PlayerProfile targetPlayer = null;
+                    string colorFromTarget = null;
+
+                    if (player.playerName.Contains("You"))
+                    {
+                        // 1. Player memilih warna dari kartu miliknya
+                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorFromPlayer = selectedColor; }, player.cards.Select(c => c.color).Distinct().ToList()));
+
+                        // 2. Player memilih pemain target
+                        yield return StartCoroutine(ShowPlayerSelectionUI(validTargets, selectedPlayer => { targetPlayer = selectedPlayer; }));
+
+                        // 3. Player memilih warna dari kartu target
+                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorFromTarget = selectedColor; }, targetPlayer.cards.Select(c => c.color).Distinct().ToList()));
+                    }
+                    else // Logika untuk Bot
+                    {
+                        // 1. Bot memilih warna secara acak dari kartunya
+                        colorFromPlayer = player.cards[UnityEngine.Random.Range(0, player.cards.Count)].color;
+
+                        // 2. Bot memilih target secara acak
+                        targetPlayer = validTargets[UnityEngine.Random.Range(0, validTargets.Count)];
+
+                        // 3. Bot memilih warna secara acak dari kartu target
+                        colorFromTarget = targetPlayer.cards[UnityEngine.Random.Range(0, targetPlayer.cards.Count)].color;
+                    }
+
+                    // Lakukan pertukaran kartu
+                    Card cardFromPlayer = player.cards.FirstOrDefault(c => c.color == colorFromPlayer);
+                    Card cardFromTarget = targetPlayer.cards.FirstOrDefault(c => c.color == colorFromTarget);
+
+                    if(cardFromPlayer != null && cardFromTarget != null)
+                    {
+                        player.cards.Remove(cardFromPlayer);
+                        targetPlayer.cards.Remove(cardFromTarget);
+
+                        player.AddCard(cardFromTarget);
+                        targetPlayer.AddCard(cardFromPlayer);
+
+                        Debug.Log($"[CardSwap] {player.playerName} menukar kartu {colorFromPlayer} miliknya dengan kartu {colorFromTarget} milik {targetPlayer.playerName}.");
+                        gameManager.UpdatePlayerUI();
+                    }
+                    else
+                    {
+                        Debug.LogError("[CardSwap] Gagal menemukan kartu untuk ditukar.");
+                    }
+                    break;
+                }
         }
 
         gameManager.UpdatePlayerUI();
     }
-    private IEnumerator ShowIPOSelectionUI(Action<string> onColorSelected)
+    private IEnumerator ShowIPOSelectionUI(Action<string> onColorSelected, List<string> availableColors = null)
     {
         ipoSelectionPanel.SetActive(true);
         bool selectionMade = false;
 
+        // Jika tidak ada warna spesifik, tampilkan semua
+        if (availableColors == null)
+        {
+            availableColors = new List<string> { "Red", "Blue", "Green", "Orange" };
+        }
+
+        // Aktifkan/nonaktifkan tombol berdasarkan warna yang tersedia
+        redButton.gameObject.SetActive(availableColors.Contains("Red"));
+        blueButton.gameObject.SetActive(availableColors.Contains("Blue"));
+        greenButton.gameObject.SetActive(availableColors.Contains("Green"));
+        orangeButton.gameObject.SetActive(availableColors.Contains("Orange"));
+
         Action<string> SelectColor = (color) =>
         {
-            onColorSelected?.Invoke(color); // Panggil callback dengan warna yang dipilih
+            onColorSelected?.Invoke(color);
             selectionMade = true;
             ipoSelectionPanel.SetActive(false);
         };
@@ -401,7 +481,32 @@ public class HelpCardPhaseManager : MonoBehaviour
         greenButton.onClick.AddListener(() => SelectColor("Green"));
         orangeButton.onClick.AddListener(() => SelectColor("Orange"));
 
-        // Tunggu hingga pemain membuat pilihan
+        yield return new WaitUntil(() => selectionMade);
+    }
+
+    // Fungsi baru untuk menampilkan UI pemilihan pemain
+    private IEnumerator ShowPlayerSelectionUI(List<PlayerProfile> players, Action<PlayerProfile> onPlayerSelected)
+    {
+        playerSelectionPanel.SetActive(true);
+        foreach (Transform child in playerButtonContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        bool selectionMade = false;
+
+        foreach (var player in players)
+        {
+            GameObject btnObj = Instantiate(playerButtonPrefab, playerButtonContainer);
+            btnObj.GetComponentInChildren<UnityEngine.UI.Text>().text = player.playerName;
+            btnObj.GetComponent<UnityEngine.UI.Button>().onClick.AddListener(() =>
+            {
+                onPlayerSelected?.Invoke(player);
+                selectionMade = true;
+                playerSelectionPanel.SetActive(false);
+            });
+        }
+
         yield return new WaitUntil(() => selectionMade);
     }
 
@@ -436,6 +541,8 @@ public class HelpCardPhaseManager : MonoBehaviour
                 return new HelpCard("Prediksi Pasar", "Dapatkan bocoran pergerakan pasar untuk satu warna pilihanmu.", randomEffect);
             case HelpCardEffect.MarketStabilization:
                 return new HelpCard("Stabilisasi Pasar", "Pemerintah turun tangan! Semua harga saham kembali ke nilai awal.", randomEffect);
+             case HelpCardEffect.CardSwap:
+                return new HelpCard("Tukar Tambah", "Tukar 1 kartu yang kamu miliki dengan 1 kartu milik pemain lain.", randomEffect);
 
 
             default:
