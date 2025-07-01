@@ -321,68 +321,98 @@ public class SellingPhaseManager : MonoBehaviour
     }
     public void UpdateIPOState(IPOData data)
     {
-        int index = data._ipoIndex;
-        bool isGreen = data.color == "Green";
-        int min = isGreen ? -2 : -3;
-        int max = isGreen ? 2 : 3;
-
-        switch (data.currentState)
+        bool stateHasChanged;
+        do
         {
-            case IPOState.Normal:
-                if (index > max) // Melebihi batas atas -> Masuk Ascend
-                {
-                    Debug.Log($"[ASCEND] {data.color} memasuki kondisi Ascend! Harga jual +5.");
-                    data.currentState = IPOState.Ascend;
-                    data._ipoIndex = 0; // Reset index ke 0
-                    data.salesBonus = 5;
-                }
-                else if (index < min) // Di bawah batas bawah -> Crash (seperti biasa)
-                {
-                    Debug.LogWarning($"[CRASH] {data.color} market crash! Saham dikembalikan ke bank.");
-                    data._ipoIndex = 0; // Reset index
-                    data.salesBonus = 0;
-                    
-                    // Logika crash yang sudah ada
-                    foreach (var player in currentPlayers)
+            stateHasChanged = false; // Asumsikan tidak ada perubahan di awal loop
+            int currentIndex = data._ipoIndex;
+            bool isGreen = data.color == "Green";
+            int minThreshold = isGreen ? -2 : -3;
+            int maxThreshold = isGreen ? 2 : 3;
+
+            switch (data.currentState)
+            {
+                case IPOState.Normal:
+                    if (currentIndex > maxThreshold)
                     {
-                        var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
-                        if (cardsToSell.Count > 0)
-                        {
-                            foreach (var c in cardsToSell) player.cards.Remove(c);
-                            Debug.Log($"[CRASH] {player.playerName} kehilangan {cardsToSell.Count} saham {data.color}.");
-                        }
+                        // Hitung kelebihan nilai
+                        int excess = currentIndex - (maxThreshold + 1);
+                        Debug.Log($"[STATE CHANGE] {data.color}: Normal ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
+                        
+                        // Ubah status dan bonus
+                        data.currentState = IPOState.Ascend;
+                        data.salesBonus = 5;
+                        
+                        // Atur ulang index ke 0 dan tambahkan kelebihannya
+                        data._ipoIndex = 0 + excess;
+                        stateHasChanged = true; // Tandai bahwa perubahan terjadi untuk loop selanjutnya
                     }
-                    gameManager.UpdatePlayerUI();
-                }
-                break;
+                    else if (currentIndex < minThreshold)
+                    {
+                        // Logika Crash tetap sama, tidak perlu loop
+                        Debug.LogWarning($"[CRASH] {data.color} market crash! Saham dikembalikan ke bank.");
+                        data._ipoIndex = 0;
+                        data.salesBonus = 0;
+                        
+                        foreach (var player in currentPlayers)
+                        {
+                            var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
+                            if (cardsToSell.Count > 0)
+                            {
+                                foreach (var c in cardsToSell) player.cards.Remove(c);
+                                Debug.Log($"[CRASH] {player.playerName} kehilangan {cardsToSell.Count} saham {data.color}.");
+                            }
+                        }
+                        gameManager.UpdatePlayerUI();
+                    }
+                    break;
 
-            case IPOState.Ascend:
-                if (index < 0) // Turun di bawah 0 -> Kembali Normal
-                {
-                    Debug.Log($"[NORMAL] {data.color} kembali ke kondisi Normal.");
-                    data.currentState = IPOState.Normal;
-                    data._ipoIndex = max;
-                    data.salesBonus = 0;
-                }
-                else if (index > 0) // Naik di atas 0 -> Masuk Advanced
-                {
-                    Debug.Log($"[ADVANCED] {data.color} memasuki kondisi Advanced! Harga jual +10.");
-                    data.currentState = IPOState.Advanced;
-                    data._ipoIndex = min; // Set index ke nilai minimal
-                    data.salesBonus = 10;
-                }
-                break;
+                case IPOState.Ascend:
+                    if (currentIndex > 0) // Ambang batas atas untuk Ascend adalah 0
+                    {
+                        int excess = currentIndex - 1;
+                        Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Advanced. Menyimpan kelebihan nilai: {excess}");
+                        
+                        data.currentState = IPOState.Advanced;
+                        data.salesBonus = 10;
+                        
+                        // Atur ulang index ke nilai MINIMUM dari state baru dan tambahkan kelebihannya
+                        data._ipoIndex = minThreshold + excess;
+                        stateHasChanged = true;
+                    }
+                    else if (currentIndex < 0) // Ambang batas bawah untuk Ascend adalah 0
+                    {
+                        int excess = currentIndex + 1; // Seluruh nilai adalah kelebihan negatif
+                        Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Normal. Menyimpan kelebihan nilai: {excess}");
 
-            case IPOState.Advanced:
-                if (index < min) // Turun di bawah batas minimal -> Kembali ke Ascend
-                {
-                    Debug.Log($"[ASCEND] {data.color} kembali ke kondisi Ascend dari Advanced! Harga jual +5.");
-                    data.currentState = IPOState.Ascend;
-                    data._ipoIndex = 0; // Reset index ke 0
-                    data.salesBonus = 5;
-                }
-                break;
-        }
+                        data.currentState = IPOState.Normal;
+                        data.salesBonus = 0;
+
+                        // Atur ulang index ke 0 dan tambahkan kelebihannya (yang bernilai negatif)
+                        data._ipoIndex = maxThreshold + excess;
+                        stateHasChanged = true;
+                    }
+                    break;
+
+                case IPOState.Advanced:
+                    if (currentIndex < minThreshold)
+                    {
+                        int excess = currentIndex - (minThreshold - 1);
+                        Debug.Log($"[STATE CHANGE] {data.color}: Advanced ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
+
+                        data.currentState = IPOState.Ascend;
+                        data.salesBonus = 5;
+                        
+                        // Atur ulang index ke 0 dan tambahkan kelebihannya
+                        data._ipoIndex = 0 + excess;
+                        stateHasChanged = true;
+                    }
+                    break;
+            }
+
+        // Jika state berubah, loop akan berjalan lagi untuk memeriksa apakah
+        // index yang baru (setelah ditambah `excess`) menyebabkan perubahan state lagi.
+        } while (stateHasChanged);
     }
 
 
