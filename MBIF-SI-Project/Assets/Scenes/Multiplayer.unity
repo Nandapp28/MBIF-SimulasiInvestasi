@@ -596,7 +596,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1868717275}
+      - m_Target: {fileID: 1868717274}
         m_TargetAssemblyTypeName: MultiplayerManager, Assembly-CSharp
         m_MethodName: OnSkipButtonClicked
         m_Mode: 1
@@ -881,7 +881,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1868717275}
+      - m_Target: {fileID: 1868717274}
         m_TargetAssemblyTypeName: MultiplayerManager, Assembly-CSharp
         m_MethodName: OnResetSemesterClicked
         m_Mode: 1
@@ -942,7 +942,7 @@ GameObject:
   - component: {fileID: 535496742}
   - component: {fileID: 535496743}
   m_Layer: 5
-  m_Name: PlayerListPannelSellUI
+  m_Name: SellingPhasePannelSellUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1629,7 +1629,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1169515245}
   - component: {fileID: 1169515247}
-  - component: {fileID: 1169515246}
+  - component: {fileID: 1169515248}
   m_Layer: 5
   m_Name: ListCardContainer
   m_TagString: Untagged
@@ -1656,18 +1656,6 @@ RectTransform:
   m_AnchoredPosition: {x: -5, y: 52}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1169515246
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1169515244}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f06286a3e07363244acb94860b53c4f5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &1169515247
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1692,6 +1680,18 @@ MonoBehaviour:
   m_Spacing: {x: 25, y: 50}
   m_Constraint: 1
   m_ConstraintCount: 2
+--- !u!114 &1169515248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1169515244}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06d0bd51febd47347becf30297502cee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1275777306
 GameObject:
   m_ObjectHideFlags: 0
@@ -2646,7 +2646,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 200}
+  m_AnchoredPosition: {x: 0, y: 250}
   m_SizeDelta: {x: 260, y: 52}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1756338205
@@ -3043,11 +3043,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1868717271}
   - component: {fileID: 1868717266}
-  - component: {fileID: 1868717273}
-  - component: {fileID: 1868717275}
   - component: {fileID: 1868717274}
-  - component: {fileID: 1868717277}
-  - component: {fileID: 1868717276}
+  - component: {fileID: 1868717273}
+  - component: {fileID: 1868717272}
   m_Layer: 0
   m_Name: Multiplayer Manager
   m_TagString: Untagged
@@ -3092,6 +3090,25 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1868717272
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1868717265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5fb88b4b68d86b459450f048a3a29e8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sellingUIMultiplayer: {fileID: 416247120}
+  confirmSellButton: {fileID: 684229214}
+  colorSellPanelContainer: {fileID: 535496742}
+  colorSellRowPrefab: {fileID: 4098081277277506207, guid: 793b4910fe9b8094a8cf30731595ee3b,
+    type: 3}
+  ipoDataList: []
+  ipoSpacing: 12.64
 --- !u!114 &1868717273
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3101,19 +3118,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1868717265}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
+  m_Script: {fileID: 11500000, guid: d3c1ea170be2834418642283c2f4927b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 2
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!114 &1868717274
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3123,24 +3130,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 1868717265}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 044481a9bdc7860469ebb04d3c2d7384, type: 3}
+  m_Script: {fileID: 11500000, guid: e1cd48f48d646964eba368ce6c5f29b7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &1868717275
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1868717265}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 13b5d16a72d21044fbe91507dd69f5ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ticketManager: {fileID: 1868717274}
-  sellingManager: {fileID: 1868717276}
-  playerEntryPrefab: {fileID: 2782006688885770628, guid: 0cf11e83913ff2c4f98c7a88a56ab28e,
+  ticketManagerMultiplayer: {fileID: 1868717273}
+  sellingmanagermultiplayer: {fileID: 1868717272}
+  playerEntryPrefab: {fileID: 2782006688885770628, guid: 2f62ab28dcd12b84586cbfcaa80e812a,
     type: 3}
   playerListContainer: {fileID: 234743692}
   cardPrefab: {fileID: 1107398949898934401, guid: 020d6ccbe96fff0479f2dee93d44935b,
@@ -3161,38 +3156,6 @@ MonoBehaviour:
   statusText: {fileID: 1756338206}
   skipButton: {fileID: 276203533}
   resetSemesterButton: {fileID: 471423623}
---- !u!114 &1868717276
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1868717265}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d0bc830002a6464898fdc2dc0e7407e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sellingUI: {fileID: 416247120}
-  confirmSellButton: {fileID: 684229214}
-  colorSellPanelContainer: {fileID: 535496742}
-  colorSellRowPrefab: {fileID: 4098081277277506207, guid: 52fb1304ac4d7ce4180de441c5cba4df,
-    type: 3}
-  ipoDataList: []
-  ipoSpacing: 0.5
---- !u!114 &1868717277
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1868717265}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bf077f3f201a095409c7de1431cce2a9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rumorEffects: []
 --- !u!1 &1876229066
 GameObject:
   m_ObjectHideFlags: 0
@@ -3881,10 +3844,10 @@ SceneRoots:
   - {fileID: 761657614}
   - {fileID: 689894263}
   - {fileID: 1633443391}
-  - {fileID: 1482497356}
   - {fileID: 278343615}
   - {fileID: 1835950616}
   - {fileID: 239675149}
   - {fileID: 1775516359}
+  - {fileID: 1482497356}
   - {fileID: 1366805351}
   - {fileID: 1868717271}

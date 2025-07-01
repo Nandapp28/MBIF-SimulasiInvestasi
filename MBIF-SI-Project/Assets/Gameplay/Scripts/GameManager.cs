@@ -1,17 +1,14 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using TMPro;
-using Photon.Pun;
-using Photon.Realtime;
-public class GameManager : MonoBehaviourPunCallbacks
+public class GameManager : MonoBehaviour
 {
     public TicketManager ticketManager;
     [SerializeField] private SellingPhaseManager sellingManager;
-    
+    public RumorPhaseManager rumorPhaseManager;
+    public HelpCardPhaseManager helpCardPhaseManager;
 
     private CardEffectManager cardEffect;
     private PlayerProfile player;
@@ -33,7 +30,6 @@ public class GameManager : MonoBehaviourPunCallbacks
 
 
     [Header("Button References")]
-    public GameObject botSelection;
     public Button bot2Button;
     public Button bot3Button;
     public Button bot4Button;
@@ -41,11 +37,14 @@ public class GameManager : MonoBehaviourPunCallbacks
     public GameObject skipButton;
 
 
+
+
+
     public static GameManager Instance;
     private List<PlayerProfile> bots = new List<PlayerProfile>();
     private List<GameObject> playerEntries = new List<GameObject>();
     private List<Card> deck = new List<Card>();
-    private List<PlayerProfile> turnOrder = new List<PlayerProfile>();
+    public List<PlayerProfile> turnOrder = new List<PlayerProfile>();
     private List<GameObject> cardObjects = new List<GameObject>();
     private HashSet<GameObject> takenCards = new HashSet<GameObject>();
     private List<GameObject> ticketButtons = new List<GameObject>();
@@ -62,7 +61,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     private int currentTurnIndex = 0;
     public int skipCount = 0;
     public int resetCount = 0;
-    private int maxResetCount = 1;
+    public int maxResetCount = 3;
 
     private Coroutine autoSelectCoroutine;
 
@@ -79,7 +78,8 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
     }
 
-    public void ResetButton() {
+    public void ResetSemesterButton()
+    {
         if (resetSemesterButton != null)
         {
             resetSemesterButton.SetActive(resetCount < maxResetCount);
@@ -104,6 +104,8 @@ public class GameManager : MonoBehaviourPunCallbacks
             p.ticketNumber = 0;
             // Jika mau hapus kartu juga, bisa panggil: p.ClearCards(); (jika tersedia)
         }
+
+        rumorPhaseManager.InitializeRumorDeck();
 
         currentCardIndex = 0;
         currentTurnIndex = 0;
@@ -130,33 +132,16 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         player = new PlayerProfile("You");
         if (resetSemesterButton != null)
-            resetSemesterButton.SetActive(false);
+            resetSemesterButton.SetActive(false); // ganti dengan nama canvas kamu
         skipButton.SetActive(false);
 
-        if (PhotonNetwork.InRoom)
-        {
-            // Multiplayer
-            if (PhotonNetwork.IsMasterClient)
-            {
-                ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
-                {
-                    { "started", true }
-                };
-                PhotonNetwork.CurrentRoom.SetCustomProperties(props);
 
-                // Panggil ShowTicketChoices ke semua pemain (termasuk MasterClient sendiri)
-                photonView.RPC(nameof(RPC_ShowTicketChoices), RpcTarget.AllBuffered);
-            }
-        }
-        else
-        {
-            botSelection.SetActive(true); // Tampilkan UI bot
-            bot2Button.onClick.AddListener(() => SetBotCount(2));
-            bot3Button.onClick.AddListener(() => SetBotCount(3));
-            bot4Button.onClick.AddListener(() => SetBotCount(4));
-        }
-        Debug.Log("Room started set to true in GameManager");
+
+        bot2Button.onClick.AddListener(() => SetBotCount(2));
+        bot3Button.onClick.AddListener(() => SetBotCount(3));
+        bot4Button.onClick.AddListener(() => SetBotCount(4));
     }
+
 
     private void SetBotCount(int count)
     {
@@ -167,22 +152,13 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
 
         ShowTicketChoices();
-        
+
     }
-
-
     public int GetPlayerCount()
     {
         int totalPlayers = bots.Count + 1;
         return totalPlayers;
     }
-
-    [PunRPC]
-    private void RPC_ShowTicketChoices()
-    {
-        ShowTicketChoices();
-    }
-
     private void ShowTicketChoices()
     {
         ClearTicketButtons();
@@ -273,7 +249,6 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
         ticketButtons.Clear();
     }
-
     private void AssignTickets()
     {
         List<int> availableTickets = new List<int>();
@@ -324,21 +299,20 @@ public class GameManager : MonoBehaviourPunCallbacks
 
 
 
-
     private void InitializeDeck()
     {
         deck.Clear();
 
         List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
 
-        // Tambahkan kartu default dengan warna acak
-        deck.Add(new Card("Trade Offer", "Deal 5 damage", 4, GetRandomColor(colors)));
-        deck.Add(new Card("Heal", "Recover 3 HP", 2, GetRandomColor(colors)));
-        deck.Add(new Card("Stock Split", "Block next attack", 3, GetRandomColor(colors)));
-        deck.Add(new Card("Steal", "Take 1 card", 5, GetRandomColor(colors)));
-        deck.Add(new Card("Flashbuy", "Take 2 more cards", 8, GetRandomColor(colors)));
+        deck.Add(new Card("Trade Offer", "Deal 5 damage", 0, GetRandomColor(colors)));
+        deck.Add(new Card("Heal", "Recover 3 HP", 0, GetRandomColor(colors)));
+        deck.Add(new Card("Stock Split", "Block next attack", 0, GetRandomColor(colors)));
+        deck.Add(new Card("Steal", "Take 1 card", 0, GetRandomColor(colors)));
+        deck.Add(new Card("Flashbuy", "Take 2 more cards", 0, GetRandomColor(colors)));
 
         ShuffleDeck();
+
         int totalCardsToGive = totalCards * (bots.Count + 1);
 
         if (deck.Count < totalCardsToGive)
@@ -354,7 +328,33 @@ public class GameManager : MonoBehaviourPunCallbacks
         {
             deck = new List<Card>(deck.GetRange(0, totalCardsToGive));
         }
+        
+
+        // Update nilai kartu setelah deck dibuat
+        UpdateDeckCardValuesWithIPO();
     }
+
+    public void UpdateDeckCardValuesWithIPO()
+    {
+        foreach (Card card in deck)
+        {
+            int ipoValue = sellingManager.GetCurrentColorValue(card.color);
+            card.value = card.baseValue + ipoValue;
+        }
+        Debug.Log("Update harga");
+        for (int i = 0; i < cardObjects.Count; i++)
+        {
+            GameObject cardObj = cardObjects[i];
+            Card card = deck[i];
+
+            Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
+            if (cardValueText != null)
+            {
+                cardValueText.text = card.value.ToString();
+            }
+        }
+    }
+
 
     private int GetCardValue(GameObject cardObj)
     {
@@ -414,9 +414,25 @@ public class GameManager : MonoBehaviourPunCallbacks
         currentTurnIndex = 0;
         StartCoroutine(NextTurn());
     }
+    public void RefreshCardValuesUI()
+    {
+        for (int i = 0; i < cardObjects.Count; i++)
+        {
+            GameObject cardObj = cardObjects[i];
+            Card card = deck[i];
+
+            Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
+            if (cardValueText != null)
+            {
+                cardValueText.text = card.value.ToString();
+            }
+        }
+    }
+
 
     private IEnumerator NextTurn()
     {
+        sellingManager.InitializePlayers(turnOrder); 
         int totalCardsToGive = totalCards * (bots.Count + 1);
         if (skipCount >= turnOrder.Count)
         {
@@ -429,10 +445,10 @@ public class GameManager : MonoBehaviourPunCallbacks
             yield return new WaitForSeconds(2f);
 
             Debug.Log("Memulai fase penjualan...");
-    sellingManager.StartSellingPhase(turnOrder, resetCount, maxResetCount, resetSemesterButton);
+           helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
 
 
-    yield break;
+            yield break;
 
         }
         if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
@@ -443,10 +459,10 @@ public class GameManager : MonoBehaviourPunCallbacks
             ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
 
             Debug.Log("Memulai fase penjualan...");
-    sellingManager.StartSellingPhase(turnOrder, resetCount, maxResetCount, resetSemesterButton);
+            helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
 
 
-    yield break;
+            yield break;
         }
 
         PlayerProfile currentPlayer = turnOrder[currentTurnIndex];
@@ -611,36 +627,59 @@ public class GameManager : MonoBehaviourPunCallbacks
 
 
     }
-    
     private void ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     {
+        Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
+        int cardValue = 0;
+        if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
+
+        // Kurangi finpoint sesuai nilai kartu
+        currentPlayer.finpoint -= cardValue;
+        if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
         if (cardObj == null || takenCards.Contains(cardObj)) return;
 
-        // Cek apakah finpoint cukup
-        if (currentPlayer.finpoint < 1)
+        // Ambil nama kartu dari UI
+        // Ambil nama kartu
+        Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+        string cardName = cardNameText != null ? cardNameText.text : "";
+
+        // Ambil warna kartu
+        Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
+        string cardColor = cardColorText != null ? cardColorText.text : "Red";
+
+        if (!string.IsNullOrEmpty(cardName))
         {
-            Debug.LogWarning($"{currentPlayer.playerName} tidak punya finpoint cukup untuk mengaktifkan kartu ini.");
+            // Kirim nama, pemain, dan warna ke efek
+            Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
+            CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor);
+
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
             return;
         }
 
-        // LOGIKA YANG DISERHANAKAN: Kurangi 1 finpoint
-        currentPlayer.finpoint -= 1;
-        Debug.Log($"🎴 Kartu diaktifkan oleh {currentPlayer.playerName}, -1 FP.");
-        
+
+
+
         // Tandai kartu sudah diambil
         takenCards.Add(cardObj);
 
-        // Nonaktifkan kartu secara visual
+        // Nonaktifkan klik dan buat buram
         CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
         if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
         cg.alpha = 0.3f;
         cg.interactable = false;
+        cg.blocksRaycasts = false;
 
+        // Sembunyikan semua anak dari kartu
         foreach (Transform child in cardObj.transform)
         {
             child.gameObject.SetActive(false);
         }
-        
+
+        // Perbarui UI
         UpdatePlayerUI();
     }
 
@@ -659,6 +698,8 @@ public class GameManager : MonoBehaviourPunCallbacks
         saveBtnInstance = null;
     }
 
+
+
     private void ClearHiddenCards()
     {
         foreach (var cardObj in cardObjects)
@@ -670,6 +711,9 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
         cardObjects.Clear();
     }
+
+
+
 
     private void OnCardClicked(GameObject cardObj, int cardIndex)
     {
@@ -726,33 +770,46 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         if (cardObj == null || takenCards.Contains(cardObj)) return;
 
-        // LOGIKA YANG DISERHANAKAN: Tambah 1 finpoint
-        currentPlayer.finpoint += 1;
-        Debug.Log($"{currentPlayer.playerName} menyimpan kartu, +1 FP.");
+        // Ambil nama kartu
+        Text textComp = cardObj.GetComponentInChildren<Text>();
+        string cardName = textComp != null ? textComp.text : "Unknown";
 
-        // Buat kartu dan tambahkan ke tangan pemain
-        Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
-        string cardName = cardNameText != null ? cardNameText.text : "Unknown";
+        // Ambil nilai kartu
+        Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
+        int cardValue = 0;
+        if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
+
+        // Kurangi finpoint sesuai nilai kartu
+        currentPlayer.finpoint -= cardValue;
+        if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
+
+        // Buat kartu dan tambahkan
+        // Ambil nilai warna dari UI
         Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
-        string cardColor = cardColorText != null ? cardColorText.text : "Red";
-        
-        Card card = new Card(cardName, "", 1, cardColor);
+        string cardColor = cardColorText != null ? cardColorText.text : "Red"; // default Red jika null
+
+        // Buat kartu dan tambahkan
+        Card card = new Card(cardName, "", cardValue, cardColor);
+
         currentPlayer.AddCard(card);
 
         // Tandai kartu sudah diambil
         takenCards.Add(cardObj);
 
-        // Nonaktifkan kartu secara visual
+        // Nonaktifkan klik dan buat buram
         CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
         if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
         cg.alpha = 0.3f;
         cg.interactable = false;
+        cg.blocksRaycasts = false;
 
+        // Sembunyikan semua anak dari kartu
         foreach (Transform child in cardObj.transform)
         {
             child.gameObject.SetActive(false);
         }
 
+        // Memperbarui UI dengan jumlah kartu berdasarkan warna
         UpdatePlayerUI();
     }
 
@@ -819,7 +876,6 @@ public class GameManager : MonoBehaviourPunCallbacks
             Destroy(child.gameObject);
         }
     }
-    
     public void ShowLeaderboard()
     {
         leaderboardPanel.SetActive(true);
@@ -858,4 +914,6 @@ public class GameManager : MonoBehaviourPunCallbacks
             }
         }
     }
+
+
 }
