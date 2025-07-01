@@ -30,8 +30,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     public GameObject leaderboardPanel;
     public Transform leaderboardContainer;
     public GameObject leaderboardEntryPrefab;
-    public GameObject playerShowPrefab;        // Prefab berisi TMP_Text
-    public Transform playerShowContainer;
 
 
     [Header("Button References")]
@@ -135,8 +133,6 @@ public class GameManager : MonoBehaviourPunCallbacks
             resetSemesterButton.SetActive(false);
         skipButton.SetActive(false);
 
-        ShowAllPlayers();
-
         if (PhotonNetwork.InRoom)
         {
             // Multiplayer
@@ -173,36 +169,7 @@ public class GameManager : MonoBehaviourPunCallbacks
         ShowTicketChoices();
         
     }
-    
-    void ShowAllPlayers()
-    {
-        // Bersihkan dulu isi lama
-        foreach (Transform child in playerShowContainer)
-        {
-            Destroy(child.gameObject);
-        }
 
-        // Tampilkan semua pemain
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            GameObject go = Instantiate(playerShowPrefab, playerShowContainer);
-            TMP_Text text = go.GetComponentInChildren<TMP_Text>();
-
-            string role = player.IsMasterClient ? "(Host)" : "(Guest)";
-            text.text = $"{player.NickName} {role}";
-        }
-    }
-
-    // Update otomatis saat ada player baru join/keluar
-    public override void OnPlayerEnteredRoom(Player newPlayer)
-    {
-        ShowAllPlayers();
-    }
-
-    public override void OnPlayerLeftRoom(Player otherPlayer)
-    {
-        ShowAllPlayers();
-    }
 
     public int GetPlayerCount()
     {
@@ -649,54 +616,31 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         if (cardObj == null || takenCards.Contains(cardObj)) return;
 
-        // Ambil nama kartu dari UI
-        // Ambil nama kartu
-        Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
-        string cardName = cardNameText != null ? cardNameText.text : "";
-
-        // Ambil warna kartu
-        Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
-        string cardColor = cardColorText != null ? cardColorText.text : "Red";
-
-        if (!string.IsNullOrEmpty(cardName))
+        // Cek apakah finpoint cukup
+        if (currentPlayer.finpoint < 1)
         {
-            // Kirim nama, pemain, dan warna ke efek
-            CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor);
-            Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
-        }
-        else
-        {
-            Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
+            Debug.LogWarning($"{currentPlayer.playerName} tidak punya finpoint cukup untuk mengaktifkan kartu ini.");
             return;
         }
 
-
-        // Ambil nilai kartu
-        Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
-        int cardValue = 0;
-        if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
-
-        // Kurangi finpoint sesuai nilai kartu
-        currentPlayer.finpoint -= cardValue;
-        if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
-
+        // LOGIKA YANG DISERHANAKAN: Kurangi 1 finpoint
+        currentPlayer.finpoint -= 1;
+        Debug.Log($"🎴 Kartu diaktifkan oleh {currentPlayer.playerName}, -1 FP.");
+        
         // Tandai kartu sudah diambil
         takenCards.Add(cardObj);
 
-        // Nonaktifkan klik dan buat buram
+        // Nonaktifkan kartu secara visual
         CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
         if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
         cg.alpha = 0.3f;
         cg.interactable = false;
-        cg.blocksRaycasts = false;
 
-        // Sembunyikan semua anak dari kartu
         foreach (Transform child in cardObj.transform)
         {
             child.gameObject.SetActive(false);
         }
-
-        // Perbarui UI
+        
         UpdatePlayerUI();
     }
 
@@ -715,8 +659,6 @@ public class GameManager : MonoBehaviourPunCallbacks
         saveBtnInstance = null;
     }
 
-
-
     private void ClearHiddenCards()
     {
         foreach (var cardObj in cardObjects)
@@ -728,9 +670,6 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
         cardObjects.Clear();
     }
-
-
-
 
     private void OnCardClicked(GameObject cardObj, int cardIndex)
     {
@@ -787,46 +726,33 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         if (cardObj == null || takenCards.Contains(cardObj)) return;
 
-        // Ambil nama kartu
-        Text textComp = cardObj.GetComponentInChildren<Text>();
-        string cardName = textComp != null ? textComp.text : "Unknown";
+        // LOGIKA YANG DISERHANAKAN: Tambah 1 finpoint
+        currentPlayer.finpoint += 1;
+        Debug.Log($"{currentPlayer.playerName} menyimpan kartu, +1 FP.");
 
-        // Ambil nilai kartu
-        Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
-        int cardValue = 0;
-        if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
-
-        // Kurangi finpoint sesuai nilai kartu
-        currentPlayer.finpoint -= cardValue;
-        if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
-
-        // Buat kartu dan tambahkan
-        // Ambil nilai warna dari UI
+        // Buat kartu dan tambahkan ke tangan pemain
+        Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+        string cardName = cardNameText != null ? cardNameText.text : "Unknown";
         Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
-        string cardColor = cardColorText != null ? cardColorText.text : "Red"; // default Red jika null
-
-        // Buat kartu dan tambahkan
-        Card card = new Card(cardName, "", cardValue, cardColor);
-
+        string cardColor = cardColorText != null ? cardColorText.text : "Red";
+        
+        Card card = new Card(cardName, "", 1, cardColor);
         currentPlayer.AddCard(card);
 
         // Tandai kartu sudah diambil
         takenCards.Add(cardObj);
 
-        // Nonaktifkan klik dan buat buram
+        // Nonaktifkan kartu secara visual
         CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
         if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
         cg.alpha = 0.3f;
         cg.interactable = false;
-        cg.blocksRaycasts = false;
 
-        // Sembunyikan semua anak dari kartu
         foreach (Transform child in cardObj.transform)
         {
             child.gameObject.SetActive(false);
         }
 
-        // Memperbarui UI dengan jumlah kartu berdasarkan warna
         UpdatePlayerUI();
     }
 
