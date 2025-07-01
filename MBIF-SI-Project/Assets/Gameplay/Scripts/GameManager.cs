@@ -3,6 +3,13 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+[System.Serializable]
+public class CardTextureMapping
+{
+    public string cardName;
+    public string color;
+    public Sprite cardSprite;
+}
 public class GameManager : MonoBehaviour
 {
     public TicketManager ticketManager;
@@ -27,6 +34,8 @@ public class GameManager : MonoBehaviour
     public GameObject leaderboardPanel;
     public Transform leaderboardContainer;
     public GameObject leaderboardEntryPrefab;
+    [Header("Card Visuals")]
+    public List<CardTextureMapping> cardTextureMappings; // ⬅️ TAMBAHKAN INI
 
 
     [Header("Button References")]
@@ -140,6 +149,8 @@ public class GameManager : MonoBehaviour
         bot2Button.onClick.AddListener(() => SetBotCount(2));
         bot3Button.onClick.AddListener(() => SetBotCount(3));
         bot4Button.onClick.AddListener(() => SetBotCount(4));
+
+
     }
 
 
@@ -303,12 +314,13 @@ public class GameManager : MonoBehaviour
     {
         deck.Clear();
 
-        List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
+        List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
-        deck.Add(new Card("Trade Offer", "Deal 5 damage", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Heal", "Recover 3 HP", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Stock Split", "Block next attack", 1, GetRandomColor(colors)));
-        deck.Add(new Card("Steal", "Take 1 card", 2, GetRandomColor(colors)));
+
+        deck.Add(new Card("TradeOffer", "Deal 5 damage", 0, GetRandomColor(colors)));
+        deck.Add(new Card("TenderOffer", "Recover 3 HP", 0, GetRandomColor(colors)));
+        deck.Add(new Card("StockSplit", "Block next attack", 1, GetRandomColor(colors)));
+        deck.Add(new Card("InsiderTrade", "Take 1 card", 2, GetRandomColor(colors)));
         deck.Add(new Card("Flashbuy", "Take 2 more cards", 3, GetRandomColor(colors)));
 
         ShuffleDeck();
@@ -328,7 +340,7 @@ public class GameManager : MonoBehaviour
         {
             deck = new List<Card>(deck.GetRange(0, totalCardsToGive));
         }
-        
+
 
         // Update nilai kartu setelah deck dibuat
         UpdateDeckCardValuesWithIPO();
@@ -363,6 +375,12 @@ public class GameManager : MonoBehaviour
         if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
         return cardValue;
     }
+    private Sprite GetCardSprite(string cardName, string color)
+    {
+        var mapping = cardTextureMappings.FirstOrDefault(m => m.cardName == cardName && m.color == color);
+        return mapping != null ? mapping.cardSprite : null;
+    }
+
 
     private string GetRandomColor(List<string> colorOptions)
     {
@@ -392,6 +410,13 @@ public class GameManager : MonoBehaviour
         {
             Card card = deck[i];
             GameObject cardObj = Instantiate(cardPrefab, cardHolderParent);
+            Sprite sprite = GetCardSprite(card.cardName, card.color);
+            Image cardImage = cardObj.transform.Find("CardImage")?.GetComponent<Image>();
+            if (cardImage != null && sprite != null)
+            {
+                cardImage.sprite = sprite;
+            }
+
 
             // Ambil Text untuk nama kartu
             Text cardText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
@@ -432,7 +457,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator NextTurn()
     {
-        sellingManager.InitializePlayers(turnOrder); 
+        sellingManager.InitializePlayers(turnOrder);
         int totalCardsToGive = totalCards * (bots.Count + 1);
         if (skipCount >= turnOrder.Count)
         {
@@ -445,7 +470,7 @@ public class GameManager : MonoBehaviour
             yield return new WaitForSeconds(2f);
 
             Debug.Log("Memulai fase penjualan...");
-           helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
+            helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
 
 
             yield break;
@@ -644,7 +669,7 @@ public class GameManager : MonoBehaviour
 
         // Ambil warna kartu
         Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
-        string cardColor = cardColorText != null ? cardColorText.text : "Red";
+        string cardColor = cardColorText != null ? cardColorText.text : "Konsumer";
 
         if (!string.IsNullOrEmpty(cardName))
         {
@@ -846,13 +871,14 @@ public class GameManager : MonoBehaviour
         Text orangeCardText = entry.transform.Find("OrangeCardText")?.GetComponent<Text>();
 
         if (redCardText != null)
-            redCardText.text = $"M: {(colorCounts.ContainsKey("Red") ? colorCounts["Red"] : 0)}";
+            redCardText.text = $"K: {(colorCounts.ContainsKey("Konsumer") ? colorCounts["Konsumer"] : 0)}";
         if (blueCardText != null)
-            blueCardText.text = $"B: {(colorCounts.ContainsKey("Blue") ? colorCounts["Blue"] : 0)}";
+            blueCardText.text = $"I: {(colorCounts.ContainsKey("Infrastruktur") ? colorCounts["Infrastruktur"] : 0)}";
         if (greenCardText != null)
-            greenCardText.text = $"H: {(colorCounts.ContainsKey("Green") ? colorCounts["Green"] : 0)}";
+            greenCardText.text = $"U: {(colorCounts.ContainsKey("Keuangan") ? colorCounts["Keuangan"] : 0)}";
         if (orangeCardText != null)
-            orangeCardText.text = $"O: {(colorCounts.ContainsKey("Orange") ? colorCounts["Orange"] : 0)}";
+            orangeCardText.text = $"T: {(colorCounts.ContainsKey("Tambang") ? colorCounts["Tambang"] : 0)}";
+
 
         playerEntries.Add(entry);
     }

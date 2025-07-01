@@ -32,10 +32,10 @@ public class SellingPhaseManager : MonoBehaviour
 
     public Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
-        { "Red",    new int[] { 1, 2, 3, 5, 6, 7, 8 } },
-        { "Blue",   new int[] { 1, 3, 4, 5, 6, 7, 9 } },
-        { "Green",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
-        { "Orange", new int[] { 1, 2, 4, 5, 6, 8, 9 } }
+        { "Konsumer", new int[] { 1, 2, 3, 5, 6, 7, 8 } },
+        { "Infrastruktur", new int[] { 1, 3, 4, 5, 6, 7, 9 } },
+        { "Keuangan", new int[] { 1, 2, 4, 5, 6, 8, 9 } },
+        { "Tambang",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
     };
 
     [System.Serializable]
@@ -66,8 +66,8 @@ public class SellingPhaseManager : MonoBehaviour
         {
             int index = data.ipoIndex;
 
-            // Clamp khusus Green
-            if (color == "Green")
+            // Clamp khusus Orange
+            if (color == "Tambang")
                 index = Mathf.Clamp(index, -2, 2);
             else
                 index = Mathf.Clamp(index, -3, 3);
@@ -93,10 +93,10 @@ public class SellingPhaseManager : MonoBehaviour
     {
         public Dictionary<string, int> colorSellCounts = new Dictionary<string, int>
         {
-            { "Red", 0 },
-            { "Blue", 0 },
-            { "Green", 0 },
-            { "Orange", 0 }
+            { "Konsumer", 0 },
+            { "Infrastruktur", 0 },
+            { "Keuangan", 0 },
+            { "Tambang", 0 }
         };
     }
     private void Start()
@@ -266,13 +266,13 @@ public class SellingPhaseManager : MonoBehaviour
                         {
                             // <-- LOGIKA LAMA (JIKA TIDAK ADA PREDIKSI) -->
                             float sellChance = color switch
-                            {
-                                "Red" => 0.5f,
-                                "Blue" => 0.5f,
-                                "Green" => 0.4f,
-                                "Orange" => 1f,
-                                _ => 0.5f
-                            };
+                        {
+                            "Konsumer" => 0.5f,
+                            "Infrastruktur" => 0.5f,
+                            "Keuangan" => 0.5f,
+                            "Tambang" => 0.5f,
+                            _ => 0.5f
+                        };
 
                             foreach (var card in ownedCards)
                             {
@@ -326,9 +326,9 @@ public class SellingPhaseManager : MonoBehaviour
         {
             stateHasChanged = false; // Asumsikan tidak ada perubahan di awal loop
             int currentIndex = data._ipoIndex;
-            bool isGreen = data.color == "Green";
-            int minThreshold = isGreen ? -2 : -3;
-            int maxThreshold = isGreen ? 2 : 3;
+            bool isOrange = data.color == "Tambang";
+            int minThreshold = isOrange ? -2 : -3;
+            int maxThreshold = isOrange ? 2 : 3;
 
             switch (data.currentState)
             {
@@ -425,8 +425,8 @@ public class SellingPhaseManager : MonoBehaviour
             {
                 int clampedIndex = data.ipoIndex;
 
-                // Clamp khusus untuk Green
-                if (data.color == "Green")
+                // Clamp khusus untuk Orange
+                if (data.color == "Tambang")
                     clampedIndex = Mathf.Clamp(clampedIndex, -2, 2);
                 else
                     clampedIndex = Mathf.Clamp(clampedIndex, -3, 3);

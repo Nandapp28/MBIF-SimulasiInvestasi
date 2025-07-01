@@ -19,10 +19,10 @@ public class CardEffectManager
                 ShieldEffect(player);
                 break;
 
-            case "Trade Offer":
+            case "TradeOffer":
                 TradeOfferEffect(player);
                 break;
-            case "Stock Split":
+            case "StockSplit":
                 StockSplitEffect(player, color);
                 break;
 
@@ -65,6 +65,7 @@ public class CardEffectManager
         {
             Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
             return;
+
         }
 
         int currentIndex = ipoData.ipoIndex;
@@ -80,7 +81,7 @@ public class CardEffectManager
         }
 
         // 1. Dapatkan harga sekarang
-        int clampedIndex = color == "Green"
+        int clampedIndex = color == "Orange"
             ? Mathf.Clamp(currentIndex, -2, 2)
             : Mathf.Clamp(currentIndex, -3, 3);
 

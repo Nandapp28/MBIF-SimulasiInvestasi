@@ -263,21 +263,35 @@ public class HelpCardPhaseManager : MonoBehaviour
 
 
             case HelpCardEffect.TaxEvasion:
-                Debug.Log($"{player.playerName} mengaktifkan Penghindaran Pajak. Semua pemain harus membayar pajak berdasarkan jumlah kartu!");
-                foreach (var p in turnOrder)
                 {
-                    int cardCount = p.cards.Count;
-                    int cost = cardCount * 2;
-                    p.DeductFinpoint(cost);
-                    Debug.Log($"{p.playerName} membayar {cost} Finpoint untuk {cardCount} kartu. Sisa: {p.finpoint}");
-                    targetDescription = $"Target: Semua Pemain(kecuali pemakai)";
+                    Debug.Log($"{player.playerName} mengaktifkan Penghindaran Pajak. Semua pemain lain harus membayar pajak!");
+
+                    foreach (var p in turnOrder)
+                    {
+                        // Lewati pemain yang mengaktifkan kartu ini
+                        if (p == player)
+                        {
+                            continue; // Lanjut ke pemain berikutnya dalam perulangan
+                        }
+
+                        // Kode ini hanya akan berjalan untuk pemain lain
+                        int cardCount = p.cards.Count;
+                        int cost = cardCount * 2;
+                        p.DeductFinpoint(cost);
+                        Debug.Log($"{p.playerName} membayar {cost} Finpoint untuk {cardCount} kartu. Sisa: {p.finpoint}");
+                    }
+
+                    // Pindahkan ini ke luar loop agar lebih efisien
+                    targetDescription = "Target: \n Semua Pemain Lain";
+                    break;
                 }
-                break;
+
             case HelpCardEffect.MarketPrediction:
+            case HelpCardEffect.EyeOfTruth: // Menggabungkan case karena logikanya identik
                 {
                     string chosenColor = null;
 
-                    // ... (Bagian 1: Logika pemilihan warna tidak berubah) ...
+                    // ... (Logika pemilihan warna tidak berubah) ...
                     if (player.playerName.Contains("You"))
                     {
                         yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { chosenColor = selectedColor; }));
@@ -290,104 +304,39 @@ public class HelpCardPhaseManager : MonoBehaviour
                     Debug.Log($"{player.playerName} mencoba memprediksi pasar untuk warna {chosenColor}.");
                     targetDescription = $"Target: \n{chosenColor}";
 
-                    // ... (Bagian 2 & 3: Logika mencari rumor dan menyimpan prediksi tidak berubah) ...
-                    RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == chosenColor && r.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO);
+                    // --- INI BAGIAN YANG DIPERBAIKI ---
+                    // Sekarang kita mencari rumor berdasarkan WARNA saja, tanpa mempedulikan jenis efeknya.
+                    RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == chosenColor);
 
-                    // ...
                     if (futureRumor != null)
                     {
-                        // --- BAGIAN LOG YANG DIPERBAIKI ---
-                        if (futureRumor.value > 0)
+                        // Bagian ini sekarang hanya akan berjalan jika kartu rumor yang ditemukan
+                        // KEBETULAN adalah tipe ModifyIPO, yang mana sudah benar.
+                        if (futureRumor.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO)
                         {
-                            player.marketPredictions[chosenColor] = MarketPredictionType.Rise;
-                            // Pesan ini sekarang jelas hanya untuk pemain yang bersangkutan
-                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan NAIK.");
+                            if (futureRumor.value > 0)
+                            {
+                                player.marketPredictions[chosenColor] = MarketPredictionType.Rise;
+                                Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan NAIK.");
+                            }
+                            else if (futureRumor.value < 0)
+                            {
+                                player.marketPredictions[chosenColor] = MarketPredictionType.Fall;
+                                Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan TURUN.");
+                            }
                         }
-                        else if (futureRumor.value < 0)
-                        {
-                            player.marketPredictions[chosenColor] = MarketPredictionType.Fall;
-                            // Pesan ini sekarang jelas hanya untuk pemain yang bersangkutan
-                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan TURUN.");
-                        }
-                        // --- AKHIR BAGIAN YANG DIPERBAIKI ---
 
-                        // Tampilkan kartu di tengah layar menggunakan metode baru yang sudah kita buat
+                        // Bagian ini akan SELALU berjalan selama ada kartu rumor untuk warna tersebut.
                         Debug.Log($"Menampilkan bocoran kartu rumor untuk {player.playerName}: {futureRumor.cardName}");
-
-                        // Panggil coroutine baru dan tunggu hingga animasinya selesai
                         yield return rumorPhaseManager.ShowPredictionCardAtCenter(futureRumor);
-
-                        // Beri jeda tambahan agar pemain bisa mencerna informasi
                         yield return new WaitForSeconds(2f);
-
-                        // Sembunyikan kembali kartu tersebut
                         rumorPhaseManager.HideAllCardObjects();
                     }
-                    // ...
                     else
                     {
-                        Debug.Log($"Tidak ada prediksi pergerakan IPO signifikan untuk {chosenColor}.");
+                        Debug.Log($"Tidak ada kartu rumor yang ditemukan untuk {chosenColor} di dek rumor.");
                     }
                     break;
-                }
-            case HelpCardEffect.EyeOfTruth:
-                {
-                    string chosenColor = null;
-
-
-                    // ... (Bagian 1: Logika pemilihan warna tidak berubah) ...
-                    if (player.playerName.Contains("You"))
-                    {
-                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { chosenColor = selectedColor; }));
-                    }
-                    else // Logika untuk Bot
-                    {
-                        int randomIndex = UnityEngine.Random.Range(0, sellingManager.ipoDataList.Count);
-                        chosenColor = sellingManager.ipoDataList[randomIndex].color;
-                    }
-                    Debug.Log($"{player.playerName} mencoba memprediksi pasar untuk warna {chosenColor}.");
-                    targetDescription = $"Target: \n{chosenColor}";
-
-                    // ... (Bagian 2 & 3: Logika mencari rumor dan menyimpan prediksi tidak berubah) ...
-                    RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == chosenColor && r.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO);
-
-                    // ...
-                    if (futureRumor != null)
-                    {
-                        // --- BAGIAN LOG YANG DIPERBAIKI ---
-                        if (futureRumor.value > 0)
-                        {
-                            player.marketPredictions[chosenColor] = MarketPredictionType.Rise;
-                            // Pesan ini sekarang jelas hanya untuk pemain yang bersangkutan
-                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan NAIK.");
-                        }
-                        else if (futureRumor.value < 0)
-                        {
-                            player.marketPredictions[chosenColor] = MarketPredictionType.Fall;
-                            // Pesan ini sekarang jelas hanya untuk pemain yang bersangkutan
-                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan TURUN.");
-                        }
-                        // --- AKHIR BAGIAN YANG DIPERBAIKI ---
-
-                        // Tampilkan kartu di tengah layar menggunakan metode baru yang sudah kita buat
-                        Debug.Log($"Menampilkan bocoran kartu rumor untuk {player.playerName}: {futureRumor.cardName}");
-
-                        // Panggil coroutine baru dan tunggu hingga animasinya selesai
-                        yield return rumorPhaseManager.ShowPredictionCardAtCenter(futureRumor);
-
-                        // Beri jeda tambahan agar pemain bisa mencerna informasi
-                        yield return new WaitForSeconds(2f);
-
-                        // Sembunyikan kembali kartu tersebut
-                        rumorPhaseManager.HideAllCardObjects();
-                    }
-                    // ...
-                    else
-                    {
-                        Debug.Log($"Tidak ada prediksi pergerakan IPO signifikan untuk {chosenColor}.");
-                    }
-                    break;
-
                 }
             case HelpCardEffect.MarketStabilization:
                 {
@@ -457,7 +406,7 @@ public class HelpCardPhaseManager : MonoBehaviour
                         targetPlayer.AddCard(cardFromPlayer);
 
                         Debug.Log($"[CardSwap] {player.playerName} menukar kartu {colorFromPlayer} miliknya dengan kartu {colorFromTarget} milik {targetPlayer.playerName}.");
-                        targetDescription = $"Menukar {colorFromPlayer} dengan \n {colorFromTarget} milik {targetPlayer.playerName}";
+                        targetDescription = $"{targetPlayer.playerName} \n Menukar sektor {colorFromPlayer} dengan {colorFromTarget} milik target";
                         gameManager.UpdatePlayerUI();
                     }
                     else
@@ -503,7 +452,7 @@ public class HelpCardPhaseManager : MonoBehaviour
                     int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f); // Setengah harga, dibulatkan ke atas
 
                     Debug.Log($"[ForcedPurchase] Harga asli kartu {colorToPurchase} adalah {fullPrice}. Harga beli paksa: {purchasePrice}.");
-                    targetDescription = $"Membeli paksa \n {colorToPurchase} milik {targetPlayer.playerName}";
+                    targetDescription = $"{targetPlayer.playerName} \n membeli paksa sektor 1 {colorToPurchase} milik target";
 
                     if (player.CanAfford(purchasePrice))
                     {
@@ -533,7 +482,10 @@ public class HelpCardPhaseManager : MonoBehaviour
         }
 
         gameManager.UpdatePlayerUI();
-         yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+        if (!player.playerName.Contains("You"))
+        {
+            yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+        }
     }
     private IEnumerator ShowIPOSelectionUI(Action<string> onColorSelected, List<string> availableColors = null)
     {
@@ -543,14 +495,16 @@ public class HelpCardPhaseManager : MonoBehaviour
         // Jika tidak ada warna spesifik, tampilkan semua
         if (availableColors == null)
         {
-            availableColors = new List<string> { "Red", "Blue", "Green", "Orange" };
+            // --- PERUBAHAN DI SINI ---
+            availableColors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
         }
 
         // Aktifkan/nonaktifkan tombol berdasarkan warna yang tersedia
-        redButton.gameObject.SetActive(availableColors.Contains("Red"));
-        blueButton.gameObject.SetActive(availableColors.Contains("Blue"));
-        greenButton.gameObject.SetActive(availableColors.Contains("Green"));
-        orangeButton.gameObject.SetActive(availableColors.Contains("Orange"));
+        // Pastikan nama GameObject tombol sesuai
+        redButton.gameObject.SetActive(availableColors.Contains("Konsumer"));
+        blueButton.gameObject.SetActive(availableColors.Contains("Infrastruktur"));
+        greenButton.gameObject.SetActive(availableColors.Contains("Keuangan"));
+        orangeButton.gameObject.SetActive(availableColors.Contains("Tambang"));
 
         Action<string> SelectColor = (color) =>
         {
@@ -564,10 +518,11 @@ public class HelpCardPhaseManager : MonoBehaviour
         greenButton.onClick.RemoveAllListeners();
         orangeButton.onClick.RemoveAllListeners();
 
-        redButton.onClick.AddListener(() => SelectColor("Red"));
-        blueButton.onClick.AddListener(() => SelectColor("Blue"));
-        greenButton.onClick.AddListener(() => SelectColor("Green"));
-        orangeButton.onClick.AddListener(() => SelectColor("Orange"));
+        // --- PERUBAHAN DI SINI ---
+        redButton.onClick.AddListener(() => SelectColor("Konsumer"));
+        blueButton.onClick.AddListener(() => SelectColor("Infrastruktur"));
+        greenButton.onClick.AddListener(() => SelectColor("Keuangan"));
+        orangeButton.onClick.AddListener(() => SelectColor("Tambang"));
 
         yield return new WaitUntil(() => selectionMade);
     }
@@ -598,21 +553,21 @@ public class HelpCardPhaseManager : MonoBehaviour
         yield return new WaitUntil(() => selectionMade);
     }
     private IEnumerator ShowEffectResult(PlayerProfile player, HelpCard card, string targetInfo)
-{
-    // 1. Isi informasi ke dalam panel
-    effectPlayerNameText.text = $"{player.playerName}\nmenggunakan:";
-    effectCardImage.sprite = card.cardImage; // Gunakan gambar dari kartu
-    effectTargetText.text = targetInfo;     // Tampilkan detail target
+    {
+        // 1. Isi informasi ke dalam panel
+        effectPlayerNameText.text = $"{player.playerName}\nmenggunakan:";
+        effectCardImage.sprite = card.cardImage; // Gunakan gambar dari kartu
+        effectTargetText.text = targetInfo;     // Tampilkan detail target
 
-    // 2. Tampilkan panel
-    effectDisplayPanel.SetActive(true);
+        // 2. Tampilkan panel
+        effectDisplayPanel.SetActive(true);
 
-    // 3. Tunggu selama 3 detik
-    yield return new WaitForSeconds(3f);
+        // 3. Tunggu selama 3 detik
+        yield return new WaitForSeconds(3f);
 
-    // 4. Sembunyikan kembali panelnya
-    effectDisplayPanel.SetActive(false);
-}
+        // 4. Sembunyikan kembali panelnya
+        effectDisplayPanel.SetActive(false);
+    }
 
     public bool isTesting = true;
     private HelpCard GetRandomHelpCard()

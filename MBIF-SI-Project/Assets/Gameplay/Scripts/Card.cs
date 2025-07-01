@@ -7,7 +7,7 @@ public class Card
     public int value;      // nilai kartu setelah ditambah IPO price
     public string color;
 
-    public Card(string name, string desc, int baseVal = 0, string color = "Red")
+    public Card(string name, string desc, int baseVal = 0, string color = "Konsumer")
     {
         cardName = name;
         description = desc;
