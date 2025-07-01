@@ -10,11 +10,8 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 {
     public static SellingPhaseManagerMultiplayer Instance;
 
-    // Referensi ke GameManager dan RumorPhaseManager dihapus karena tidak lagi diperlukan di multiplayer
-    // public GameObject resetSemesterButton; // Ini dikontrol oleh MultiplayerManager
-
     [Header("UI Elements")]
-    public GameObject sellingUI;
+    public GameObject sellingUIMultiplayer;
     public Button confirmSellButton;
     public Transform colorSellPanelContainer;
     public GameObject colorSellRowPrefab;
@@ -51,24 +48,24 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 initialPositions[data.color] = data.colorObject.transform.position;
             }
         }
-        sellingUI.SetActive(false);
+        sellingUIMultiplayer.SetActive(false);
     }
 
-    public void StartSellingPhase(List<PlayerProfile> players, int resetCount, int maxResetCount, GameObject resetButton)
+    public void StartSellingPhase(List<PlayerProfileMultiplayer> players, int resetCount, int maxResetCount, GameObject resetButton)
     {
-        sellingUI.SetActive(false); // Sembunyikan dulu untuk semua orang
+        sellingUIMultiplayer.SetActive(false); // Sembunyikan dulu untuk semua orang
         
         // Tampilkan UI penjualan hanya untuk pemain lokal
-        PlayerProfile localPlayer = players.FirstOrDefault(p => p.actorNumber == PhotonNetwork.LocalPlayer.ActorNumber);
+        PlayerProfileMultiplayer localPlayer = players.FirstOrDefault(p => p.actorNumber == PhotonNetwork.LocalPlayer.ActorNumber);
         if (localPlayer != null)
         {
             SetupSellingUI(localPlayer);
         }
     }
 
-    private void SetupSellingUI(PlayerProfile player)
+    private void SetupSellingUI(PlayerProfileMultiplayer player)
     {
-        sellingUI.SetActive(true);
+        sellingUIMultiplayer.SetActive(true);
         confirmSellButton.onClick.RemoveAllListeners();
         foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
 
@@ -118,7 +115,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             // Kirim data penjualan ke MasterClient untuk diproses
             photonView.RPC(nameof(Cmd_ProcessSale), RpcTarget.MasterClient, PhotonNetwork.LocalPlayer.ActorNumber, colorsSold.ToArray(), countsSold.ToArray());
             
-            sellingUI.SetActive(false);
+            sellingUIMultiplayer.SetActive(false);
             confirmSellButton.interactable = false; // Mencegah klik ganda
         });
         
@@ -147,7 +144,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     private void RPC_FinalizeSale(int actorNumber, int gainedFinpoints, string[] soldColors, int[] soldCounts)
     {
         // Cari profil pemain yang sesuai di setiap komputer
-        PlayerProfile player = MultiplayerManager.Instance.GetPlayerProfile(actorNumber);
+        PlayerProfileMultiplayer player = MultiplayerManager.Instance.GetPlayerProfile(actorNumber);
         if (player != null)
         {
             player.finpoint += gainedFinpoints;
@@ -191,5 +188,5 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         }
     }
     
-    public void HandleCrashMultiplier(IPOData data, PlayerProfile affectedPlayer) { /* Implementasi Anda di sini */ }
+    public void HandleCrashMultiplier(IPOData data, PlayerProfileMultiplayer affectedPlayer) { /* Implementasi Anda di sini */ }
 }

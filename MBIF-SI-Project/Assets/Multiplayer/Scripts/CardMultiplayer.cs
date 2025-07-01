@@ -1,5 +1,9 @@
+using Photon.Pun;
+using UnityEngine;
+using System.Collections.Generic;
+
 [System.Serializable]
-public class CardMultiplayer
+public class CardMultiplayer : MonoBehaviourPunCallbacks
 {
     public string cardName;
     public string description;

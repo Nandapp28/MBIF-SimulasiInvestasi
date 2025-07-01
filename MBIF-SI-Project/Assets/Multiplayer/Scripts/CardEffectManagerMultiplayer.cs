@@ -1,15 +1,12 @@
-using System.Collections.Generic;
+using Photon.Pun;
 using UnityEngine;
-using System.Linq;
 
-public class CardEffectManagerMultiplayer
+public class CardEffectManagerMultiplayer : MonoBehaviourPunCallbacks
 {
-    // Untuk sekarang, fungsi ini tidak melakukan apa-apa selain memberi pesan debug.
-    // Semua kartu akan diperlakukan sama oleh MultiplayerManager.
+    // Kosongkan semua efek untuk sementara.
+    // Tidak ada logika yang akan berjalan di sini sesuai permintaan.
     public static void ApplyEffect(string cardName, PlayerProfile player, string color)
     {
-        // Pesan ini hanya akan muncul jika ada bagian dari kode yang masih memanggilnya.
-        // Dalam logika sederhana kita, ini seharusnya tidak terjadi.
-        Debug.Log($"ApplyEffect dipanggil untuk '{cardName}', tetapi semua efek dinonaktifkan sementara.");
+        // Fungsi ini sengaja dibiarkan kosong.
     }
 }

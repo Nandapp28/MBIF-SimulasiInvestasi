@@ -3,14 +3,16 @@ public class Card
 {
     public string cardName;
     public string description;
-    public int value;
-    public string color; // 🔴 Tambahkan warna
+    public int baseValue;  // nilai dasar kartu
+    public int value;      // nilai kartu setelah ditambah IPO price
+    public string color;
 
-    public Card(string name, string desc, int val = 0, string color = "Red")
+    public Card(string name, string desc, int baseVal = 0, string color = "Red")
     {
         cardName = name;
         description = desc;
-        value = val;
+        baseValue = baseVal;
         this.color = color;
+        value = baseValue;  // awalnya sama dengan baseValue
     }
 }

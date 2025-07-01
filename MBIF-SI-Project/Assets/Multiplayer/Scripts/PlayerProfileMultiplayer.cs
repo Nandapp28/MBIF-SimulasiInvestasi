@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using Photon.Pun;
 
 [System.Serializable]
 public class PlayerProfileMultiplayer
@@ -9,7 +10,7 @@ public class PlayerProfileMultiplayer
     public int ticketNumber; 
     public int finpoint; 
     public int lastRoll;
-    public List<Card> cards = new List<Card>();
+    public List<CardMultiplayer> cards = new List<CardMultiplayer>();
     public bool isBot; 
     public int actorNumber; 
     public int bonusActions = 0;
@@ -48,7 +49,6 @@ public class PlayerProfileMultiplayer
         return colorCounts;
     }
 
-    // --- FUNGSI BARU UNTUK FASE PENJUALAN ---
     // Fungsi ini akan menghapus kartu yang telah dijual dari tangan pemain.
     public void RemoveSoldCards(string color, int amount)
     {
@@ -67,7 +67,7 @@ public class PlayerProfileMultiplayer
     }
 
     public void SetLastRoll(int roll) { lastRoll = roll; }
-    public void AddCard(Card card) { cards.Add(card); }
+    public void AddCard(CardMultiplayer card) { cards.Add(card); }
     public bool CanAfford(int cost) { return finpoint >= cost; }
     public void DeductFinpoint(int amount) { finpoint -= amount; }
 }

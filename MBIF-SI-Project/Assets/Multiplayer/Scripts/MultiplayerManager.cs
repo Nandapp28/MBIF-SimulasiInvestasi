@@ -11,9 +11,8 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
 {
     public static MultiplayerManager Instance;
     [Header("Manager References")]
-    public TicketManagerMultiplayer ticketManager;
-    [SerializeField] private SellingPhaseManagerMultiplayer sellingManager;
-
+    public TicketManagerMultiplayer ticketManagerMultiplayer;
+    [SerializeField] private SellingPhaseManagerMultiplayer sellingmanagermultiplayer;
     [Header("UI References")]
     public GameObject playerEntryPrefab;
     public Transform playerListContainer;
@@ -33,7 +32,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     public Button skipButton;
     public Button resetSemesterButton;
 
-    private Dictionary<int, PlayerProfile> players = new Dictionary<int, PlayerProfile>();
+    private Dictionary<int, PlayerProfileMultiplayer> players = new Dictionary<int, PlayerProfileMultiplayer>();
     private List<int> turnOrder = new List<int>();
     private List<GameObject> cardObjects = new List<GameObject>();
     private HashSet<int> takenCardIndices = new HashSet<int>();
@@ -72,6 +71,11 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         }
     }
 
+    public int GetPlayerCount()
+    {
+        return players.Count;
+    }
+
     private void ShowTicketChoices()
     {
         int playerCount = PhotonNetwork.PlayerList.Length;
@@ -97,7 +101,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         yield return new WaitForSeconds(delay);
         if (PhotonNetwork.IsMasterClient)
         {
-            List<PlayerProfile> sortedPlayers = players.Values.OrderBy(p => p.ticketNumber).ToList();
+            List<PlayerProfileMultiplayer> sortedPlayers = players.Values.OrderBy(p => p.ticketNumber).ToList();
             turnOrder = sortedPlayers.Select(p => p.actorNumber).ToList();
             totalCardsInPlay = 2 * players.Count;
             InitializeDeck(out string[] cardNames, out string[] cardColors, out int[] cardValues);
@@ -138,13 +142,14 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         // Cek kondisi akhir fase dulu
         if (takenCardIndices.Count >= totalCardsInPlay || skipCount >= players.Count)
         {
+            Debug.Log("Fase kartu selesai. Memulai fase penjualan...");
             photonView.RPC(nameof(RPC_StartSellingPhase), RpcTarget.All);
             return;
         }
 
-        // Ambil pemain saat ini dan umumkan gilirannya
-        PlayerProfile currentPlayer = players[turnOrder[currentTurnIndex]];
-        photonView.RPC(nameof(RPC_SetCurrentTurn), RpcTarget.All, currentPlayer.actorNumber);
+        // Ambil pemain saat ini dan umumkan gilirannya DENGAN MENGIRIM INDEX-NYA
+        // INI ADALAH PERUBAIKAN UTAMA: Kirim 'currentTurnIndex' ke semua pemain.
+        photonView.RPC(nameof(RPC_SetCurrentTurn), RpcTarget.All, currentTurnIndex); 
     }
 
     public void OnCardClicked(GameObject cardObj, int cardIndex)
@@ -187,7 +192,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     {
         if (!players.ContainsKey(actorNumber))
         {
-            players.Add(actorNumber, new PlayerProfile(nickName, actorNumber));
+            players.Add(actorNumber, new PlayerProfileMultiplayer(nickName, actorNumber));
         }
         UpdatePlayerUI();
     }
@@ -197,7 +202,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     {
         if (ticketListContainer == null) { Debug.LogError("FATAL ERROR: 'Ticket List Container' belum di-assign!", this); return; }
         ticketListContainer.gameObject.SetActive(true);
-        if(statusText != null) statusText.text = "Choose 1 ticket";
+        if(statusText != null) statusText.text = "Choose a starting ticket...";
         foreach (Transform child in ticketListContainer) Destroy(child.gameObject);
         ticketButtons.Clear();
 
@@ -246,48 +251,79 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    private void RPC_SetCurrentTurn(int actorNumber)
+    private void RPC_SetCurrentTurn(int newTurnIndex) 
     {
+        // PERUBAIKAN: Semua client sekarang menyamakan 'currentTurnIndex' mereka.
+        this.currentTurnIndex = newTurnIndex; 
+
+        // Sekarang kita bisa dapatkan siapa pemain yang gilirannya dari turnOrder
+        int actorNumber = turnOrder[newTurnIndex];
+        
         bool isMyTurn = actorNumber == PhotonNetwork.LocalPlayer.ActorNumber;
-        if(statusText != null) statusText.text = isMyTurn ? "Your Turn!" : $"Waiting for {players[actorNumber].playerName}...";
+        
+        if(statusText != null) 
+        {
+            statusText.text = isMyTurn ? "Giliran Anda!" : $"Menunggu {players[actorNumber].playerName}...";
+        }
+
+        // Hanya tampilkan tombol jika giliran kita
         skipButton.gameObject.SetActive(isMyTurn);
+
+        // Pastikan tombol activate/save dari giliran sebelumnya hilang
+        if (!isMyTurn)
+        {
+            ResetCardSelection();
+        }
     }
 
     [PunRPC]
     private void RPC_ProcessPlayerAction(int actorNumber, int cardIndex, bool wasActivated)
     {
+        // Pastikan kartu dan pemain ada
         if (cardIndex >= cardObjects.Count || !players.ContainsKey(actorNumber)) return;
+
         GameObject cardObj = cardObjects[cardIndex];
-        PlayerProfile p = players[actorNumber];
-        int cardValue = int.Parse(cardObj.transform.Find("CardValue").GetComponent<Text>().text);
-        if (p.finpoint < cardValue) return;
-        p.finpoint -= cardValue;
-        Card card = new Card(
+        PlayerProfileMultiplayer p = players[actorNumber];
+        
+        // Ambil data kartu untuk ditambahkan ke profil (meski efeknya sederhana)
+        CardMultiplayer card = new CardMultiplayer(
             cardObj.transform.Find("CardText").GetComponent<Text>().text,
             "",
-            cardValue,
+            1, // Nilai kartu sekarang tidak relevan, kita beri nilai 1 saja
             cardObj.transform.Find("CardColor").GetComponent<Text>().text
         );
+
+        // LOGIKA YANG DISERHANAKAN:
         if (wasActivated)
         {
-            CardEffectManager.ApplyEffect(card.cardName, p, card.color);
+            // Jika 'Activate', kurangi 1 finpoint
+            p.finpoint -= 1;
+            Debug.Log($"{p.playerName} mengaktifkan kartu, -1 FP.");
+            // Tidak ada efek spesial yang dipanggil. Kartu ini hanya "terbuang".
         }
-        else
+        else // Jika 'Save'
         {
-            p.AddCard(card);
+            // Jika 'Save', tambah 1 finpoints
+            p.finpoint += 1;
+            p.AddCard(card); // Tambahkan kartu ke tangan pemain
+            Debug.Log($"{p.playerName} menyimpan kartu, +1 FP.");
         }
+
+        // Tandai kartu sudah diambil secara visual
         takenCardIndices.Add(cardIndex);
         cardObj.GetComponent<CanvasGroup>().alpha = 0.5f;
         cardObj.GetComponent<Button>().interactable = false;
+
+        // Perbarui UI untuk semua pemain
         UpdatePlayerUI();
     }
 
     [PunRPC]
     private void RPC_StartSellingPhase()
     {
-        if (sellingManager != null)
+        if (sellingmanagermultiplayer != null)
         {
-            sellingManager.StartSellingPhase(players.Values.ToList(), 0, 1, resetSemesterButton.gameObject);
+            sellingmanagermultiplayer.StartSellingPhase(players.Values.ToList(), 0, 1, resetSemesterButton.gameObject);
         }
     }
 
@@ -302,9 +338,9 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         }
     }
 
-    public PlayerProfile GetPlayerProfile(int actorNumber)
+    public PlayerProfileMultiplayer GetPlayerProfile(int actorNumber)
     {
-        players.TryGetValue(actorNumber, out PlayerProfile profile);
+        players.TryGetValue(actorNumber, out PlayerProfileMultiplayer profile);
         return profile;
     }
 
@@ -366,19 +402,33 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     private void Cmd_PlayerAction(int actorNumber, int cardIndex, bool isActivating)
     {
         if (!PhotonNetwork.IsMasterClient) return;
-        if (turnOrder.Count == 0 || turnOrder[currentTurnIndex] != actorNumber) return;
+
+        // Pastikan ini adalah giliran pemain yang benar
+        if (turnOrder.Count == 0 || turnOrder[currentTurnIndex] != actorNumber) 
+        {
+            Debug.LogWarning($"Aksi dari {players[actorNumber].playerName} ditolak, bukan gilirannya.");
+            return;
+        }
+
+        PlayerProfileMultiplayer p = players[actorNumber];
+        // Jika mau activate, butuh minimal 1 finpoint.
+        if (isActivating && p.finpoint < 1)
+        {
+            Debug.LogWarning($"{p.playerName} tidak punya finpoint cukup untuk Activate.");
+            // Kita bisa kirim notifikasi balik ke pemain jika perlu, tapi untuk sekarang kita abaikan aksinya.
+            return; 
+        }
+
+        // Jika valid, proses aksi untuk semua pemain
         photonView.RPC(nameof(RPC_ProcessPlayerAction), RpcTarget.All, actorNumber, cardIndex, isActivating);
-        PlayerProfile p = players[actorNumber];
-        if (p.bonusActions > 0)
-        {
-            p.bonusActions--;
-            Debug.Log($"Pemain {p.playerName} menggunakan bonus action, sisa {p.bonusActions}. Giliran tetap.");
-        }
-        else
-        {
-            skipCount = 0; // Reset skip count karena ada aksi
-            currentTurnIndex = (currentTurnIndex + 1) % players.Count;
-        }
+
+        // Reset skip count karena ada aksi yang valid
+        skipCount = 0; 
+        
+        // Maju ke giliran berikutnya
+        currentTurnIndex = (currentTurnIndex + 1) % players.Count;
+        
+        // Umumkan giliran berikutnya
         StartNextTurn();
     }
 

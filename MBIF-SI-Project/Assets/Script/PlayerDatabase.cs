@@ -5,23 +5,30 @@ using Firebase.Auth;
 using Firebase.Database;
 using UnityEngine.SceneManagement;
 using System;
+using UnityEngine.UI;
 
-public class ProfileSceneManager : MonoBehaviour
+public class PlayerDatabase : MonoBehaviour
 {
     [Serializable]
-    public class DataToSave
+    private class DataToSave
     {
         public string playerId;
         public string userName;
         public int finPoin;
+        public string avatarName; // Nama aset avatar
+        public string borderName; // Nama aset border
     }
 
     [Header("UI References")]
     public TextMeshProUGUI playerIdText;
-    public TMP_InputField userNameInput;     // <- Ganti dari userNameText ke userNameInput
+    public TMP_InputField userNameInput;
     public TextMeshProUGUI finPoinText;
-    public TextMeshProUGUI displayUsernameText;
     public GameObject confirmLogoutPopUp;
+
+    [Header("Profile Display")]
+    public Image profileBorder;
+    public Image profilePicture;
+    public Text nicknameText;
 
     [Header("Data")]
     private DataToSave dts = new DataToSave();
@@ -29,46 +36,47 @@ public class ProfileSceneManager : MonoBehaviour
     private const string GuestUserIdKey = "GuestUserId";
     private DatabaseReference dbRef;
 
-    private void Awake()
+    void Awake()
     {
         dbRef = FirebaseDatabase.DefaultInstance.RootReference;
     }
 
-    private void Start()
+    void Start()
     {
-        LoadData();
+        LoadData(); // Muat data pengguna saat script aktif
     }
 
     private string GetStoredUserId()
     {
-        if (PlayerPrefs.HasKey(GuestUserIdKey))
-            return PlayerPrefs.GetString(GuestUserIdKey);
-
-        Debug.LogWarning("User ID tidak ditemukan di PlayerPrefs.");
-        return null;
+        return PlayerPrefs.HasKey(GuestUserIdKey) ? PlayerPrefs.GetString(GuestUserIdKey) : null;
     }
 
     public void LoadData()
     {
         string userId = GetStoredUserId();
 
+        // Ambil User ID dari Firebase Auth jika PlayerPrefs kosong
+        if (FirebaseAuth.DefaultInstance.CurrentUser != null && string.IsNullOrEmpty(userId))
+            userId = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
+
         if (string.IsNullOrEmpty(userId))
         {
-            Debug.LogWarning("Gagal memuat data: User ID kosong.");
+            Debug.LogWarning("User ID kosong. Gagal memuat data.");
             return;
         }
 
-        StartCoroutine(LoadDataEnum(userId));
+        StartCoroutine(LoadDataEnum(userId)); // Mulai Coroutine memuat data
     }
 
     private IEnumerator LoadDataEnum(string userId)
     {
         var serverData = dbRef.Child("users").Child(userId).GetValueAsync();
-        yield return new WaitUntil(() => serverData.IsCompleted);
+        yield return new WaitUntil(() => serverData.IsCompleted); // Tunggu data selesai dimuat
 
         if (serverData.Exception != null)
         {
             Debug.LogError("Gagal memuat data dari Firebase: " + serverData.Exception);
+            UpdateUI();
             yield break;
         }
 
@@ -77,32 +85,46 @@ public class ProfileSceneManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(jsonData))
         {
-            dts = JsonUtility.FromJson<DataToSave>(jsonData);
+            dts = JsonUtility.FromJson<DataToSave>(jsonData); // Deserialisasi data lengkap
             Debug.Log("Data berhasil dimuat: " + jsonData);
-            UpdateUI();
         }
         else
         {
-            Debug.Log("Tidak ada data ditemukan untuk user ini.");
+            Debug.Log("Tidak ada data ditemukan. Inisialisasi default.");
+            StartCoroutine(SaveDataToFirebase(userId)); // Simpan data default ke Firebase
         }
+        UpdateUI(); // Perbarui UI setelah data dts terisi
     }
 
     private void UpdateUI()
     {
+        // Perbarui teks UI
         playerIdText.text = dts.playerId;
-
-        // Kosongkan input, isi placeholder
-        userNameInput.text = "";
-        if (userNameInput.placeholder is TextMeshProUGUI placeholder)
-        {
-            placeholder.text = dts.userName;
-            userNameInput.text = dts.userName;
-        }
-
+        userNameInput.text = dts.userName;
+        if (userNameInput.placeholder is TextMeshProUGUI placeholder) placeholder.text = dts.userName;
         finPoinText.text = dts.finPoin.ToString();
+        nicknameText.text = dts.userName;
 
-        // Tampilkan di DisplayUsername
-        displayUsernameText.text = dts.userName;
+        // Perbarui gambar profil dari data yang dimuat
+        LoadProfileImage(dts.avatarName, profilePicture, "Avatars");
+        LoadProfileImage(dts.borderName, profileBorder, "Borders");
+    }
+
+    // Fungsi bantu untuk memuat dan menampilkan gambar dari Resources
+    private void LoadProfileImage(string assetName, Image targetImage, string folderName)
+    {
+        if (string.IsNullOrEmpty(assetName)) return; // Jangan muat jika nama aset kosong
+
+        Sprite loadedSprite = Resources.Load<Sprite>(folderName + "/" + assetName);
+        if (loadedSprite != null)
+        {
+            targetImage.sprite = loadedSprite;
+            Debug.Log($"Gambar '{assetName}' dimuat dari Resources/{folderName}.");
+        }
+        else
+        {
+            Debug.LogWarning($"Aset '{assetName}' tidak ditemukan di Resources/{folderName}.");
+        }
     }
 
     public void SaveUserNameOnly()
@@ -110,44 +132,60 @@ public class ProfileSceneManager : MonoBehaviour
         string userId = GetStoredUserId();
         if (string.IsNullOrEmpty(userId))
         {
-            Debug.LogWarning("Tidak bisa menyimpan nama: User ID kosong.");
+            Debug.LogWarning("User ID kosong. Gagal menyimpan.");
             return;
         }
 
-        dts.userName = userNameInput.text; // Ambil input dari UI
-        string json = JsonUtility.ToJson(dts);
+        dts.userName = userNameInput.text; // Perbarui username lokal
 
+        string json = JsonUtility.ToJson(dts); // Konversi seluruh objek dts ke JSON
+        // Timpa seluruh data di Firebase, termasuk avatar dan border yang sudah dimuat
         dbRef.Child("users").Child(userId).SetRawJsonValueAsync(json).ContinueWith(task =>
         {
             if (task.IsCompletedSuccessfully)
-                Debug.Log("Username berhasil disimpan ke Firebase.");
+            {
+                Debug.Log("Username dan data lainnya berhasil disimpan.");
+                UpdateUI(); // Perbarui UI setelah simpan
+            }
             else
-                Debug.LogError("Gagal menyimpan username: " + task.Exception);
+            {
+                Debug.LogError("Gagal menyimpan data: " + task.Exception);
+            }
         });
+    }
+
+    // Fungsi bantu untuk menyimpan seluruh data ke Firebase
+    private IEnumerator SaveDataToFirebase(string userId)
+    {
+        string json = JsonUtility.ToJson(dts);
+        var saveTask = dbRef.Child("users").Child(userId).SetRawJsonValueAsync(json);
+        yield return new WaitUntil(() => saveTask.IsCompleted);
+
+        if (saveTask.Exception == null)
+        {
+            Debug.Log("Data user berhasil disimpan ke Firebase.");
+        }
+        else
+        {
+            Debug.LogError("Gagal menyimpan data user: " + saveTask.Exception);
+        }
     }
 
     public void Logout()
     {
-        confirmLogoutPopUp.SetActive(true); // Tampilkan pop-up konfirmasi
+        confirmLogoutPopUp.SetActive(true); // Tampilkan pop-up konfirmasi logout
     }
-    
+
     public void ConfirmLogoutYes()
     {
-        if (PlayerPrefs.HasKey(GuestUserIdKey))
-        {
-            PlayerPrefs.DeleteKey(GuestUserIdKey);
-            PlayerPrefs.Save();
-            Debug.Log("Guest ID dihapus dari PlayerPrefs.");
-        }
-
-        FirebaseAuth.DefaultInstance.SignOut();
-        Debug.Log("Logout dari Firebase berhasil.");
-
-        SceneManager.LoadScene("Intro");
+        PlayerPrefs.DeleteKey(GuestUserIdKey); // Hapus Guest ID lokal
+        PlayerPrefs.Save();
+        FirebaseAuth.DefaultInstance.SignOut(); // Logout dari Firebase Auth
+        SceneManager.LoadScene("Intro"); // Kembali ke scene Intro
     }
 
     public void ConfirmLogoutNo()
     {
-        confirmLogoutPopUp.SetActive(false); // Sembunyikan pop-up
+        confirmLogoutPopUp.SetActive(false); // Sembunyikan pop-up logout
     }
 }

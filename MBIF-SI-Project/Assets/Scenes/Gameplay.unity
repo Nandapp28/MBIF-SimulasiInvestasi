@@ -401,7 +401,8 @@ GameObject:
   - component: {fileID: 101139719}
   - component: {fileID: 101139720}
   - component: {fileID: 101139721}
-  - component: {fileID: 101139722}
+  - component: {fileID: 101139723}
+  - component: {fileID: 101139724}
   m_Layer: 0
   m_Name: Game Manager
   m_TagString: Untagged
@@ -438,6 +439,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ticketManager: {fileID: 101139719}
   sellingManager: {fileID: 101139720}
+  rumorPhaseManager: {fileID: 101139721}
   playerEntryPrefab: {fileID: 2782006688885770628, guid: 0cf11e83913ff2c4f98c7a88a56ab28e,
     type: 3}
   playerListContainer: {fileID: 793638544}
@@ -456,12 +458,12 @@ MonoBehaviour:
   leaderboardContainer: {fileID: 1922848545}
   leaderboardEntryPrefab: {fileID: 4197979355773733037, guid: 2f5ebf47fb2a81b4db04c585506efe3e,
     type: 3}
-  botSelection: {fileID: 2103213291}
   bot2Button: {fileID: 97189792}
   bot3Button: {fileID: 58595914}
   bot4Button: {fileID: 1059155221}
   resetSemesterButton: {fileID: 1039320209}
   skipButton: {fileID: 1066039575}
+  turnOrder: []
   currentCardIndex: 0
   skipCount: 0
   resetCount: 0
@@ -489,6 +491,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d0bc830002a6464898fdc2dc0e7407e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameManager: {fileID: 101139718}
+  rumorPhaseManager: {fileID: 101139721}
+  resetSemesterButton: {fileID: 1039320209}
   sellingUI: {fileID: 1219842011}
   confirmSellButton: {fileID: 1243904947}
   colorSellPanelContainer: {fileID: 2119348690}
@@ -496,16 +501,16 @@ MonoBehaviour:
     type: 3}
   ipoDataList:
   - color: Red
-    ipoIndex: 0
+    _ipoIndex: 0
     colorObject: {fileID: 1230166402}
   - color: Blue
-    ipoIndex: 0
+    _ipoIndex: 0
     colorObject: {fileID: 1821648110}
   - color: Green
-    ipoIndex: 0
+    _ipoIndex: 0
     colorObject: {fileID: 1911353654}
   - color: Orange
-    ipoIndex: 0
+    _ipoIndex: 0
     colorObject: {fileID: 1265061132}
   ipoSpacing: 0.5
 --- !u!114 &101139721
@@ -520,28 +525,66 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bf077f3f201a095409c7de1431cce2a9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameManager: {fileID: 0}
+  sellingPhaseManager: {fileID: 101139720}
+  resolutionPhaseManager: {fileID: 101139723}
   rumorEffects:
   - color: Red
     description: 
+    cardName: 
     effectType: 0
     value: 0
     affectAllPlayers: 0
   - color: Blue
     description: Green
+    cardName: 
     effectType: 0
     value: 0
     affectAllPlayers: 0
   - color: Green
     description: 
+    cardName: 
     effectType: 0
     value: 0
     affectAllPlayers: 0
   - color: Orange
     description: 
+    cardName: 
     effectType: 0
     value: 0
     affectAllPlayers: 0
---- !u!114 &101139722
+  shuffledRumorDeck: []
+  cardRed: {fileID: 0}
+  cardBlue: {fileID: 0}
+  cardGreen: {fileID: 0}
+  cardOrange: {fileID: 0}
+  cardVisuals: []
+  rendererRed: {fileID: 0}
+  rendererBlue: {fileID: 0}
+  rendererGreen: {fileID: 0}
+  rendererOrange: {fileID: 0}
+--- !u!114 &101139723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 101139711}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 459792795292c664a9a32e0dd1dbc645, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gameManager: {fileID: 0}
+  sellingPhaseManager: {fileID: 101139720}
+  helpCardPhaseManager: {fileID: 0}
+  tokenMinus2Material: {fileID: 0}
+  tokenMinus1Material: {fileID: 0}
+  tokenPlus1Material: {fileID: 0}
+  tokenPlus2Material: {fileID: 0}
+  dividendDataList: []
+  dividendSpacing: 0.5
+--- !u!114 &101139724
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1122,6 +1165,7 @@ GameObject:
   m_Component:
   - component: {fileID: 854983946}
   - component: {fileID: 854983947}
+  - component: {fileID: 854983948}
   m_Layer: 5
   m_Name: ListTicket
   m_TagString: Untagged
@@ -1172,6 +1216,18 @@ MonoBehaviour:
   m_Spacing: {x: 25, y: 50}
   m_Constraint: 1
   m_ConstraintCount: 5
+--- !u!114 &854983948
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 854983945}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f06286a3e07363244acb94860b53c4f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &913727340
 GameObject:
   m_ObjectHideFlags: 0
@@ -1329,7 +1385,7 @@ MonoBehaviour:
   m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1280, y: 720}
   m_ScreenMatchMode: 0
   m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3
@@ -3386,7 +3442,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &2103213292
 RectTransform:
   m_ObjectHideFlags: 0
