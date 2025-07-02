@@ -44,9 +44,9 @@ public class GameManager : MonoBehaviour
     public Button bot4Button;
     public GameObject resetSemesterButton;
     public GameObject skipButton;
-[Header("Ticket Sprites")]
-public Sprite defaultTicketSprite; // Texture A
-public List<Sprite> ticketNumberSprites; 
+    [Header("Ticket Sprites")]
+    public Sprite defaultTicketSprite; // Texture A
+    public List<Sprite> ticketNumberSprites;
 
 
 
@@ -191,28 +191,28 @@ public List<Sprite> ticketNumberSprites;
         TicketManager.ShuffleList(availableTickets);
 
         foreach (int ticketNumber in availableTickets)
-{
-    GameObject btnObj = Instantiate(ticketButtonPrefab, ticketListContainer);
-    ticketButtons.Add(btnObj);
-
-    // Set sprite awal (belum dipilih)
-    Image img = btnObj.GetComponent<Image>();
-    if (img != null && defaultTicketSprite != null)
-    {
-        img.sprite = defaultTicketSprite;
-    }
-
-
-    Button btn = btnObj.GetComponent<Button>();
-    if (btn != null)
-    {
-        int chosenTicket = ticketNumber;
-        btn.onClick.AddListener(() =>
         {
-            OnTicketSelected(chosenTicket, btnObj);
-        });
-    }
-}
+            GameObject btnObj = Instantiate(ticketButtonPrefab, ticketListContainer);
+            ticketButtons.Add(btnObj);
+
+            // Set sprite awal (belum dipilih)
+            Image img = btnObj.GetComponent<Image>();
+            if (img != null && defaultTicketSprite != null)
+            {
+                img.sprite = defaultTicketSprite;
+            }
+
+
+            Button btn = btnObj.GetComponent<Button>();
+            if (btn != null)
+            {
+                int chosenTicket = ticketNumber;
+                btn.onClick.AddListener(() =>
+                {
+                    OnTicketSelected(chosenTicket, btnObj);
+                });
+            }
+        }
 
         // Jalankan timer auto-pilih jika player tidak klik
 
@@ -220,30 +220,30 @@ public List<Sprite> ticketNumberSprites;
     }
 
     private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
-{
-    if (ticketChosen) return;
-    ticketChosen = true;
-
-    // Stop auto-select
-    if (autoSelectCoroutine != null)
     {
-        StopCoroutine(autoSelectCoroutine);
-        autoSelectCoroutine = null;
+        if (ticketChosen) return;
+        ticketChosen = true;
+
+        // Stop auto-select
+        if (autoSelectCoroutine != null)
+        {
+            StopCoroutine(autoSelectCoroutine);
+            autoSelectCoroutine = null;
+        }
+
+        player.ticketNumber = ticketManager.PickTicketForPlayer(chosenTicket);
+
+
+        // 🟡 Ganti sprite tombol yang diklik
+        Image img = clickedButton.GetComponent<Image>();
+        if (img != null && ticketNumberSprites.Count >= chosenTicket)
+        {
+            img.sprite = ticketNumberSprites[chosenTicket - 1]; // karena index mulai dari 0
+        }
+
+        // ⏳ Mulai delay 3 detik buat bot
+        StartCoroutine(AssignTicketsToBotsAfterDelay());
     }
-
-    player.ticketNumber = ticketManager.PickTicketForPlayer(chosenTicket);
-
-
-    // 🟡 Ganti sprite tombol yang diklik
-    Image img = clickedButton.GetComponent<Image>();
-    if (img != null && ticketNumberSprites.Count >= chosenTicket)
-    {
-        img.sprite = ticketNumberSprites[chosenTicket - 1]; // karena index mulai dari 0
-    }
-
-    // ⏳ Mulai delay 3 detik buat bot
-    StartCoroutine(AssignTicketsToBotsAfterDelay());
-}
 
 
     private IEnumerator AssignTicketsToBotsAfterDelay()
@@ -564,13 +564,7 @@ public List<Sprite> ticketNumberSprites;
                                 return;
                             }
                             cardTaken = true;
-                            ActivateCard(obj, currentPlayer);
-                            ResetCardSelection();
-                            skipCount = 0;
-                            currentCardIndex++;
-                            currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-                            if (skipButton != null) skipButton.SetActive(false);
-                            StartCoroutine(NextTurn());
+                            StartCoroutine(ActivateCardAndProceed(obj, currentPlayer));
                         });
 
                         saveBtnInstance.GetComponent<Button>().onClick.AddListener(() =>
@@ -582,13 +576,21 @@ public List<Sprite> ticketNumberSprites;
                                 return;
                             }
                             cardTaken = true;
-                            TakeCard(obj, currentPlayer);
                             ResetCardSelection();
+                            if (skipButton != null) skipButton.SetActive(false);
+
+                            // 2. Memanggil TakeCard (ini adalah metode void, jadi langsung dijalankan).
+                            TakeCard(obj, player);
+
+                            // 3. Setelah kartu diambil, perbarui status giliran.
+                            Debug.Log("✅ TakeCard selesai. Melanjutkan giliran.");
                             skipCount = 0;
                             currentCardIndex++;
                             currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-                            if (skipButton != null) skipButton.SetActive(false);
+
+                            // 4. Mulai giliran berikutnya.
                             StartCoroutine(NextTurn());
+
                         });
                     });
                 }
@@ -645,7 +647,7 @@ public List<Sprite> ticketNumberSprites;
             }
             else
             {
-                ActivateCard(randomCard, currentPlayer);
+                yield return StartCoroutine(ActivateCard(randomCard, currentPlayer));
             }
 
             // Reset skip counter karena aksi diambil
@@ -660,7 +662,30 @@ public List<Sprite> ticketNumberSprites;
 
 
     }
-    private void ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
+    private IEnumerator ActivateCardAndProceed(GameObject cardObj, PlayerProfile player)
+{
+    // 1. Membersihkan UI (tombol, dll.)
+    ResetCardSelection();
+    if (skipButton != null) skipButton.SetActive(false);
+    if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(false);
+    yield return new WaitForSeconds(1f);
+
+    // 2. Memanggil ActivateCard dan MENUNGGU sampai selesai.
+    yield return StartCoroutine(ActivateCard(cardObj, player));
+
+        // 3. Setelah efek selesai, perbarui status giliran.
+    yield return new WaitForSeconds(1.5f);
+    if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
+    Debug.Log("✅ Efek ActivateCard selesai. Melanjutkan giliran.");
+    skipCount = 0;
+    currentCardIndex++;
+    currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+
+    // 4. Mulai giliran berikutnya.
+    StartCoroutine(NextTurn());
+}
+
+    private IEnumerator ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     {
         Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
         int cardValue = 0;
@@ -668,8 +693,7 @@ public List<Sprite> ticketNumberSprites;
 
         // Kurangi finpoint sesuai nilai kartu
         currentPlayer.finpoint -= cardValue;
-        if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
-        if (cardObj == null || takenCards.Contains(cardObj)) return;
+        if (cardObj == null || takenCards.Contains(cardObj)) yield break;
 
 
         Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
@@ -678,22 +702,6 @@ public List<Sprite> ticketNumberSprites;
         // Ambil warna kartu
         Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
         string cardColor = cardColorText != null ? cardColorText.text : "Konsumer";
-
-        if (!string.IsNullOrEmpty(cardName))
-        {
-            // Kirim nama, pemain, dan warna ke efek
-            Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
-            CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor);
-
-        }
-        else
-        {
-            Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
-            return;
-        }
-
-
-
 
         // Tandai kartu sudah diambil
         takenCards.Add(cardObj);
@@ -713,6 +721,20 @@ public List<Sprite> ticketNumberSprites;
 
         // Perbarui UI
         UpdatePlayerUI();
+        if (!string.IsNullOrEmpty(cardName))
+        {
+            // Kirim nama, pemain, dan warna ke efek
+            Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
+            yield return StartCoroutine(CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor));
+
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
+            yield break;
+        }
+        UpdatePlayerUI();
+
     }
 
     void ResetCardSelection()
@@ -813,7 +835,6 @@ public List<Sprite> ticketNumberSprites;
 
         // Kurangi finpoint sesuai nilai kartu
         currentPlayer.finpoint -= cardValue;
-        if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
 
         // Buat kartu dan tambahkan
         // Ambil nilai warna dari UI

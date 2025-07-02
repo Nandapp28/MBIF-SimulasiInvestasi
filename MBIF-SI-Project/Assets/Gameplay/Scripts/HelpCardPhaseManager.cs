@@ -327,10 +327,12 @@ public class HelpCardPhaseManager : MonoBehaviour
                         }
 
                         // Bagian ini akan SELALU berjalan selama ada kartu rumor untuk warna tersebut.
-                        Debug.Log($"Menampilkan bocoran kartu rumor untuk {player.playerName}: {futureRumor.cardName}");
-                        yield return rumorPhaseManager.ShowPredictionCardAtCenter(futureRumor);
-                        yield return new WaitForSeconds(2f);
-                        rumorPhaseManager.HideAllCardObjects();
+                        if (player.playerName.Contains("You"))
+                        {
+                            Debug.Log($"Menampilkan bocoran kartu rumor untuk {player.playerName}: {futureRumor.cardName}");
+                            // Panggil coroutine yang sudah ada di RumorPhaseManager
+                            yield return rumorPhaseManager.StartCoroutine(rumorPhaseManager.DisplayAndHidePrediction(futureRumor));
+                        }
                     }
                     else
                     {

@@ -1,73 +1,71 @@
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using System.Linq;
 
 public class CardEffectManager
 {
 
-    public static void ApplyEffect(string cardName, PlayerProfile player, string color)
+     public static IEnumerator ApplyEffect(string cardName, PlayerProfile player, string color)
     {
         Debug.Log($"🧪 Menjalankan efek untuk kartu: {cardName}");
 
+        // 'yield return' akan memastikan kita menunggu coroutine selesai.
+        // Kita butuh instance MonoBehaviour untuk menjalankan coroutine, kita akan pakai GameManager.Instance
         switch (cardName)
         {
-            case "Heal":
-                HealEffect(player);
-                break;
-
-            case "Shield":
-                ShieldEffect(player);
-                break;
-
             case "TradeOffer":
-                TradeOfferEffect(player);
+                yield return GameManager.Instance.StartCoroutine(TradeOfferEffect(player));
                 break;
             case "StockSplit":
-                StockSplitEffect(player, color);
+                yield return GameManager.Instance.StartCoroutine(StockSplitEffect(player, color));
                 break;
             case "InsiderTrade":
-                InsiderTradeEffect(player, color);
+                yield return GameManager.Instance.StartCoroutine(InsiderTradeEffect(player, color));
                 break;
-
+            // ... (kasus lainnya juga diubah) ...
             default:
                 Debug.LogWarning($"Efek belum tersedia untuk kartu: {cardName}");
-                break;
+                yield break; // Tetap harus ada yield
         }
     }
 
-    private static void HealEffect(PlayerProfile player)
+    private static IEnumerator HealEffect(PlayerProfile player)
     {
         int healAmount = 5;
         player.finpoint += healAmount;
         Debug.Log($"🔧 Heal: +{healAmount} finpoint");
+        yield break; 
     }
 
-    private static void ShieldEffect(PlayerProfile player)
+    private static IEnumerator ShieldEffect(PlayerProfile player)
     {
         // Contoh: berikan flag "shielded" (kamu bisa buat property di PlayerProfile)
         Debug.Log("🛡️ Player diberi efek shield (placeholder)");
+        yield break; 
     }
 
-    private static void TradeOfferEffect(PlayerProfile player)
+    private static IEnumerator TradeOfferEffect(PlayerProfile player)
     {
         Debug.Log("📦 Efek trade offer dijalankan (placeholder)");
+        yield break; 
     }
 
-    private static void StockSplitEffect(PlayerProfile player, string color)
+    private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
     {
         SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
         GameManager gameManager = GameObject.FindObjectOfType<GameManager>();
         if (spm == null)
         {
             Debug.LogError("SellingPhaseManager tidak ditemukan di scene!");
-            return;
+            yield break; 
         }
 
         var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
         if (ipoData == null)
         {
             Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
-            return;
+            yield break; 
 
         }
 
@@ -80,7 +78,7 @@ public class CardEffectManager
             Debug.LogWarning($"⚠️ IPO index untuk {color} sudah di -3, diturunkan paksa ke -4.");
             spm.UpdateIPOState(ipoData);
 
-            return;
+            yield break; 
         }
 
         // 1. Dapatkan harga sekarang
@@ -107,9 +105,10 @@ public class CardEffectManager
 
         spm.UpdateIPOVisuals();
         gameManager.UpdateDeckCardValuesWithIPO();
+        yield break; 
 
     }
-private static void InsiderTradeEffect(PlayerProfile player, string color)
+private static IEnumerator InsiderTradeEffect(PlayerProfile player, string color)
     {
         // Cari instance manager yang diperlukan
         RumorPhaseManager rumorPhaseManager = GameObject.FindObjectOfType<RumorPhaseManager>();
@@ -118,7 +117,7 @@ private static void InsiderTradeEffect(PlayerProfile player, string color)
         if (rumorPhaseManager == null || gameManager == null)
         {
             Debug.LogError("RumorPhaseManager atau GameManager tidak ditemukan di scene!");
-            return;
+            yield break; 
         }
 
         // Cari kartu rumor berikutnya yang sesuai dengan warna dari GameManager
@@ -126,13 +125,14 @@ private static void InsiderTradeEffect(PlayerProfile player, string color)
 
         if (futureRumor != null)
         {
+            
             // Set status prediksi untuk pemain (logika bisnis)
             if (futureRumor.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO)
             {
                 if (futureRumor.value > 0)
                 {
                     // Anda mungkin perlu menambahkan dictionary 'marketPredictions' di PlayerProfile jika belum ada
-                    player.marketPredictions[color] = MarketPredictionType.Rise; 
+                    player.marketPredictions[color] = MarketPredictionType.Rise;
                     Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {color} diprediksi akan NAIK.");
                 }
                 else if (futureRumor.value < 0)
@@ -143,7 +143,10 @@ private static void InsiderTradeEffect(PlayerProfile player, string color)
             }
 
             // Panggil coroutine yang baru dibuat melalui GameManager untuk menangani visual
-            gameManager.StartCoroutine(rumorPhaseManager.DisplayAndHidePrediction(futureRumor));
+            if (player.playerName.Contains("You"))
+            {
+                yield return rumorPhaseManager.StartCoroutine(rumorPhaseManager.DisplayAndHidePrediction(futureRumor));
+            }
         }
         else
         {
