@@ -530,7 +530,7 @@ public class HelpCardPhaseManager : MonoBehaviour
     }
 
     // Fungsi baru untuk menampilkan UI pemilihan pemain
-    private IEnumerator ShowPlayerSelectionUI(List<PlayerProfile> players, Action<PlayerProfile> onPlayerSelected)
+    public IEnumerator ShowPlayerSelectionUI(List<PlayerProfile> players, Action<PlayerProfile> onPlayerSelected)
     {
         playerSelectionPanel.SetActive(true);
         foreach (Transform child in playerButtonContainer)
