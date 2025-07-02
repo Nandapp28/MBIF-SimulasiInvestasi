@@ -695,7 +695,7 @@ MonoBehaviour:
   cardPrefab: {fileID: 1107398949898934401, guid: 020d6ccbe96fff0479f2dee93d44935b,
     type: 3}
   cardHolderParent: {fileID: 1108295882}
-  ticketButtonPrefab: {fileID: 108247624729613242, guid: d22d0a0175d8f2b4caaeeb0ecb11d4fe,
+  ticketButtonPrefab: {fileID: 4459652460064575081, guid: c2c0d8c1a43ce5b44927c37bf9fe354c,
     type: 3}
   ticketListContainer: {fileID: 854983946}
   activateButtonPrefab: {fileID: 5457419439911542782, guid: aa7fdb9c06231f34392428f794c9f05e,
@@ -773,6 +773,14 @@ MonoBehaviour:
   bot4Button: {fileID: 1059155221}
   resetSemesterButton: {fileID: 1039320209}
   skipButton: {fileID: 1066039575}
+  defaultTicketSprite: {fileID: 21300000, guid: c52f833e42c24d547ae4c4b610f65aec,
+    type: 3}
+  ticketNumberSprites:
+  - {fileID: 21300000, guid: 139058dff47dc9148952a6c6f62cab9c, type: 3}
+  - {fileID: 21300000, guid: ac5e1baad4356c94d8831e41cb072c66, type: 3}
+  - {fileID: 21300000, guid: 476c05a2bcff9be43bfab31abc67ef7d, type: 3}
+  - {fileID: 21300000, guid: f6f75f232aed6c04d88e618f9e14a926, type: 3}
+  - {fileID: 21300000, guid: 0cd2a02cac3025a4e95dccf9b6901918, type: 3}
   turnOrder: []
   currentCardIndex: 0
   skipCount: 0
@@ -3436,7 +3444,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -322.2, y: 151.12}
+  m_AnchoredPosition: {x: -5, y: 113}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &854983947
@@ -3456,10 +3464,10 @@ MonoBehaviour:
     m_Right: 0
     m_Top: 0
     m_Bottom: 0
-  m_ChildAlignment: 0
+  m_ChildAlignment: 4
   m_StartCorner: 0
   m_StartAxis: 0
-  m_CellSize: {x: 100, y: 100}
+  m_CellSize: {x: 100, y: 180}
   m_Spacing: {x: 25, y: 50}
   m_Constraint: 1
   m_ConstraintCount: 5

@@ -44,7 +44,9 @@ public class GameManager : MonoBehaviour
     public Button bot4Button;
     public GameObject resetSemesterButton;
     public GameObject skipButton;
-
+[Header("Ticket Sprites")]
+public Sprite defaultTicketSprite; // Texture A
+public List<Sprite> ticketNumberSprites; 
 
 
 
@@ -189,53 +191,59 @@ public class GameManager : MonoBehaviour
         TicketManager.ShuffleList(availableTickets);
 
         foreach (int ticketNumber in availableTickets)
+{
+    GameObject btnObj = Instantiate(ticketButtonPrefab, ticketListContainer);
+    ticketButtons.Add(btnObj);
+
+    // Set sprite awal (belum dipilih)
+    Image img = btnObj.GetComponent<Image>();
+    if (img != null && defaultTicketSprite != null)
+    {
+        img.sprite = defaultTicketSprite;
+    }
+
+
+    Button btn = btnObj.GetComponent<Button>();
+    if (btn != null)
+    {
+        int chosenTicket = ticketNumber;
+        btn.onClick.AddListener(() =>
         {
-            GameObject btnObj = Instantiate(ticketButtonPrefab, ticketListContainer);
-            ticketButtons.Add(btnObj);
+            OnTicketSelected(chosenTicket, btnObj);
+        });
+    }
+}
 
-            Text btnText = btnObj.GetComponentInChildren<Text>();
-            if (btnText != null)
-                btnText.text = "Choose";
-
-            Button btn = btnObj.GetComponent<Button>();
-            if (btn != null)
-            {
-                int chosenTicket = ticketNumber;
-                btn.onClick.AddListener(() =>
-                {
-                    OnTicketSelected(chosenTicket, btnObj);
-                });
-            }
-        }
         // Jalankan timer auto-pilih jika player tidak klik
 
 
     }
 
     private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
+{
+    if (ticketChosen) return;
+    ticketChosen = true;
+
+    // Stop auto-select
+    if (autoSelectCoroutine != null)
     {
-        if (ticketChosen) return;
-        ticketChosen = true;
-
-        // Stop auto-select
-        if (autoSelectCoroutine != null)
-        {
-            StopCoroutine(autoSelectCoroutine);
-            autoSelectCoroutine = null;
-        }
-
-        player.ticketNumber = ticketManager.PickTicketForPlayer(chosenTicket);
-
-        // Ganti tulisan tombol yang diklik saja
-        Text btnText = clickedButton.GetComponentInChildren<Text>();
-        if (btnText != null)
-        {
-            btnText.text = $"{chosenTicket}"; // 🛠️ Update text yang diklik saja
-        }
-
-        // Mulai delay 3 detik buat bot
-        StartCoroutine(AssignTicketsToBotsAfterDelay());
+        StopCoroutine(autoSelectCoroutine);
+        autoSelectCoroutine = null;
     }
+
+    player.ticketNumber = ticketManager.PickTicketForPlayer(chosenTicket);
+
+
+    // 🟡 Ganti sprite tombol yang diklik
+    Image img = clickedButton.GetComponent<Image>();
+    if (img != null && ticketNumberSprites.Count >= chosenTicket)
+    {
+        img.sprite = ticketNumberSprites[chosenTicket - 1]; // karena index mulai dari 0
+    }
+
+    // ⏳ Mulai delay 3 detik buat bot
+    StartCoroutine(AssignTicketsToBotsAfterDelay());
+}
 
 
     private IEnumerator AssignTicketsToBotsAfterDelay()

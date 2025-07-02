@@ -25,6 +25,9 @@ public class CardEffectManager
             case "StockSplit":
                 StockSplitEffect(player, color);
                 break;
+            case "InsiderTrade":
+                InsiderTradeEffect(player, color);
+                break;
 
             default:
                 Debug.LogWarning($"Efek belum tersedia untuk kartu: {cardName}");
@@ -104,8 +107,49 @@ public class CardEffectManager
 
         spm.UpdateIPOVisuals();
         gameManager.UpdateDeckCardValuesWithIPO();
-        
-}
+
+    }
+private static void InsiderTradeEffect(PlayerProfile player, string color)
+    {
+        // Cari instance manager yang diperlukan
+        RumorPhaseManager rumorPhaseManager = GameObject.FindObjectOfType<RumorPhaseManager>();
+        GameManager gameManager = GameObject.FindObjectOfType<GameManager>();
+
+        if (rumorPhaseManager == null || gameManager == null)
+        {
+            Debug.LogError("RumorPhaseManager atau GameManager tidak ditemukan di scene!");
+            return;
+        }
+
+        // Cari kartu rumor berikutnya yang sesuai dengan warna dari GameManager
+        RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == color);
+
+        if (futureRumor != null)
+        {
+            // Set status prediksi untuk pemain (logika bisnis)
+            if (futureRumor.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO)
+            {
+                if (futureRumor.value > 0)
+                {
+                    // Anda mungkin perlu menambahkan dictionary 'marketPredictions' di PlayerProfile jika belum ada
+                    player.marketPredictions[color] = MarketPredictionType.Rise; 
+                    Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {color} diprediksi akan NAIK.");
+                }
+                else if (futureRumor.value < 0)
+                {
+                    player.marketPredictions[color] = MarketPredictionType.Fall;
+                    Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {color} diprediksi akan TURUN.");
+                }
+            }
+
+            // Panggil coroutine yang baru dibuat melalui GameManager untuk menangani visual
+            gameManager.StartCoroutine(rumorPhaseManager.DisplayAndHidePrediction(futureRumor));
+        }
+        else
+        {
+            Debug.Log($"Tidak ada kartu rumor yang ditemukan untuk {color} di dek rumor.");
+        }
+    }
 
 
 

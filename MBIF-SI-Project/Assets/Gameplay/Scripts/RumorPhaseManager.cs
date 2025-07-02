@@ -385,6 +385,20 @@ public IEnumerator ShowPredictionCardAtCenter(RumorPhaseManager.RumorEffect rumo
         
     }
 
+    public IEnumerator DisplayAndHidePrediction(RumorEffect predictionCard)
+{
+    Debug.Log($"Menampilkan bocoran kartu rumor: {predictionCard.cardName}");
+    
+    // Panggil fungsi yang sudah ada untuk menampilkan kartu di tengah
+    yield return StartCoroutine(ShowPredictionCardAtCenter(predictionCard));
+    
+    // Tunggu selama beberapa detik agar pemain bisa melihat
+    yield return new WaitForSeconds(3f); // Anda bisa sesuaikan durasi
+    
+    // Sembunyikan semua kartu
+    HideAllCardObjects();
+}
+
 
 
 
