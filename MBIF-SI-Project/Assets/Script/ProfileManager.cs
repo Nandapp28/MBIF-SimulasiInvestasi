@@ -9,6 +9,8 @@ using Firebase.Database; // Untuk DatabaseReference, DataSnapshot
 
 public class ProfileManager : MonoBehaviour
 {
+    public static ProfileManager Instance { get; private set; }
+
     [Header("Profile Display")]
     public Image profileBorder; // Untuk menampilkan border
     public Image profilePicture; // Untuk menampilkan avatar
@@ -26,6 +28,22 @@ public class ProfileManager : MonoBehaviour
     // Firebase references
     private FirebaseAuth auth;
     private DatabaseReference dbRef;
+
+    // Metode Awake() yang akan dipanggil Unity saat objek ini aktif
+    void Awake()
+    {
+        // Logika untuk memastikan hanya ada satu instance dari ProfileManager
+        // Jika sudah ada instance lain dan itu bukan object ini, hancurkan object ini.
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this.gameObject);
+        }
+        else
+        {
+            // Jika belum ada instance, jadikan object ini sebagai instance utama.
+            Instance = this;
+        }
+    }
 
     void Start()
     {
@@ -82,26 +100,26 @@ public class ProfileManager : MonoBehaviour
                 }
 
                 // Muat Border
-                // string savedBorderName = snapshot.Child("borderName").Exists ? snapshot.Child("borderName").Value.ToString() : null;
-                // if (!string.IsNullOrEmpty(savedBorderName))
-                // {
-                //     Sprite borderSprite = Resources.Load<Sprite>("Borders/" + savedBorderName);
-                //     if (borderSprite != null)
-                //     {
-                //         profileBorder.sprite = borderSprite; // Tampilkan border yang dimuat
-                //         selectedBorder = borderSprite; // Set selectedBorder untuk OnSaveClicked
-                //         selectedBorderName = savedBorderName; // Simpan nama aset
-                //         Debug.Log($"ProfileManager: Memuat border '{savedBorderName}'");
-                //     }
-                //     else
-                //     {
-                //         Debug.LogWarning($"ProfileManager: Aset border '{savedBorderName}' tidak ditemukan di Resources/Borders/.");
-                //     }
-                // }
-                // else
-                // {
-                //     Debug.Log("ProfileManager: Tidak ada border tersimpan.");
-                // }
+                string savedBorderName = snapshot.Child("borderName").Exists ? snapshot.Child("borderName").Value.ToString() : null;
+                if (!string.IsNullOrEmpty(savedBorderName))
+                {
+                    Sprite borderSprite = Resources.Load<Sprite>("Borders/" + savedBorderName);
+                    if (borderSprite != null)
+                    {
+                        profileBorder.sprite = borderSprite; // Tampilkan border yang dimuat
+                        selectedBorder = borderSprite; // Set selectedBorder untuk OnSaveClicked
+                        selectedBorderName = savedBorderName; // Simpan nama aset
+                        Debug.Log($"ProfileManager: Memuat border '{savedBorderName}'");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"ProfileManager: Aset border '{savedBorderName}' tidak ditemukan di Resources/Borders/.");
+                    }
+                }
+                else
+                {
+                    Debug.Log("ProfileManager: Tidak ada border tersimpan.");
+                }
             }
             else
             {
@@ -235,9 +253,7 @@ public class ProfileManager : MonoBehaviour
         selectedBorder = border;
         selectedBorderName = border.name;
 
-        // === BARU: Tampilkan preview border secara langsung ===
         profileBorder.sprite = selectedBorder; // Update tampilan profileBorder secara instan
-        // =======================================================
 
         Debug.Log($"Border '{border.name}' dipilih sementara.");
     }

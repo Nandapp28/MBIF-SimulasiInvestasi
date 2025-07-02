@@ -103,7 +103,9 @@ public class AnonymousLogin : MonoBehaviour
             { "userName", username },
             { "finPoin", 0 }, // Nilai default awal
             { "avatarName", "avatar_0" },
-            { "borderName", "avatar_0" }
+            { "borderName", "border_0" },
+            { "owned_avatar", "" },
+            { "owned_border", "" }
         };
 
         Debug.Log($"Menyimpan ke Firebase: UID={firebaseUid}, playerId={playerId}, userName={username}");

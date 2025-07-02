@@ -7,19 +7,20 @@ using Firebase.Database;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks; // PENTING: Tambahkan ini
 
 public class AvatarShopManager : MonoBehaviour
 {
-    [Header("Data Shop")]
-    public List<AvatarItemData> shopItems; // Masukkan semua aset AvatarItemData Anda di sini
+    [Header("Definisi Item Shop")]
+    [Tooltip("Isi daftar ini secara manual di Inspector. 'Avatar Asset Name' harus sama persis dengan nama file di folder Resources.")]
+    public List<AvatarShopItem> itemDefinitions;
 
     [Header("Referensi UI")]
     public TextMeshProUGUI playerFinpoinText;
-    public Transform shopItemParent; // GameObject "Content" dari ScrollView
+    public Transform shopItemParent;
     public GameObject shopItemPrefab;
 
     [Header("Panel Preview")]
-    public GameObject previewPanel;
     public Image previewAvatarImage;
     public TextMeshProUGUI previewPriceText;
     public Button buyButton;
@@ -29,47 +30,59 @@ public class AvatarShopManager : MonoBehaviour
     public GameObject failedPopup;
 
     private DatabaseReference dbRef;
-    private FirebaseAuth auth;
     private string currentUserUID;
-
     private long playerFinpoin;
     private List<string> ownedAvatars = new List<string>();
-    private AvatarItemData selectedItem;
+    private AvatarShopItem selectedItem;
 
-    IEnumerator Start()
+
+    // MODIFIKASI: Mengubah Start menjadi async void untuk alur yang lebih aman
+    async void Start()
     {
         // Selalu tunggu Firebase siap
-        yield return new WaitUntil(() => FirebaseInitializer.Instance != null && FirebaseInitializer.Instance.IsFirebaseReady);
+        while (FirebaseInitializer.Instance == null || !FirebaseInitializer.Instance.IsFirebaseReady)
+        {
+            await Task.Delay(100);
+        }
         
         dbRef = FirebaseDatabase.DefaultInstance.RootReference;
-        auth = FirebaseAuth.DefaultInstance;
+        var auth = FirebaseAuth.DefaultInstance;
 
         if (auth.CurrentUser == null) {
             Debug.LogError("User belum login.");
-            yield break;
+            return; 
         }
         currentUserUID = auth.CurrentUser.UserId;
 
         buyButton.onClick.AddListener(OnBuyButtonClicked);
-        previewPanel.SetActive(false); // Sembunyikan preview di awal
 
-        LoadPlayerDataAndPopulateShop();
+        SetupInitialState();
+
+        // Tunggu (await) sampai semua data selesai dimuat dan shop di-populate
+        await LoadPlayerDataAndPopulateShop();
+
+        // Setelah semua siap, barulah pemain bisa berinteraksi penuh.
+        Debug.Log("Shop siap digunakan.");
+    }
+    
+    void SetupInitialState()
+    {
+        previewPriceText.text = "Price";
+        buyButton.gameObject.SetActive(false);
+        if (successPopup != null) successPopup.SetActive(false);
+        if (failedPopup != null) failedPopup.SetActive(false);
     }
 
-    async void LoadPlayerDataAndPopulateShop()
+    // MODIFIKASI: Mengubah menjadi async Task agar bisa di-await
+    async Task LoadPlayerDataAndPopulateShop()
     {
-        // Ambil data user dari Firebase
         var userSnapshot = await dbRef.Child("users").Child(currentUserUID).GetValueAsync();
         if (!userSnapshot.Exists) return;
 
-        // Ambil Finpoin
-        if (userSnapshot.Child("finPoin").Exists)
-        {
-            playerFinpoin = (long)userSnapshot.Child("finPoin").Value;
-            playerFinpoinText.text = "$ " + playerFinpoin.ToString("N0");
-        }
+        playerFinpoin = userSnapshot.Child("finPoin").Exists ? (long)userSnapshot.Child("finPoin").Value : 0;
+        playerFinpoinText.text = "$ " + playerFinpoin.ToString("N0");
 
-        // Ambil daftar avatar yang sudah dimiliki
+        ownedAvatars.Clear(); // Bersihkan daftar lama sebelum mengisi
         if (userSnapshot.Child("owned_avatar").Exists)
         {
             foreach (var child in userSnapshot.Child("owned_avatar").Children)
@@ -83,29 +96,40 @@ public class AvatarShopManager : MonoBehaviour
 
     void PopulateShop()
     {
-        foreach (var itemData in shopItems)
+        foreach (Transform child in shopItemParent)
         {
+            Destroy(child.gameObject);
+        }
+        Sprite[] allAvatars = Resources.LoadAll<Sprite>("Avatars");
+        foreach (Sprite avatarSprite in allAvatars)
+        {
+            AvatarShopItem itemData = itemDefinitions.FirstOrDefault(item => item.avatarAssetName == avatarSprite.name);
+            
+            if (itemData == null) {
+                Debug.LogWarning($"Tidak ditemukan definisi harga untuk avatar: {avatarSprite.name}. Item ini tidak akan ditampilkan di shop.");
+                continue;
+            }
             GameObject newItem = Instantiate(shopItemPrefab, shopItemParent);
-            ShopItemUI itemUI = newItem.GetComponent<ShopItemUI>();
-            itemUI.Setup(itemData, this);
-
-            // Jika sudah punya, buat tombol tidak bisa diklik
+            AvatarShopItemUI itemUI = newItem.GetComponent<AvatarShopItemUI>();
+            itemUI.Setup(avatarSprite, () => OnItemSelected(avatarSprite, itemData));
             if (ownedAvatars.Contains(itemData.avatarAssetName))
             {
-                itemUI.itemButton.interactable = false;
+                itemUI.itemButton.interactable = false; // Tombol tetap non-aktif
+                itemUI.SetOwnedStatus(true);           // Tampilkan label "Owned"
+            }
+            else
+            {
+                itemUI.SetOwnedStatus(false);          // Pastikan label "Owned" tersembunyi
             }
         }
     }
 
-    public void OnItemSelected(AvatarItemData itemData)
+    public void OnItemSelected(Sprite avatarSprite, AvatarShopItem itemData)
     {
         selectedItem = itemData;
-        previewPanel.SetActive(true);
-
-        previewAvatarImage.sprite = itemData.avatarSprite;
+        previewAvatarImage.sprite = avatarSprite;
         previewPriceText.text = "$ " + itemData.price.ToString("N0");
-
-        // Cek lagi apakah sudah punya atau uang tidak cukup
+        buyButton.gameObject.SetActive(true);
         if (ownedAvatars.Contains(itemData.avatarAssetName) || playerFinpoin < itemData.price)
         {
             buyButton.interactable = false;
@@ -119,11 +143,9 @@ public class AvatarShopManager : MonoBehaviour
     async void OnBuyButtonClicked()
     {
         if (selectedItem == null) return;
-
-        // Validasi lagi untuk keamanan
         if (playerFinpoin < selectedItem.price)
         {
-            Debug.Log("Uang tidak cukup!");
+            Debug.Log("Finpoin tidak cukup!");
             StartCoroutine(ShowFeedback(failedPopup));
             return;
         }
@@ -132,35 +154,21 @@ public class AvatarShopManager : MonoBehaviour
             Debug.Log("Sudah memiliki item ini!");
             return;
         }
-
-        // Proses Transaksi
+        buyButton.interactable = false;
         long newFinpoin = playerFinpoin - selectedItem.price;
-
-        // 1. Update Finpoin di database
         await dbRef.Child("users").Child(currentUserUID).Child("finPoin").SetValueAsync(newFinpoin);
-
-        // 2. Tambahkan nama aset avatar ke daftar "owned_avatar"
         await dbRef.Child("users").Child(currentUserUID).Child("owned_avatar").Push().SetValueAsync(selectedItem.avatarAssetName);
-
-        // Update data lokal & UI
         playerFinpoin = newFinpoin;
         ownedAvatars.Add(selectedItem.avatarAssetName);
         playerFinpoinText.text = "$ " + playerFinpoin.ToString("N0");
-        buyButton.interactable = false;
-
         Debug.Log("Pembelian berhasil!");
         StartCoroutine(ShowFeedback(successPopup));
-        
-        // Refresh tampilan shop untuk menonaktifkan tombol item yang baru dibeli
-        foreach (Transform child in shopItemParent)
-        {
-            Destroy(child.gameObject);
-        }
         PopulateShop();
     }
 
     IEnumerator ShowFeedback(GameObject feedbackPanel)
     {
+        if (feedbackPanel == null) yield break;
         feedbackPanel.SetActive(true);
         yield return new WaitForSeconds(2.0f);
         feedbackPanel.SetActive(false);
