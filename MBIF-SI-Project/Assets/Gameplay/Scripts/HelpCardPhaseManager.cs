@@ -450,7 +450,7 @@ public class HelpCardPhaseManager : MonoBehaviour
                     }
 
                     // 3. Hitung harga dan lakukan transaksi
-                    int fullPrice = sellingManager.GetCurrentColorValue(colorToPurchase);
+                    int fullPrice = sellingManager.GetFullCardPrice(colorToPurchase);
                     int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f); // Setengah harga, dibulatkan ke atas
 
                     Debug.Log($"[ForcedPurchase] Harga asli kartu {colorToPurchase} adalah {fullPrice}. Harga beli paksa: {purchasePrice}.");
