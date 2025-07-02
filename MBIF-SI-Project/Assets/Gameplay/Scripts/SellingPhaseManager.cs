@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
-
+public enum IPOState { Normal, Ascend, Advanced }
 public class SellingPhaseManager : MonoBehaviour
 {
     [Header("Game References")]
@@ -20,7 +20,7 @@ public class SellingPhaseManager : MonoBehaviour
     public List<IPOData> ipoDataList = new List<IPOData>();
     public float ipoSpacing = 0.5f;
     private Dictionary<string, Vector3> initialPositions = new Dictionary<string, Vector3>();
-    private HashSet<string> bonusMultiplierColors = new HashSet<string>();
+    
 
 
     private Dictionary<string, SellInput> playerSellInputs = new Dictionary<string, SellInput>();
@@ -32,10 +32,10 @@ public class SellingPhaseManager : MonoBehaviour
 
     public Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
-        { "Red",    new int[] { 1, 2, 3, 5, 6, 7, 8 } },
-        { "Blue",   new int[] { 1, 3, 4, 5, 6, 7, 9 } },
-        { "Green",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
-        { "Orange", new int[] { 1, 2, 4, 5, 6, 8, 9 } }
+        { "Konsumer", new int[] { 1, 2, 3, 5, 6, 7, 8 } },
+        { "Infrastruktur", new int[] { 1, 3, 4, 5, 6, 7, 9 } },
+        { "Keuangan", new int[] { 1, 2, 4, 5, 6, 8, 9 } },
+        { "Tambang",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
     };
 
     [System.Serializable]
@@ -45,6 +45,8 @@ public class SellingPhaseManager : MonoBehaviour
         public int _ipoIndex = 0; // Range: -3 to 3
         public GameObject colorObject;
         [System.NonSerialized] public SellingPhaseManager manager;
+        public IPOState currentState = IPOState.Normal;
+        public int salesBonus = 0;
 
         public int ipoIndex
         {
@@ -53,7 +55,7 @@ public class SellingPhaseManager : MonoBehaviour
             {
                 _ipoIndex = value;
                 if (manager != null)
-                    manager.CheckCrashOrMultiplier(this);
+                    manager.UpdateIPOState(this);
             }
         }
     }
@@ -64,8 +66,8 @@ public class SellingPhaseManager : MonoBehaviour
         {
             int index = data.ipoIndex;
 
-            // Clamp khusus Green
-            if (color == "Green")
+            // Clamp khusus Orange
+            if (color == "Tambang")
                 index = Mathf.Clamp(index, -2, 2);
             else
                 index = Mathf.Clamp(index, -3, 3);
@@ -75,16 +77,26 @@ public class SellingPhaseManager : MonoBehaviour
         }
         return 0;
     }
+    public int GetFullCardPrice(string color)
+    {
+        int basePrice = GetCurrentColorValue(color);
+        IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);
+        if (data != null)
+        {
+            return basePrice + data.salesBonus; // Harga dasar + bonus dari status
+        }
+        return basePrice;
+    }
 
 
     public class SellInput
     {
         public Dictionary<string, int> colorSellCounts = new Dictionary<string, int>
         {
-            { "Red", 0 },
-            { "Blue", 0 },
-            { "Green", 0 },
-            { "Orange", 0 }
+            { "Konsumer", 0 },
+            { "Infrastruktur", 0 },
+            { "Keuangan", 0 },
+            { "Tambang", 0 }
         };
     }
     private void Start()
@@ -254,13 +266,13 @@ public class SellingPhaseManager : MonoBehaviour
                         {
                             // <-- LOGIKA LAMA (JIKA TIDAK ADA PREDIKSI) -->
                             float sellChance = color switch
-                            {
-                                "Red" => 0.5f,
-                                "Blue" => 0.5f,
-                                "Green" => 0.4f,
-                                "Orange" => 1f,
-                                _ => 0.5f
-                            };
+                        {
+                            "Konsumer" => 0.5f,
+                            "Infrastruktur" => 0.5f,
+                            "Keuangan" => 0.5f,
+                            "Tambang" => 0.5f,
+                            _ => 0.5f
+                        };
 
                             foreach (var card in ownedCards)
                             {
@@ -279,13 +291,12 @@ public class SellingPhaseManager : MonoBehaviour
                 int toSell = sellCounts[color];
                 if (cardsByColor.ContainsKey(color))
                 {
+                    IPOData data = ipoDataList.FirstOrDefault(d => d.color == color); // Ambil data IPO
+                if (data == null) continue;
                     var availableCards = cardsByColor[color];
                     int actualSell = Mathf.Min(toSell, availableCards.Count);
                     int price = GetCurrentColorValue(color);
-                    if (bonusMultiplierColors.Contains(color))
-                    {
-                        price *= 2;
-                    }
+                    price += data.salesBonus;
 
                     earnedFinpoints += actualSell * price;
                     soldCards.AddRange(availableCards.Take(actualSell));
@@ -308,43 +319,101 @@ public class SellingPhaseManager : MonoBehaviour
 
         Debug.Log("Fase penjualan selesai.");
     }
-    public void CheckCrashOrMultiplier(IPOData data)
+    public void UpdateIPOState(IPOData data)
     {
-        int index = data._ipoIndex;
-        bool isGreen = data.color == "Green";
-        int min = isGreen ? -2 : -3;
-        int max = isGreen ? 2 : 3;
-
-        if (index < min)
+        bool stateHasChanged;
+        do
         {
-            Debug.LogWarning($"[CRASH] {data.color} index terlalu rendah ({index}) — Market crash, semua kartu dijual otomatis.");
-            data._ipoIndex = 0;
+            stateHasChanged = false; // Asumsikan tidak ada perubahan di awal loop
+            int currentIndex = data._ipoIndex;
+            bool isOrange = data.color == "Tambang";
+            int minThreshold = isOrange ? -2 : -3;
+            int maxThreshold = isOrange ? 2 : 3;
 
-            foreach (var player in currentPlayers)
+            switch (data.currentState)
             {
-                var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
-                int cardCount = cardsToSell.Count;
-                if (cardCount > 0)
-                {
-                    foreach (var c in cardsToSell)
+                case IPOState.Normal:
+                    if (currentIndex > maxThreshold)
                     {
-                        player.cards.Remove(c);
+                        // Hitung kelebihan nilai
+                        int excess = currentIndex - (maxThreshold + 1);
+                        Debug.Log($"[STATE CHANGE] {data.color}: Normal ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
+                        
+                        // Ubah status dan bonus
+                        data.currentState = IPOState.Ascend;
+                        data.salesBonus = 5;
+                        
+                        // Atur ulang index ke 0 dan tambahkan kelebihannya
+                        data._ipoIndex = 0 + excess;
+                        stateHasChanged = true; // Tandai bahwa perubahan terjadi untuk loop selanjutnya
                     }
-                    Debug.Log($"[CRASH] {player.playerName} mengembalikan {cardCount} saham {data.color} ke bank dan tidak mendapatkan apa apa.");
-                }
+                    else if (currentIndex < minThreshold)
+                    {
+                        // Logika Crash tetap sama, tidak perlu loop
+                        Debug.LogWarning($"[CRASH] {data.color} market crash! Saham dikembalikan ke bank.");
+                        data._ipoIndex = 0;
+                        data.salesBonus = 0;
+                        
+                        foreach (var player in currentPlayers)
+                        {
+                            var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
+                            if (cardsToSell.Count > 0)
+                            {
+                                foreach (var c in cardsToSell) player.cards.Remove(c);
+                                Debug.Log($"[CRASH] {player.playerName} kehilangan {cardsToSell.Count} saham {data.color}.");
+                            }
+                        }
+                        gameManager.UpdatePlayerUI();
+                    }
+                    break;
+
+                case IPOState.Ascend:
+                    if (currentIndex > 0) // Ambang batas atas untuk Ascend adalah 0
+                    {
+                        int excess = currentIndex - 1;
+                        Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Advanced. Menyimpan kelebihan nilai: {excess}");
+                        
+                        data.currentState = IPOState.Advanced;
+                        data.salesBonus = 10;
+                        
+                        // Atur ulang index ke nilai MINIMUM dari state baru dan tambahkan kelebihannya
+                        data._ipoIndex = minThreshold + excess;
+                        stateHasChanged = true;
+                    }
+                    else if (currentIndex < 0) // Ambang batas bawah untuk Ascend adalah 0
+                    {
+                        int excess = currentIndex + 1; // Seluruh nilai adalah kelebihan negatif
+                        Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Normal. Menyimpan kelebihan nilai: {excess}");
+
+                        data.currentState = IPOState.Normal;
+                        data.salesBonus = 0;
+
+                        // Atur ulang index ke 0 dan tambahkan kelebihannya (yang bernilai negatif)
+                        data._ipoIndex = maxThreshold + excess;
+                        stateHasChanged = true;
+                    }
+                    break;
+
+                case IPOState.Advanced:
+                    if (currentIndex < minThreshold)
+                    {
+                        int excess = currentIndex - (minThreshold - 1);
+                        Debug.Log($"[STATE CHANGE] {data.color}: Advanced ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
+
+                        data.currentState = IPOState.Ascend;
+                        data.salesBonus = 5;
+                        
+                        // Atur ulang index ke 0 dan tambahkan kelebihannya
+                        data._ipoIndex = 0 + excess;
+                        stateHasChanged = true;
+                    }
+                    break;
             }
 
-            gameManager.UpdatePlayerUI();
-        }
-        else if (index > max)
-        {
-            Debug.LogWarning($"[MULTIPLIER] {data.color} index terlalu tinggi ({index}) — index direset ke 0, harga jual {data.color} dikali 2.");
-            data._ipoIndex = 0;
-            bonusMultiplierColors.Add(data.color);
-        }
+        // Jika state berubah, loop akan berjalan lagi untuk memeriksa apakah
+        // index yang baru (setelah ditambah `excess`) menyebabkan perubahan state lagi.
+        } while (stateHasChanged);
     }
-
-
 
 
 
@@ -356,8 +425,8 @@ public class SellingPhaseManager : MonoBehaviour
             {
                 int clampedIndex = data.ipoIndex;
 
-                // Clamp khusus untuk Green
-                if (data.color == "Green")
+                // Clamp khusus untuk Orange
+                if (data.color == "Tambang")
                     clampedIndex = Mathf.Clamp(clampedIndex, -2, 2);
                 else
                     clampedIndex = Mathf.Clamp(clampedIndex, -3, 3);

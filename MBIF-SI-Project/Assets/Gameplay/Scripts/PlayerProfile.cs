@@ -21,7 +21,7 @@ public class PlayerProfile
     public PlayerProfile(string name)
     {
         playerName = name;
-        finpoint = 10;
+        finpoint = 100;
         ticketNumber = 0;
 
     }
@@ -30,10 +30,10 @@ public class PlayerProfile
 {
     Dictionary<string, int> colorCounts = new Dictionary<string, int>
     {
-        { "Red", 0 },
-        { "Blue", 0 },
-        { "Green", 0 },
-        { "Orange", 0 }
+        { "Konsumer", 0 },
+        { "Infrastruktur", 0 },
+        { "Keuangan", 0 },
+        { "Tambang", 0 }
     };
 
     foreach (var card in cards)

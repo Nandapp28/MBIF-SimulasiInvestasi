@@ -21,7 +21,7 @@ public class ResolutionPhaseManager : MonoBehaviour
         public GameObject indicatorObject; // Referensi ke indikator visual (bisa berupa text, arrow, UI element, dll)
         public List<GameObject> tokenObjects;
     }
-    private List<string> resolutionOrder = new List<string> { "Red", "Blue", "Green", "Orange" };
+    private List<string> resolutionOrder = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
     public Material tokenMinus2Material;
     public Material tokenMinus1Material;

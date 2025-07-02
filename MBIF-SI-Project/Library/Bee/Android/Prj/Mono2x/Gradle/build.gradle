@@ -1,0 +1,15 @@
+plugins {
+    // Kita akan upgrade dari 7.4.2 ke 8.0.2, versi ini kompatibel dengan Gradle 
+    // yang digunakan Unity 2022.3 dan seringkali lebih stabil.
+    id 'com.android.application' version '8.0.2' apply false
+    id 'com.android.library' version '8.0.2' apply false
+    
+    // Kita juga tambahkan plugin Kotlin secara eksplisit dengan versi yang cocok
+    id 'org.jetbrains.kotlin.android' version '1.8.20' apply false
+    
+    
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
