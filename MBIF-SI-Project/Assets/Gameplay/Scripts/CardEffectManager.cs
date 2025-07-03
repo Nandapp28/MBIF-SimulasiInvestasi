@@ -54,63 +54,95 @@ public class CardEffectManager
         yield break;
     }
 
-    private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
+    // Definisikan struct kecil ini di dalam class CardEffectManager, di atas method-methodnya
+// untuk membantu menyimpan data sementara.
+private struct PriceOutcome
+{
+    public int TotalPrice;
+    public IPOState State;
+    public int IpoIndex;
+    public int SalesBonus;
+}
+
+private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
+{
+    // 1. Dapatkan referensi manager
+    SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
+    GameManager gameManager = GameObject.FindObjectOfType<GameManager>();
+    if (spm == null || gameManager == null)
     {
-        SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
-        GameManager gameManager = GameObject.FindObjectOfType<GameManager>();
-        if (spm == null)
-        {
-            Debug.LogError("SellingPhaseManager tidak ditemukan di scene!");
-            yield break;
-        }
-
-        var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
-        if (ipoData == null)
-        {
-            Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
-            yield break;
-
-        }
-
-        int currentIndex = ipoData.ipoIndex;
-
-        // ✅ Jika sudah di -3, kurangi lagi jadi -4 (walau harga tidak ada)
-        if (currentIndex == -3)
-        {
-            ipoData.ipoIndex = -4;
-            Debug.LogWarning($"⚠️ IPO index untuk {color} sudah di -3, diturunkan paksa ke -4.");
-            spm.UpdateIPOState(ipoData);
-
-            yield break;
-        }
-
-        // 1. Dapatkan harga sekarang
-        int clampedIndex = color == "Orange"
-            ? Mathf.Clamp(currentIndex, -2, 2)
-            : Mathf.Clamp(currentIndex, -3, 3);
-
-        int priceIndex = clampedIndex + 3;
-        int currentPrice = spm.ipoPriceMap[color][priceIndex];
-
-        // 2. Hitung harga baru & cari index baru
-        int newPrice = Mathf.CeilToInt(currentPrice / 2f);
-        int[] priceArray = spm.ipoPriceMap[color];
-        int closestPrice = priceArray.OrderBy(p => Mathf.Abs(p - newPrice)).First();
-        int newIndexInArray = System.Array.IndexOf(priceArray, closestPrice);
-        int newIpoIndex = newIndexInArray - 3;
-
-        ipoData.ipoIndex = newIpoIndex;
-
-        Debug.Log($"📉 Stock Split: IPO {color} turun dari {currentPrice} ke {closestPrice} (Index {ipoData.ipoIndex})");
-
-        // 3. Jalankan pengecekan crash
-        spm.UpdateIPOState(ipoData);
-
-        spm.UpdateIPOVisuals();
-        gameManager.UpdateDeckCardValuesWithIPO();
+        Debug.LogError("SellingPhaseManager atau GameManager tidak ditemukan!");
         yield break;
-
     }
+
+    var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
+    if (ipoData == null)
+    {
+        Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
+        yield break;
+    }
+    
+    // 2. Hitung harga jual penuh saat ini dan tentukan harga target.
+    int currentFullPrice = spm.GetFullCardPrice(color);
+    int targetPrice = Mathf.CeilToInt(currentFullPrice / 2f);
+    
+    Debug.Log($"[Stock Split] Info Awal '{color}': Harga Penuh={currentFullPrice}, State={ipoData.currentState}. Harga Target={targetPrice}");
+
+    // 3. Buat daftar SEMUA kemungkinan harga (kombinasi state + index)
+    var allPossibilities = new List<PriceOutcome>();
+    int[] priceMap = spm.ipoPriceMap[color];
+    int minIndex = (color == "Tambang") ? -2 : -3;
+    int maxIndex = (color == "Tambang") ? 2 : 3;
+
+    // Definisikan setiap state dan bonusnya
+    var statesAndBonuses = new[]
+    {
+        new { State = IPOState.Normal, Bonus = 0 },
+        new { State = IPOState.Ascend, Bonus = 5 },
+        new { State = IPOState.Advanced, Bonus = 10 }
+    };
+
+    // Lakukan iterasi untuk setiap state dan setiap index yang valid
+    foreach (var stateInfo in statesAndBonuses)
+    {
+        for (int i = minIndex; i <= maxIndex; i++)
+        {
+            int basePrice = priceMap[i + 3]; // Ambil harga dasar dari index
+            if (basePrice == 0) continue; // Jangan masukkan harga crash (0) sebagai kemungkinan
+
+            allPossibilities.Add(new PriceOutcome
+            {
+                TotalPrice = basePrice + stateInfo.Bonus,
+                State = stateInfo.State,
+                IpoIndex = i,
+                SalesBonus = stateInfo.Bonus
+            });
+        }
+    }
+    
+    // 4. Cari kemungkinan TERBAIK yang harganya paling mendekati harga target.
+    if (allPossibilities.Count == 0) {
+        Debug.LogError("Tidak ada kemungkinan harga yang valid ditemukan!");
+        yield break;
+    }
+
+    PriceOutcome bestMatch = allPossibilities
+                              .OrderBy(p => Mathf.Abs(p.TotalPrice - targetPrice))
+                              .First();
+    
+    // 5. Terapkan hasil terbaik ke ipoData.
+    Debug.Log($"📉 [Stock Split] Hasil Terbaik untuk '{color}': State={bestMatch.State}, Index={bestMatch.IpoIndex}, Harga Total={bestMatch.TotalPrice}");
+    
+    ipoData.currentState = bestMatch.State;
+    ipoData.salesBonus = bestMatch.SalesBonus;
+    ipoData.ipoIndex = bestMatch.IpoIndex;
+
+    // 6. Update visual dan data game.
+    spm.UpdateIPOVisuals();
+    gameManager.UpdateDeckCardValuesWithIPO();
+    
+    yield break;
+}
     private static IEnumerator InsiderTradeEffect(PlayerProfile player, string color)
     {
         // Cari instance manager yang diperlukan
