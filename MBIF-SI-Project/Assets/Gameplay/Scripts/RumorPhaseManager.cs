@@ -10,6 +10,8 @@ public class RumorPhaseManager : MonoBehaviour
     public GameManager gameManager;
     public SellingPhaseManager sellingPhaseManager;
     public ResolutionPhaseManager resolutionPhaseManager;
+    [Header("Posisi Spesial")] // <-- TAMBAHKAN HEADER BARU
+    public Transform predictionCardStage; 
 
     [System.Serializable]
     public class RumorEffect
@@ -35,9 +37,13 @@ public class RumorPhaseManager : MonoBehaviour
     }
 
     public List<RumorEffect> rumorEffects = new List<RumorEffect>();
-    [Header("Debug - Urutan Kartu Rumor Terpilih")]
-public List<RumorEffect> shuffledRumorDeck = new List<RumorEffect>();
-    private bool rumorRunning = false;
+    // SOLUSI: Menggunakan backing field
+[Header("Debug - Urutan Kartu Rumor Terpilih")]
+[SerializeField] // <-- Tambahkan ini agar field private bisa dilihat di Inspector
+private List<RumorEffect> _shuffledRumorDeck = new List<RumorEffect>();
+
+// Property publik untuk dibaca oleh skrip lain (misal: HelpCardPhaseManager)
+public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private bool rumorRunning = false;
 
     private List<PlayerProfile> players;
     [Header("Kartu Rumor Per Warna")]
@@ -232,10 +238,52 @@ public List<RumorEffect> shuffledRumorDeck = new List<RumorEffect>();
 
         cardObject.transform.rotation = endRot;
     }
+    // Tambahkan metode ini di dalam kelas RumorPhaseManager.cs
+
+public IEnumerator ShowPredictionCardAtCenter(RumorPhaseManager.RumorEffect rumorToShow)
+{
+    HideAllCardObjects(); // Pastikan tidak ada kartu lain yang aktif
+
+    // 1. Dapatkan referensi visual kartu berdasarkan warna rumor
+    GameObject cardObject = null;
+    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == rumorToShow.cardName)?.texture;
+
+    if (frontTexture == null)
+    {
+        Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{rumorToShow.cardName}' tidak ditemukan!");
+        yield break; // Keluar dari coroutine jika texture tidak ada
+    }
+
+    switch (rumorToShow.color)
+    {
+        case "Red": cardObject = cardRed; break;
+        case "Blue": cardObject = cardBlue; break;
+        case "Green": cardObject = cardGreen; break;
+        case "Orange": cardObject = cardOrange; break;
+    }
+
+    if (cardObject != null)
+    {
+        // 2. Atur posisi dan rotasi kartu ke posisi panggung
+        cardObject.transform.position = predictionCardStage.position;
+        cardObject.transform.rotation = predictionCardStage.rotation;
+
+        // 3. Set texture dan jalankan animasi flip
+        // Kita perlu mengambil renderer yang sesuai
+        Renderer cardRenderer = cardObject.GetComponentInChildren<Renderer>(); // Cara mudah mendapatkannya
+        if (cardRenderer)
+        {
+            cardRenderer.material.mainTexture = frontTexture;
+        }
+
+        // Jalankan animasi flip dan TUNGGU sampai selesai
+        yield return StartCoroutine(FlipCard(cardObject));
+    }
+}
 
 
 
-    private void HideAllCardObjects()
+    public void HideAllCardObjects()
     {
         if (cardRed) cardRed.SetActive(false);
         if (cardBlue) cardBlue.SetActive(false);
@@ -327,13 +375,14 @@ public List<RumorEffect> shuffledRumorDeck = new List<RumorEffect>();
         }
     }
 
-    private void ResetAllIPOIndexes()
+    public void ResetAllIPOIndexes()
     {
         foreach (var data in sellingPhaseManager.ipoDataList)
         {
             data.ipoIndex = 0;
             Debug.Log($"[IPO] IPO {data.color} di-reset ke 0");
         }
+        
     }
 
 

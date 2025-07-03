@@ -1,46 +1,41 @@
-using UnityEngine;
+// File: PlayerProfileMultiplayer.cs
+
 using System.Collections.Generic;
 using System.Linq;
-using Photon.Pun;
 
 [System.Serializable]
 public class PlayerProfileMultiplayer
 {
     public string playerName;
-    public int ticketNumber; 
-    public int finpoint; 
-    public int lastRoll;
+    public int actorNumber; // ID unik dari Photon untuk setiap pemain
+    public int ticketNumber;
+    public int finpoint;
+    public int cardCount => cards.Count;
     public List<CardMultiplayer> cards = new List<CardMultiplayer>();
-    public bool isBot; 
-    public int actorNumber; 
-    public int bonusActions = 0;
+    public List<HelpCardMultiplayer> helpCards = new List<HelpCardMultiplayer>();
+    
+    // Prediksi pasar juga perlu disinkronkan jika efeknya ada di multiplayer
+    public Dictionary<string, MarketPredictionType> marketPredictions = new Dictionary<string, MarketPredictionType>();
 
-    public int cardCount
-    {
-        get { return cards.Count; }
-    }
-
-    // Constructor untuk Single Player / Bot
-    public PlayerProfileMultiplayer(string name)
-    {
-        playerName = name;
-        finpoint = 100;
-        isBot = true; 
-        actorNumber = -1;
-    }
-
-    // Constructor untuk Multiplayer
     public PlayerProfileMultiplayer(string name, int actorNum)
     {
         playerName = name;
-        finpoint = 100;
-        isBot = false;
         actorNumber = actorNum;
+        finpoint = 10; // Nilai awal
+        ticketNumber = 0;
+    }
+
+    public void AddCard(CardMultiplayer card)
+    {
+        cards.Add(card);
     }
 
     public Dictionary<string, int> GetCardColorCounts()
     {
-        var colorCounts = new Dictionary<string, int> { { "Red", 0 }, { "Blue", 0 }, { "Green", 0 }, { "Orange", 0 } };
+        Dictionary<string, int> colorCounts = new Dictionary<string, int>
+        {
+            { "Red", 0 }, { "Blue", 0 }, { "Green", 0 }, { "Orange", 0 }
+        };
         foreach (var card in cards)
         {
             if (colorCounts.ContainsKey(card.color))
@@ -48,26 +43,4 @@ public class PlayerProfileMultiplayer
         }
         return colorCounts;
     }
-
-    // Fungsi ini akan menghapus kartu yang telah dijual dari tangan pemain.
-    public void RemoveSoldCards(string color, int amount)
-    {
-        int removedCount = 0;
-        // Kita menggunakan loop dari belakang agar aman saat menghapus item dari list
-        for (int i = cards.Count - 1; i >= 0; i--)
-        {
-            if (removedCount >= amount) break; // Keluar jika sudah cukup kartu yang dihapus
-
-            if (cards[i].color == color)
-            {
-                cards.RemoveAt(i);
-                removedCount++;
-            }
-        }
-    }
-
-    public void SetLastRoll(int roll) { lastRoll = roll; }
-    public void AddCard(CardMultiplayer card) { cards.Add(card); }
-    public bool CanAfford(int cost) { return finpoint >= cost; }
-    public void DeductFinpoint(int amount) { finpoint -= amount; }
 }

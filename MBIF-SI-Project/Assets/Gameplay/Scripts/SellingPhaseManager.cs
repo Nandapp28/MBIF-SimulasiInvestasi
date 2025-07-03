@@ -220,7 +220,7 @@ public class SellingPhaseManager : MonoBehaviour
                     continue;
                 }
             }
-            else
+            else // Logika untuk Bot
             {
                 foreach (var color in ipoPriceMap.Keys)
                 {
@@ -229,20 +229,46 @@ public class SellingPhaseManager : MonoBehaviour
                     {
                         List<Card> ownedCards = cardsByColor[color];
 
-                        float sellChance = color switch
-                        {
-                            "Red" => 0.5f,
-                            "Blue" => 0.5f,
-                            "Green" => 0.4f,
-                            "Orange" => 1f,
-                            _ => 0.5f
-                        };
+                        // <-- LOGIKA BARU DIMULAI DI SINI -->
+                        bool hasPrediction = player.marketPredictions.TryGetValue(color, out MarketPredictionType prediction);
 
-                        foreach (var card in ownedCards)
+                        if (hasPrediction)
                         {
-                            if (Random.value < sellChance)
-                                countToSell++;
+                            if (prediction == MarketPredictionType.Rise)
+                            {
+                                // Pasar akan NAIK, jangan jual!
+                                countToSell = 0;
+                                Debug.Log($"[Prediksi Bot] {player.playerName} tidak menjual {color} karena pasar akan naik.");
+                            }
+                            else // prediction == MarketPredictionType.Fall
+                            {
+                                // Pasar akan TURUN, 90% jual semua!
+                                if (Random.value < 0.9f)
+                                {
+                                    countToSell = ownedCards.Count;
+                                    Debug.Log($"[Prediksi Bot] {player.playerName} menjual semua ({countToSell}) {color} karena pasar akan turun.");
+                                }
+                            }
                         }
+                        else
+                        {
+                            // <-- LOGIKA LAMA (JIKA TIDAK ADA PREDIKSI) -->
+                            float sellChance = color switch
+                            {
+                                "Red" => 0.5f,
+                                "Blue" => 0.5f,
+                                "Green" => 0.4f,
+                                "Orange" => 1f,
+                                _ => 0.5f
+                            };
+
+                            foreach (var card in ownedCards)
+                            {
+                                if (Random.value < sellChance)
+                                    countToSell++;
+                            }
+                        }
+                        // <-- LOGIKA BARU BERAKHIR DI SINI -->
                     }
                     sellCounts[color] = countToSell;
                 }
@@ -275,6 +301,7 @@ public class SellingPhaseManager : MonoBehaviour
             gameManager.UpdatePlayerUI();
 
             Debug.Log($"{player.playerName} menjual {soldCards.Count} kartu dan mendapatkan {earnedFinpoints} finpoints. Finpoint sekarang: {player.finpoint}");
+            player.marketPredictions.Clear();
         }
 
         rumorPhaseManager.StartRumorPhase(currentPlayers);

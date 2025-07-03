@@ -1,20 +1,20 @@
-using Photon.Pun;
-using UnityEngine;
-using System.Collections.Generic;
+// File: CardMultiplayer.cs
 
 [System.Serializable]
-public class CardMultiplayer : MonoBehaviourPunCallbacks
+public class CardMultiplayer
 {
     public string cardName;
     public string description;
-    public int value;
-    public string color; // 🔴 Tambahkan warna
+    public int baseValue;
+    public int value; // Nilai setelah ditambah IPO
+    public string color;
 
-    public CardMultiplayer(string name, string desc, int val = 0, string color = "Red")
+    public CardMultiplayer(string name, string desc, int baseVal, string c)
     {
         cardName = name;
         description = desc;
-        value = val;
-        this.color = color;
+        baseValue = baseVal;
+        color = c;
+        value = baseValue;
     }
 }
