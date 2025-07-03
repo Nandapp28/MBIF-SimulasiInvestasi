@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
@@ -414,6 +415,64 @@ public class SellingPhaseManager : MonoBehaviour
         // index yang baru (setelah ditambah `excess`) menyebabkan perubahan state lagi.
         } while (stateHasChanged);
     }
+    // Tambahkan method ini di dalam kelas SellingPhaseManager
+public IEnumerator ShowSingleColorSellUI(PlayerProfile player, string color, System.Action<int> onConfirm)
+{
+    sellingUI.SetActive(true);
+    confirmSellButton.onClick.RemoveAllListeners();
+    foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
+
+    int cardsOwned = player.cards.Count(c => c.color == color);
+    if (cardsOwned == 0)
+    {
+        Debug.LogWarning($"[TradeFree] {player.playerName} tidak punya kartu warna {color} untuk dijual.");
+        sellingUI.SetActive(false);
+        onConfirm(0); // Kirim balik jumlah 0
+        yield break;
+    }
+
+    // Hanya buat satu baris untuk warna yang relevan
+    GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
+    row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
+
+    Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
+    Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
+    Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
+
+    int sellAmount = cardsOwned; // Defaultnya adalah menjual semua
+    valueText.text = sellAmount.ToString();
+
+    plusButton.onClick.AddListener(() =>
+    {
+        if (sellAmount < cardsOwned)
+        {
+            sellAmount++;
+            valueText.text = sellAmount.ToString();
+        }
+    });
+
+    minusButton.onClick.AddListener(() =>
+    {
+        if (sellAmount > 0)
+        {
+            sellAmount--;
+            valueText.text = sellAmount.ToString();
+        }
+    });
+    
+    // Konfigurasi tombol konfirmasi
+    confirmSellButton.onClick.AddListener(() =>
+    {
+        sellingUI.SetActive(false);
+        onConfirm(sellAmount); // Panggil callback dengan jumlah yang dipilih
+    });
+
+    // Tunggu sampai UI ditutup (saat onConfirm dipanggil)
+    while (sellingUI.activeSelf)
+    {
+        yield return null;
+    }
+}
 
 
 

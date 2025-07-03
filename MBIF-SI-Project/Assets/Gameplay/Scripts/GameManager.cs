@@ -325,7 +325,7 @@ public class GameManager : MonoBehaviour
         List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
 
-        deck.Add(new Card("TradeOffer", "Deal 5 damage", 0, GetRandomColor(colors)));
+        deck.Add(new Card("TradeFree", "Deal 5 damage", 0, GetRandomColor(colors)));
         deck.Add(new Card("TenderOffer", "Recover 3 HP", 0, GetRandomColor(colors)));
         deck.Add(new Card("StockSplit", "Block next attack", 1, GetRandomColor(colors)));
         deck.Add(new Card("InsiderTrade", "Take 1 card", 2, GetRandomColor(colors)));
