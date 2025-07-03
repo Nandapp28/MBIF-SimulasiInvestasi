@@ -667,15 +667,29 @@ public class GameManager : MonoBehaviour
     // 1. Membersihkan UI (tombol, dll.)
     ResetCardSelection();
     if (skipButton != null) skipButton.SetActive(false);
+    
+    // Simpan nama kartu sebelum cardObj mungkin dihancurkan
+    Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+    string cardName = cardNameText != null ? cardNameText.text : "";
+    
+    // Sembunyikan holder kartu utama agar tidak bisa diklik selama efek
     if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(false);
+    if (cardName != "Flashbuy")
+    {
+         if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
+    }
     yield return new WaitForSeconds(1f);
 
     // 2. Memanggil ActivateCard dan MENUNGGU sampai selesai.
     yield return StartCoroutine(ActivateCard(cardObj, player));
 
-        // 3. Setelah efek selesai, perbarui status giliran.
+    // --- PENYESUAIAN UNTUK FLASHBUY ---
+    // Jika kartu yang diaktifkan BUKAN Flashbuy, lanjutkan seperti biasa.
+    // Jika Flashbuy, biarkan card holder tidak aktif karena HandleFlashbuySelection akan mengaturnya.
+    // --- AKHIR PENYESUAIAN ---
+        
+    // 3. Setelah efek selesai, perbarui status giliran.
     yield return new WaitForSeconds(1.5f);
-    if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
     Debug.Log("✅ Efek ActivateCard selesai. Melanjutkan giliran.");
     skipCount = 0;
     currentCardIndex++;
@@ -684,7 +698,95 @@ public class GameManager : MonoBehaviour
     // 4. Mulai giliran berikutnya.
     StartCoroutine(NextTurn());
 }
+public IEnumerator HandleFlashbuySelection(PlayerProfile player)
+{
+    if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
+    
+    // Sembunyikan tombol activate/save utama
+    if (activateBtnInstance != null) Destroy(activateBtnInstance);
+    if (saveBtnInstance != null) Destroy(saveBtnInstance);
+    if (skipButton != null) skipButton.SetActive(false);
 
+    int cardsToTake = 2;
+    int cardsTaken = 0;
+    List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
+    List<Button> takeButtons = new List<Button>();
+
+    // Buat tombol "Selesai" untuk keluar dari mode pemilihan
+    GameObject doneButtonObj = Instantiate(skipButton, skipButton.transform.parent); // Gunakan prefab skip sbg dasar
+    doneButtonObj.GetComponentInChildren<Text>().text = "Selesai";
+    doneButtonObj.SetActive(true);
+    Button doneButton = doneButtonObj.GetComponent<Button>();
+    
+    System.Action cleanupUI = () => {
+        foreach (var btn in takeButtons)
+        {
+            if(btn != null) Destroy(btn.gameObject);
+        }
+        takeButtons.Clear();
+        if(doneButtonObj != null) Destroy(doneButtonObj);
+        if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(false); // Sembunyikan lagi setelah selesai
+    };
+
+    doneButton.onClick.AddListener(() => {
+        cardsTaken = cardsToTake; // Paksa keluar dari loop
+    });
+
+    while (cardsTaken < cardsToTake)
+    {
+        availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
+        if (availableCards.Count == 0)
+        {
+            Debug.Log("[Flashbuy] Tidak ada kartu tersisa untuk dibeli.");
+            break; // Keluar jika tidak ada kartu lagi
+        }
+
+        bool selectionMadeThisLoop = false;
+
+        // Tampilkan tombol "Take" di setiap kartu yang tersedia
+        foreach(var cardObj in availableCards)
+        {
+            int cardValue = GetCardValue(cardObj);
+            
+            // Buat tombol Take
+            GameObject takeBtnObj = Instantiate(saveButtonPrefab, cardObj.transform);
+            takeBtnObj.transform.localPosition = new Vector3(0, -60, 0); // Sesuaikan posisi
+            Button takeButton = takeBtnObj.GetComponent<Button>();
+            takeButtons.Add(takeButton);
+
+            // Cek apakah pemain mampu membeli
+            if (player.finpoint < cardValue)
+            {
+                takeButton.interactable = false;
+                takeButton.GetComponentInChildren<Text>().text = "FP Kurang";
+            }
+            else
+            {
+                takeButton.GetComponentInChildren<Text>().text = "Take";
+                takeButton.onClick.AddListener(() => {
+                    // Ambil kartu
+                    TakeCard(cardObj, player);
+                    cardsTaken++;
+                    selectionMadeThisLoop = true;
+                });
+            }
+        }
+        
+        // Tunggu sampai pemain memilih kartu atau menekan "Selesai"
+        yield return new WaitUntil(() => selectionMadeThisLoop || cardsTaken >= cardsToTake);
+
+        // Hapus semua tombol "Take" untuk di-refresh di loop berikutnya
+        foreach (var btn in takeButtons)
+        {
+             if(btn != null) Destroy(btn.gameObject);
+        }
+        takeButtons.Clear();
+    }
+
+    Debug.Log($"[Flashbuy] Selesai. {player.playerName} membeli {cardsTaken} kartu tambahan.");
+    cleanupUI();
+    yield return new WaitForSeconds(1f);
+}
     private IEnumerator ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     {
         Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();

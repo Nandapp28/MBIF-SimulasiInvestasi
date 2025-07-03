@@ -29,6 +29,9 @@ public class CardEffectManager
             case "TradeFree":
                 yield return GameManager.Instance.StartCoroutine(TradeFreeEffect(player, color));
                 break;
+             case "Flashbuy":
+                yield return GameManager.Instance.StartCoroutine(FlashbuyEffect(player));
+                break;
             // ... (kasus lainnya juga diubah) ...
             default:
                 Debug.LogWarning($"Efek belum tersedia untuk kartu: {cardName}");
@@ -353,7 +356,12 @@ private static IEnumerator TradeFreeEffect(PlayerProfile player, string color)
     
     yield break; // Efek selesai
 }
-
+ private static IEnumerator FlashbuyEffect(PlayerProfile player)
+    {
+        Debug.Log($"⚡️ {player.playerName} mengaktifkan Flashbuy! Bisa membeli hingga 2 kartu tambahan.");
+        // Panggil coroutine khusus di GameManager untuk menangani pemilihan kartu
+        yield return GameManager.Instance.StartCoroutine(GameManager.Instance.HandleFlashbuySelection(player));
+    }
 
 
 
