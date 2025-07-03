@@ -14,9 +14,7 @@ public class CardEffectManager
         // Kita butuh instance MonoBehaviour untuk menjalankan coroutine, kita akan pakai GameManager.Instance
         switch (cardName)
         {
-            case "TradeOffer":
-                yield return GameManager.Instance.StartCoroutine(TradeOfferEffect(player));
-                break;
+
             case "StockSplit":
                 yield return GameManager.Instance.StartCoroutine(StockSplitEffect(player, color));
                 break;
@@ -29,6 +27,9 @@ public class CardEffectManager
             case "TradeFree":
                 yield return GameManager.Instance.StartCoroutine(TradeFreeEffect(player, color));
                 break;
+            case "Flashbuy":
+                yield return GameManager.Instance.StartCoroutine(FlashbuyEffect(player));
+                break;
             // ... (kasus lainnya juga diubah) ...
             default:
                 Debug.LogWarning($"Efek belum tersedia untuk kartu: {cardName}");
@@ -36,30 +37,16 @@ public class CardEffectManager
         }
     }
 
-    private static IEnumerator HealEffect(PlayerProfile player)
-    {
-        int healAmount = 5;
-        player.finpoint += healAmount;
-        Debug.Log($"🔧 Heal: +{healAmount} finpoint");
-        yield break;
-    }
 
-    private static IEnumerator ShieldEffect(PlayerProfile player)
+    private static IEnumerator FlashbuyEffect(PlayerProfile player)
     {
-        // Contoh: berikan flag "shielded" (kamu bisa buat property di PlayerProfile)
-        Debug.Log("🛡️ Player diberi efek shield (placeholder)");
-        yield break;
+        Debug.Log($"⚡️ {player.playerName} mengaktifkan Flashbuy! Bisa membeli hingga 2 kartu tambahan.");
+        // Panggil coroutine khusus di GameManager untuk menangani pemilihan kartu
+        yield return GameManager.Instance.StartCoroutine(GameManager.Instance.HandleFlashbuySelection(player));
     }
-
-    private static IEnumerator TradeOfferEffect(PlayerProfile player)
-    {
-        Debug.Log("📦 Efek trade offer dijalankan (placeholder)");
-        yield break;
-    }
-
     // Definisikan struct kecil ini di dalam class CardEffectManager, di atas method-methodnya
-// untuk membantu menyimpan data sementara.
-private struct PriceOutcome
+    // untuk membantu menyimpan data sementara.
+    private struct PriceOutcome
 {
     public int TotalPrice;
     public IPOState State;

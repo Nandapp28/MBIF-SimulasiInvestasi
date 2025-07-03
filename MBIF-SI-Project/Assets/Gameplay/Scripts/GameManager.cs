@@ -322,6 +322,7 @@ public class GameManager : MonoBehaviour
     {
         deck.Clear();
 
+
         List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
 
@@ -663,28 +664,185 @@ public class GameManager : MonoBehaviour
 
     }
     private IEnumerator ActivateCardAndProceed(GameObject cardObj, PlayerProfile player)
-{
-    // 1. Membersihkan UI (tombol, dll.)
-    ResetCardSelection();
-    if (skipButton != null) skipButton.SetActive(false);
-    if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(false);
-    yield return new WaitForSeconds(1f);
+    {
+        // 1. Membersihkan UI (tombol, dll.)
+        ResetCardSelection();
+        if (skipButton != null) skipButton.SetActive(false);
 
-    // 2. Memanggil ActivateCard dan MENUNGGU sampai selesai.
-    yield return StartCoroutine(ActivateCard(cardObj, player));
+        // --- MODIFIKASI DIMULAI ---
+        // Ambil nama kartu terlebih dahulu
+        Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+        string cardName = cardNameText != null ? cardNameText.text : "";
+
+        // Sembunyikan holder kartu HANYA JIKA kartu yang diaktifkan BUKAN "Flashbuy"
+        if (cardName != "Flashbuy")
+        {
+            if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(false);
+            yield return new WaitForSeconds(1f);
+        }
+        // Jika itu "Flashbuy", kita biarkan cardHolderParent tetap aktif untuk pemilihan kartu tambahan.
+        // --- MODIFIKASI SELESAI ---
+
+
+        // 2. Memanggil ActivateCard dan MENUNGGU sampai selesai.
+        // Ini akan menjalankan HandleFlashbuySelection jika kartunya adalah Flashbuy.
+        yield return StartCoroutine(ActivateCard(cardObj, player));
 
         // 3. Setelah efek selesai, perbarui status giliran.
-    yield return new WaitForSeconds(1.5f);
-    if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
-    Debug.Log("✅ Efek ActivateCard selesai. Melanjutkan giliran.");
-    skipCount = 0;
-    currentCardIndex++;
-    currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+        yield return new WaitForSeconds(1.5f);
+        Debug.Log("✅ Efek ActivateCard selesai. Melanjutkan giliran.");
+        skipCount = 0;
+        currentCardIndex++;
+        currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
 
-    // 4. Mulai giliran berikutnya.
-    StartCoroutine(NextTurn());
-}
+        // 4. Mulai giliran berikutnya.
+        StartCoroutine(NextTurn());
+    }
+    public IEnumerator HandleFlashbuySelection(PlayerProfile currentPlayer)
+    {
+        // Menggunakan pola yang sama persis dengan NextTurn
+        if (currentPlayer.playerName.Contains("You"))
+        {
+            // --- LOGIKA UNTUK PEMAIN MANUSIA ---
+            if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
 
+            List<GameObject> selectedCards = new List<GameObject>();
+            Dictionary<Button, UnityEngine.Events.UnityAction> originalListeners = new Dictionary<Button, UnityEngine.Events.UnityAction>();
+
+            GameObject takeButtonObj = Instantiate(saveButtonPrefab, ActiveSaveContainer);
+            takeButtonObj.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -150);
+            Button takeButton = takeButtonObj.GetComponent<Button>();
+            Text takeButtonText = takeButton.GetComponentInChildren<Text>();
+            takeButtonText.text = "Ambil Kartu (0)";
+            takeButton.interactable = false;
+
+            System.Action cleanupUI = () => {
+                foreach (var card in selectedCards)
+                {
+                    if (card != null) card.transform.localScale = Vector3.one;
+                }
+                foreach (var pair in originalListeners)
+                {
+                    if (pair.Key != null)
+                    {
+                        pair.Key.onClick.RemoveAllListeners();
+                        if (pair.Value != null) pair.Key.onClick.AddListener(pair.Value);
+                    }
+                }
+                if (takeButtonObj != null) Destroy(takeButtonObj);
+            };
+
+            List<GameObject> availableCards = cardObjects.FindAll(c => c != null && c.activeSelf && !takenCards.Contains(c));
+            foreach (var cardObj in availableCards)
+            {
+                Button cardBtn = cardObj.GetComponent<Button>();
+                if (cardBtn == null) continue;
+
+                var registeredListeners = new UnityEngine.Events.UnityAction(() => cardBtn.onClick.Invoke());
+                originalListeners[cardBtn] = cardBtn.onClick.GetPersistentEventCount() > 0 ? registeredListeners : null;
+
+                cardBtn.onClick.RemoveAllListeners();
+                cardBtn.onClick.AddListener(() => {
+                    if (selectedCards.Contains(cardObj))
+                    {
+                        selectedCards.Remove(cardObj);
+                        cardObj.transform.localScale = Vector3.one;
+                    }
+                    else
+                    {
+                        if (selectedCards.Count < 2)
+                        {
+                            selectedCards.Add(cardObj);
+                            cardObj.transform.localScale = Vector3.one * 1.1f;
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[Flashbuy] Maksimal 2 kartu yang bisa dipilih.");
+                        }
+                    }
+
+                    int totalCost = 0;
+                    foreach (var selectedCard in selectedCards) totalCost += GetCardValue(selectedCard);
+
+                    takeButtonText.text = $"Ambil ({selectedCards.Count}) - {totalCost} FP";
+                    takeButton.interactable = selectedCards.Count > 0 && currentPlayer.CanAfford(totalCost);
+                });
+            }
+
+            bool purchaseAttempted = false;
+            takeButton.onClick.AddListener(() => {
+                purchaseAttempted = true;
+            });
+
+            yield return new WaitUntil(() => purchaseAttempted);
+
+            int finalCost = 0;
+            foreach (var card in selectedCards) finalCost += GetCardValue(card);
+
+            if (currentPlayer.CanAfford(finalCost))
+            {
+                Debug.Log($"[Flashbuy] {currentPlayer.playerName} membeli {selectedCards.Count} kartu seharga {finalCost} FP.");
+                List<GameObject> cardsToProcess = new List<GameObject>(selectedCards);
+                foreach (var cardToTake in cardsToProcess)
+                {
+                    TakeCard(cardToTake, currentPlayer);
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"[Flashbuy] Pembelian dibatalkan, Finpoint tidak cukup.");
+            }
+
+            cleanupUI();
+            UpdatePlayerUI();
+            yield return new WaitForSeconds(1f);
+        }
+        else // Ini adalah giliran Bot
+        {
+            // --- LOGIKA BARU DAN HANDAL UNTUK BOT ---
+            Debug.Log($"[Flashbuy] {currentPlayer.playerName} (Bot) sedang memilih kartu...");
+            yield return new WaitForSeconds(1.5f);
+
+            int cardsBought = 0;
+            for (int i = 0; i < 2; i++)
+            {
+                var affordableCards = cardObjects
+                    .Where(c => c != null && c.activeSelf && !takenCards.Contains(c) && currentPlayer.CanAfford(GetCardValue(c)))
+                    .OrderByDescending(c => GetCardValue(c))
+                    .ToList();
+
+                if (affordableCards.Count > 0)
+                {
+                    GameObject cardToTake = affordableCards.First();
+                    Debug.Log($"[Flashbuy] {currentPlayer.playerName} (Bot) membeli {cardToTake.name}.");
+                    TakeCard(cardToTake, currentPlayer);
+                    cardsBought++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (cardsBought == 0)
+            {
+                Debug.Log($"[Flashbuy] {currentPlayer.playerName} (Bot) tidak membeli kartu tambahan.");
+            }
+        }
+
+        // --- PENGECEKAN KONDISI AKHIR FASE ---
+        int totalCardsToGive = totalCards * (bots.Count + 1);
+        if (takenCards.Count >= totalCardsToGive || takenCards.Count >= cardObjects.Count)
+        {
+            Debug.Log("✅ Semua kartu sudah dibagikan setelah Flashbuy.");
+
+            yield return new WaitForSeconds(1f);
+            ClearHiddenCards();
+
+            Debug.Log("Memulai fase penjualan...");
+            helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
+        }
+    }
     private IEnumerator ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     {
         Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();

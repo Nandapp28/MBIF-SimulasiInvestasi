@@ -357,14 +357,14 @@ public IEnumerator ShowPredictionCardAtCenter(RumorPhaseManager.RumorEffect rumo
                     if (cardCount > 0)
                     {
                         int penalty = cardCount * effect.value;
-                        player.finpoint = Mathf.Max(0, player.finpoint - penalty);
+                        player.finpoint = player.finpoint - penalty;
                         Debug.Log($"{player.playerName} membayar {penalty} finpoint karena memiliki {cardCount} kartu {effect.color}");
                     }
                     break;
                 case RumorEffect.EffectType.TaxByTurnOrder:
                     {
                         int penalty = player.ticketNumber * effect.value;
-                        player.finpoint = Mathf.Max(0, player.finpoint - penalty);
+                        player.finpoint = player.finpoint - penalty;
                         Debug.Log($"{player.playerName} membayar pajak jalan sebesar {penalty} finpoint (turnOrder: {player.ticketNumber})");
                     }
                     break;
