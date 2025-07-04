@@ -51,13 +51,27 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     public Button resetSemesterButton;
 
     [Header("Game Logic Data")]
+    public List<RumorEffect> rumorEffects = new List<RumorEffect>();
     private List<RumorEffect> shuffledRumorDeck = new List<RumorEffect>();
     private Dictionary<string, List<int>> ramalanTokens = new Dictionary<string, List<int>>();
     private Dictionary<string, int> dividendIndices = new Dictionary<string, int> { { "Red", 0 }, { "Blue", 0 }, { "Green", 0 }, { "Orange", 0 } };
 
     [System.Serializable]
-    public class RumorEffect { public string color, cardName, description; }
+    public class RumorEffect
+    {
+        public string color;
+        public string description;
+        public string cardName;
 
+        public enum EffectType
+        {
+            ModifyIPO, BonusFinpoint, PenaltyFinpoint,
+            ResetAllIPO, TaxByTurnOrder, StockDilution
+        }
+        public EffectType effectType;
+        public int value;
+        public bool affectAllPlayers = true;
+    }
     private Dictionary<int, PlayerProfileMultiplayer> players = new Dictionary<int, PlayerProfileMultiplayer>();
     private List<int> turnOrder = new List<int>();
     private List<GameObject> cardObjects = new List<GameObject>();
@@ -86,6 +100,49 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     private void Start()
     {
         if (PhotonNetwork.IsMasterClient)
+        {
+            rumorEffects = new List<RumorEffect>
+            {
+                new RumorEffect { color = "Red",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
+                new RumorEffect { color = "Red",cardName = "Revaluasi_Asset", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Buyback", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Tender_Kompetitif", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Audit_Forensik", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Suap_Audit", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Depresiasi_Rupiah", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Rencana_Ekspansi", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Ekspansi_Produk", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Investasi_Asing", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Kenaikan_Upah", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Siasat_Pajak", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+                new RumorEffect { color = "Red",cardName = "Defisit_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+                new RumorEffect { color = "Red",cardName = "Merger", effectType = RumorEffect.EffectType.ModifyIPO, value = 3, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Red",cardName = "Reformasi_Ekonomi", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
+                new RumorEffect { color = "Red",cardName = "Extra_Fee", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Extra Fee" },
+                new RumorEffect { color = "Red",cardName = "Pajak_Jalan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Pajak Jalan" },
+                new RumorEffect { color = "Red",cardName = "Penerbitan_Saham", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Reformasi ekonomi" },
+
+                new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
+                new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+                new RumorEffect { color = "Blue",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = 3, description = "Red market sedikit naik" },
+                new RumorEffect { color = "Blue",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.BonusFinpoint, value = 10, description = "Investor Blue bagi-bagi bonus +10" },
+                new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
+                new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
+                new RumorEffect { color = "Blue",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" },
+
+                new RumorEffect { color = "Green",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Reformasi ekonomi" },
+                new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Skandal Orange! -5 finpoint" },
+                new RumorEffect { color = "Orange",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Skandal Orange! -5 finpoint" }
+            };
+        InitializePlayers();
+        photonView.RPC(nameof(RPC_SetupInitialBoard), RpcTarget.All); 
+        StartCoroutine(StartGameAfterDelay());
+    }
         {
             InitializePlayers();
             StartCoroutine(StartGameAfterDelay());
@@ -158,14 +215,15 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     public void GoToNextPhase()
     {
         if (!PhotonNetwork.IsMasterClient) return;
+
         GameState nextState = currentState;
         switch (currentState)
         {
-            case GameState.TicketChoice: nextState = GameState.CardPhase; break;
-            case GameState.CardPhase: nextState = GameState.HelpCardPhase; break;
-            case GameState.HelpCardPhase: nextState = GameState.SellingPhase; break;
-            case GameState.SellingPhase: nextState = GameState.RumorPhase; break;
-            case GameState.RumorPhase: nextState = GameState.ResolutionPhase; break;
+            case GameState.TicketChoice:    nextState = GameState.CardPhase; break;
+            case GameState.CardPhase:       nextState = GameState.HelpCardPhase; break;
+            case GameState.HelpCardPhase:   nextState = GameState.SellingPhase; break;
+            case GameState.SellingPhase:    nextState = GameState.RumorPhase; break;
+            case GameState.RumorPhase:      nextState = GameState.ResolutionPhase; break;
             case GameState.ResolutionPhase: nextState = GameState.SemesterEnd; break;
             case GameState.SemesterEnd:
                 if (resetCount < maxResetCount - 1)
@@ -174,12 +232,19 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
                     photonView.RPC(nameof(RPC_ResetForNewSemester), RpcTarget.AllBuffered);
                     nextState = GameState.TicketChoice;
                 }
-                else { photonView.RPC(nameof(RPC_ShowLeaderboard), RpcTarget.All); }
+                else 
+                {
+                    // Tidak perlu jeda sebelum menampilkan leaderboard
+                    photonView.RPC(nameof(RPC_ShowLeaderboard), RpcTarget.All);
+                    return; // Langsung keluar agar tidak ada jeda
+                }
                 break;
         }
+        
+        // Jika ada perubahan state, panggil coroutine jeda, BUKAN RPC langsung
         if (nextState != currentState)
         {
-            photonView.RPC(nameof(RPC_ChangeGameState), RpcTarget.AllBuffered, nextState);
+            StartCoroutine(DelayedPhaseChange(nextState));
         }
     }
 
@@ -265,11 +330,20 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     private void StartNextCardTurn_Master()
     {
         if (!PhotonNetwork.IsMasterClient) return;
+
+        // Cek kondisi akhir fase
         if (takenCardIndices.Count >= totalCardsInPlay || skipCount >= players.Count)
         {
+            Debug.Log("Card Phase berakhir. Membersihkan papan kartu...");
+            
+            // PANGGIL RPC UNTUK MEMBERSIHKAN PAPAN DI SEMUA CLIENT
+            photonView.RPC(nameof(RPC_ClearCardPhaseUI), RpcTarget.All);
+            
+            // Lanjut ke fase berikutnya
             GoToNextPhase();
             return;
         }
+        // Jika fase belum berakhir, lanjut ke giliran berikutnya
         photonView.RPC(nameof(RPC_SetCurrentTurn), RpcTarget.All, currentTurnIndex);
     }
     
@@ -301,8 +375,26 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         // Perintahkan client yang bersangkutan untuk menampilkan pilihan
         photonView.RPC(nameof(RPC_ShowHelpCardChoice), RpcTarget.All, actorNumber, cardToUse.cardName, cardToUse.description, cardToUse.effectType);
     }
-    #endregion
+
+    private IEnumerator DelayedPhaseChange(GameState newState)
+    {
+        // Opsional: Beri tahu pemain bahwa fase akan berganti
+        if (statusText != null)
+        {
+            statusText.text = $"Next Phase: {newState} in 2 seconds...";
+        }
+        
+        Debug.Log($"[Game Flow] Transisi ke fase {newState} akan dimulai dalam 2 detik...");
+
+        // Inilah jeda yang Anda inginkan
+        yield return new WaitForSeconds(2.0f);
+
+        // Setelah menunggu, kirim perintah untuk benar-benar mengubah fase
+        photonView.RPC(nameof(RPC_ChangeGameState), RpcTarget.AllBuffered, newState);
+    }
     
+    #endregion
+
     #region DECK AND INITIALIZATION
     private void InitializeDeck(out string[] cardNames, out string[] cardColors, out int[] cardValues)
     {
@@ -319,8 +411,28 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     private void InitializeRumorDeck_Master()
     {
         shuffledRumorDeck.Clear();
-        shuffledRumorDeck.Add(new RumorEffect { color = "Red", cardName = "Resesi_Ekonomi", description = "IPO Merah turun!" });
-        //... (Isi sesuai game Anda)
+
+        // Ambil satu kartu acak dari tiap warna dari daftar besar
+        List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
+
+        foreach (string color in colors)
+        {
+            // Cari semua kemungkinan rumor untuk warna ini
+            var possibleRumors = rumorEffects.Where(r => r.color == color).ToList();
+            if (possibleRumors.Count > 0)
+            {
+                // Pilih satu secara acak dan tambahkan ke deck untuk ronde ini
+                RumorEffect chosen = possibleRumors[Random.Range(0, possibleRumors.Count)];
+                shuffledRumorDeck.Add(chosen);
+            }
+        }
+        
+        // Opsional: Debug untuk melihat kartu apa yang terpilih semester ini
+        Debug.Log("[Multiplayer RumorDeck] Kartu rumor telah diacak untuk semester ini:");
+        foreach (var effect in shuffledRumorDeck)
+        {
+            Debug.Log($"- {effect.color}: {effect.cardName}");
+        }
     }
 
     private void InitializeRamalanTokens_Master()
@@ -411,10 +523,25 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     
     #region RPCs & COMMANDS
     
-    // RPCs (Dijalankan di SEMUA client)
-    //------------------------------------
+    [PunRPC]
+    private void RPC_ClearCardPhaseUI()
+    {
+        Debug.Log("Membersihkan kartu dari fase aksi.");
+        ClearAllCardsFromHolder();
+    }
+
     [PunRPC]
     private void RPC_ChangeGameState(GameState newState) { OnGameStateChanged(newState); }
+
+    [PunRPC]
+    private void RPC_SetupInitialBoard()
+    {
+        Debug.Log("Mengatur kondisi awal papan: Menampilkan token terbalik.");
+        resolutionManager.ShowFaceDownTokens();
+        // Anda juga bisa menambahkan setup awal lainnya di sini jika perlu,
+        // seperti menyembunyikan kartu rumor, dll.
+        rumorManager.HideAllCardObjects();
+    }
 
     [PunRPC]
     private void RPC_CreatePlayerProfile(string nickName, int actorNumber)
@@ -525,18 +652,32 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     [PunRPC]
     private void RPC_ResetForNewSemester()
     {
+        // Reset variabel-variabel internal untuk alur game
         takenCardIndices.Clear();
         turnOrder.Clear();
         ticketButtons.Clear();
         skipCount = 0;
         currentTurnIndex = 0;
-        foreach (var p in players.Values) { p.ticketNumber = 0; }
+
+        // Reset status setiap pemain
+        foreach (var p in players.Values)
+        {
+            p.ticketNumber = 0; // Reset nomor tiket
+            p.ResetStats();     // PANGGIL FUNGSI RESET YANG BARU DIBUAT
+        }
+
+        // Reset UI dan visual papan permainan
         foreach (Transform child in ticketListContainer) Destroy(child.gameObject);
         foreach (Transform child in cardHolderParent) Destroy(child.gameObject);
+        
         resetSemesterButton.gameObject.SetActive(false);
         leaderboardPanel.SetActive(false);
+        
         resolutionManager.ResetVisuals();
         rumorManager.HideAllCardObjects();
+        resolutionManager.ShowFaceDownTokens(); 
+        
+        // Update UI pemain untuk menampilkan status yang sudah di-reset
         UpdatePlayerUI();
     }
     
@@ -664,6 +805,18 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     #endregion
 
     #region UTILS & UI
+
+    public void ClearAllCardsFromHolder()
+    {
+        if (cardHolderParent != null)
+        {
+            foreach (Transform child in cardHolderParent)
+            {
+                Destroy(child.gameObject);
+            }
+        }
+        cardObjects.Clear(); // Kosongkan juga daftar referensi kartu
+    }
     public void UpdatePlayerUI()
     {
         if (playerListContainer == null)

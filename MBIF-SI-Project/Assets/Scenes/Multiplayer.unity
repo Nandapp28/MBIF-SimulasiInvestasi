@@ -6908,6 +6908,7 @@ MonoBehaviour:
   semesterText: {fileID: 1691768903}
   skipButton: {fileID: 276203533}
   resetSemesterButton: {fileID: 471423623}
+  rumorEffects: []
   resetCount: 0
   maxResetCount: 3
 --- !u!114 &1868717275
@@ -6922,6 +6923,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca6c8877c9f9d084dabbda8ff7071cf8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  faceDownMaterial: {fileID: 2100000, guid: 1d897ea4dfb1dcc4a98fd43f767c14c3, type: 2}
+  tokenMinus2Material: {fileID: 2100000, guid: 7b272e3166c326f4cb2baa63e86f1f6c, type: 2}
+  tokenMinus1Material: {fileID: 2100000, guid: 4c0487c0506d1274188eef8ccd7af444, type: 2}
+  tokenPlus1Material: {fileID: 2100000, guid: 20ac72379adb2814689a40cf59812370, type: 2}
+  tokenPlus2Material: {fileID: 2100000, guid: bdd771dba31abab4b911f270cc213c9c, type: 2}
   dividendDataList:
   - color: Red
     dividendIndex: 0
@@ -6960,10 +6966,6 @@ MonoBehaviour:
     - {fileID: 904526618}
     - {fileID: 606996215}
   dividendSpacing: 0.5
-  tokenMinus2Material: {fileID: 2100000, guid: 7b272e3166c326f4cb2baa63e86f1f6c, type: 2}
-  tokenMinus1Material: {fileID: 2100000, guid: 4c0487c0506d1274188eef8ccd7af444, type: 2}
-  tokenPlus1Material: {fileID: 2100000, guid: 20ac72379adb2814689a40cf59812370, type: 2}
-  tokenPlus2Material: {fileID: 2100000, guid: bdd771dba31abab4b911f270cc213c9c, type: 2}
 --- !u!114 &1868717276
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6981,18 +6983,46 @@ MonoBehaviour:
   cardGreen: {fileID: 1550072144}
   cardOrange: {fileID: 1880116848}
   cardVisuals:
-  - cardName: Krisis_Keuanga
+  - cardName: Revaluasi_Asset
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Revaluasi_Asset
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Buyback
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Tender_Kompetitif
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Audit_Forensik
+    texture: {fileID: 2800000, guid: 3ecf9c620f1ee1048811b4b87e06f00e, type: 3}
+  - cardName: Suap_Audit
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Depresiasi_Rupiah
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Krisis_Keuangan
     texture: {fileID: 2800000, guid: 34231e9035cb4e14e8795e0044a6f397, type: 3}
+  - cardName: Rencana_Ekspansi
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
   - cardName: Stimulus_Ekonomi
     texture: {fileID: 2800000, guid: faf0097e76229a841b90006735d9d0b0, type: 3}
-  - cardName: 
-    texture: {fileID: 0}
-  - cardName: 
-    texture: {fileID: 0}
-  - cardName: 
-    texture: {fileID: 0}
-  - cardName: 
-    texture: {fileID: 0}
+  - cardName: Ekspansi_Produk
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Investasi_Asing
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Kenaikan_Upah
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: 'Siasat_Pajak '
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Defisit_Keuangan
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Merger
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Reformasi_Ekonomi
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Extra_Fee
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Pajak_Jalan
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
+  - cardName: Penerbitan_Saham
+    texture: {fileID: 2800000, guid: 34d64ebb92b0f7a43af02364b03b722b, type: 3}
   rendererRed: {fileID: 1294539655}
   rendererBlue: {fileID: 1387679116}
   rendererGreen: {fileID: 1550072147}

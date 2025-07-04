@@ -1,29 +1,37 @@
-// File: PlayerProfileMultiplayer.cs
-
 using System.Collections.Generic;
 using System.Linq;
 
 [System.Serializable]
 public class PlayerProfileMultiplayer
 {
+    public const int DEFAULT_FINPOINT = 10; // <-- TAMBAHKAN KONSTANTA INI
+
     public string playerName;
-    public int actorNumber; // ID unik dari Photon untuk setiap pemain
+    public int actorNumber;
     public int ticketNumber;
     public int finpoint;
     public int cardCount => cards.Count;
     public List<CardMultiplayer> cards = new List<CardMultiplayer>();
     public List<HelpCardMultiplayer> helpCards = new List<HelpCardMultiplayer>();
-    
-    // Prediksi pasar juga perlu disinkronkan jika efeknya ada di multiplayer
     public Dictionary<string, MarketPredictionType> marketPredictions = new Dictionary<string, MarketPredictionType>();
 
     public PlayerProfileMultiplayer(string name, int actorNum)
     {
         playerName = name;
         actorNumber = actorNum;
-        finpoint = 10; // Nilai awal
+        finpoint = DEFAULT_FINPOINT; // Gunakan konstanta di sini
         ticketNumber = 0;
     }
+
+    // <-- TAMBAHKAN FUNGSI BARU INI -->
+    public void ResetStats()
+    {
+        finpoint = DEFAULT_FINPOINT; // Kembalikan finpoint ke nilai awal
+        cards.Clear(); // Kosongkan daftar kartu
+        helpCards.Clear(); // Kosongkan juga kartu bantuan
+        marketPredictions.Clear(); // Hapus prediksi pasar
+    }
+    // <-- AKHIR FUNGSI BARU -->
 
     public void AddCard(CardMultiplayer card)
     {
