@@ -17,7 +17,8 @@ public class HelpCardPhaseManager : MonoBehaviour
     [Header("Game References")]
     public GameManager gameManager;
     public SellingPhaseManager sellingManager;
-    public RumorPhaseManager rumorPhaseManager;// Diperlukan untuk efek IPO
+    public RumorPhaseManager rumorPhaseManager;
+    // Diperlukan untuk efek IPO
 
 
     [Header("UI Elements")]

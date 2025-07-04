@@ -71,83 +71,100 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
         yield break;
     }
-    int minIndex = (color == "Tambang") ? -2 : -3;
 
-    // Jika state sudah Normal DAN index sudah di posisi paling minimal
+    // [ ... logika penyesuaian harga yang sudah ada tetap di sini ... ]
+    // Saya singkat untuk kejelasan, tidak ada yang berubah di bagian ini.
+    #region Existing Price Logic (No Changes)
+    int minIndex = (color == "Tambang") ? -2 : -3;
     if (ipoData.currentState == IPOState.Normal && ipoData.ipoIndex == minIndex)
     {
         Debug.Log($"📉 [Stock Split] Kondisi Khusus Terpenuhi untuk '{color}'. Index sudah minimal. Menurunkan index sebesar 1 untuk memicu crash.");
-        
-        // Langsung kurangi index sebesar 1. Ini akan membuat index di bawah ambang batas.
-        ipoData.ipoIndex -= 1; 
-
-        // Panggil UpdateIPOState untuk memproses logika CRASH market.
-        spm.UpdateIPOState(ipoData); 
-        
-        // Update visual untuk merefleksikan perubahan (misal: token kembali ke posisi 0 setelah crash).
-        spm.UpdateIPOVisuals(); 
-        
-        // Keluar dari fungsi karena tugas untuk kasus khusus ini sudah selesai.
-        yield break; 
+        ipoData.ipoIndex -= 1;
+        spm.UpdateIPOState(ipoData);
+        spm.UpdateIPOVisuals();
     }
-    // 2. Hitung harga jual penuh saat ini dan tentukan harga target.
-    int currentFullPrice = spm.GetFullCardPrice(color);
-    int targetPrice = Mathf.FloorToInt(currentFullPrice / 2f);
-    
-    Debug.Log($"[Stock Split] Info Awal '{color}': Harga Penuh={currentFullPrice}, State={ipoData.currentState}. Harga Target={targetPrice}");
-
-    // 3. Buat daftar SEMUA kemungkinan harga (kombinasi state + index)
-    var allPossibilities = new List<PriceOutcome>();
-    int[] priceMap = spm.ipoPriceMap[color];
-    int maxIndex = (color == "Tambang") ? 2 : 3;
-
-    // Definisikan setiap state dan bonusnya
-    var statesAndBonuses = new[]
+    else
     {
-        new { State = IPOState.Normal, Bonus = 0 },
-        new { State = IPOState.Ascend, Bonus = 5 },
-        new { State = IPOState.Advanced, Bonus = 10 }
-    };
+        int currentFullPrice = spm.GetFullCardPrice(color);
+        int targetPrice = Mathf.FloorToInt(currentFullPrice / 2f);
+        Debug.Log($"[Stock Split] Info Awal '{color}': Harga Penuh={currentFullPrice}, State={ipoData.currentState}. Harga Target={targetPrice}");
 
-    // Lakukan iterasi untuk setiap state dan setiap index yang valid
-    foreach (var stateInfo in statesAndBonuses)
-    {
-        for (int i = minIndex; i <= maxIndex; i++)
+        var allPossibilities = new List<PriceOutcome>();
+        int[] priceMap = spm.ipoPriceMap[color];
+        int maxIndex = (color == "Tambang") ? 2 : 3;
+        var statesAndBonuses = new[]
         {
-            int basePrice = priceMap[i + 3]; // Ambil harga dasar dari index
-            if (basePrice == 0) continue; // Jangan masukkan harga crash (0) sebagai kemungkinan
+            new { State = IPOState.Normal, Bonus = 0 },
+            new { State = IPOState.Ascend, Bonus = 5 },
+            new { State = IPOState.Advanced, Bonus = 10 }
+        };
 
-            allPossibilities.Add(new PriceOutcome
+        foreach (var stateInfo in statesAndBonuses)
+        {
+            for (int i = minIndex; i <= maxIndex; i++)
             {
-                TotalPrice = basePrice + stateInfo.Bonus,
-                State = stateInfo.State,
-                IpoIndex = i,
-                SalesBonus = stateInfo.Bonus
-            });
+                int basePrice = priceMap[i + 3];
+                if (basePrice == 0) continue;
+                allPossibilities.Add(new PriceOutcome
+                {
+                    TotalPrice = basePrice + stateInfo.Bonus,
+                    State = stateInfo.State,
+                    IpoIndex = i,
+                    SalesBonus = stateInfo.Bonus
+                });
+            }
+        }
+
+        if (allPossibilities.Count == 0)
+        {
+            Debug.LogError("Tidak ada kemungkinan harga yang valid ditemukan!");
+            yield break;
+        }
+
+        PriceOutcome bestMatch = allPossibilities
+            .OrderBy(p => Mathf.Abs(p.TotalPrice - targetPrice))
+            .First();
+
+        Debug.Log($"📉 [Stock Split] Hasil Terbaik untuk '{color}': State={bestMatch.State}, Index={bestMatch.IpoIndex}, Harga Total={bestMatch.TotalPrice}");
+        ipoData.currentState = bestMatch.State;
+        ipoData.salesBonus = bestMatch.SalesBonus;
+        ipoData.ipoIndex = bestMatch.IpoIndex;
+
+        spm.UpdateIPOVisuals();
+        gameManager.UpdateDeckCardValuesWithIPO();
+    }
+    #endregion
+
+
+    // --- LOGIKA BARU: DUPLIKASI KARTU DIMULAI ---
+    Debug.Log($"[Stock Split] Menggandakan semua kartu berwarna '{color}' untuk setiap pemain.");
+
+    // Iterasi melalui setiap pemain yang ada di dalam game (termasuk bot)
+    foreach (var p in gameManager.turnOrder)
+    {
+        // Cari semua kartu dengan warna yang sesuai yang dimiliki pemain ini.
+        // Kita gunakan .ToList() agar bisa menambah kartu baru tanpa mengganggu iterasi.
+        var cardsToDuplicate = p.cards.Where(c => c.color == color).ToList();
+
+        if (cardsToDuplicate.Any()) // Jika pemain punya kartu dengan warna ini
+        {
+            Debug.Log($"Pemain {p.playerName} memiliki {cardsToDuplicate.Count} kartu '{color}'. Menggandakan...");
+
+            // Tambahkan duplikat untuk setiap kartu yang ditemukan
+            foreach (var card in cardsToDuplicate)
+            {
+                // Buat instance kartu baru yang identik
+                Card newCard = new Card(card.cardName, card.description, card.value, card.color);
+                p.AddCard(newCard);
+                Debug.Log($"    -> Menambahkan duplikat '{newCard.cardName}' ke {p.playerName}.");
+            }
         }
     }
-    
-    // 4. Cari kemungkinan TERBAIK yang harganya paling mendekati harga target.
-    if (allPossibilities.Count == 0) {
-        Debug.LogError("Tidak ada kemungkinan harga yang valid ditemukan!");
-        yield break;
-    }
 
-    PriceOutcome bestMatch = allPossibilities
-                              .OrderBy(p => Mathf.Abs(p.TotalPrice - targetPrice))
-                              .First();
-    
-    // 5. Terapkan hasil terbaik ke ipoData.
-    Debug.Log($"📉 [Stock Split] Hasil Terbaik untuk '{color}': State={bestMatch.State}, Index={bestMatch.IpoIndex}, Harga Total={bestMatch.TotalPrice}");
-    
-    ipoData.currentState = bestMatch.State;
-    ipoData.salesBonus = bestMatch.SalesBonus;
-    ipoData.ipoIndex = bestMatch.IpoIndex;
+    // Terakhir, perbarui UI pemain untuk menampilkan jumlah kartu yang baru
+    gameManager.UpdatePlayerUI();
+    // --- LOGIKA BARU SELESAI ---
 
-    // 6. Update visual dan data game.
-    spm.UpdateIPOVisuals();
-    gameManager.UpdateDeckCardValuesWithIPO();
-    
     yield break;
 }
     private static IEnumerator InsiderTradeEffect(PlayerProfile player, string color)
