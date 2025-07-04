@@ -197,21 +197,16 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
     }
     private static IEnumerator TenderOfferEffect(PlayerProfile player, string color)
     {
-        // Dapatkan referensi ke manager yang dibutuhkan
         SellingPhaseManager sellingManager = GameObject.FindObjectOfType<SellingPhaseManager>();
         GameManager gameManager = GameManager.Instance;
-
-        // 🔽 CARI INSTANCE HELPCARDPHASEMANAGER DI SCENE 🔽
         HelpCardPhaseManager helpCardManager = GameObject.FindObjectOfType<HelpCardPhaseManager>();
 
-        // Validasi apakah semua manager ditemukan
         if (sellingManager == null || helpCardManager == null)
         {
             Debug.LogError("SellingPhaseManager atau HelpCardPhaseManager tidak ditemukan di scene!");
             yield break;
         }
 
-        // ... (kode untuk mencari validTargets tetap sama) ...
         List<PlayerProfile> validTargets = gameManager.turnOrder
             .Where(p => p != player && p.cards.Any(c => c.color == color))
             .ToList();
@@ -224,43 +219,40 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
 
         PlayerProfile targetPlayer = null;
 
-        if (player.isBot)
+        // --- LOGIKA DIPERBAIKI ---
+        if (player.playerName.Contains("You")) // Logika untuk Pemain Manusia
         {
-            targetPlayer = validTargets[Random.Range(0, validTargets.Count)];
-            Debug.Log($"[TenderOffer] {player.playerName} (Bot) menargetkan {targetPlayer.playerName}.");
-        }
-        else // Jika yang mengaktifkan adalah Player Manusia
-        {
-            // 🔽 PANGGIL COROUTINE DARI INSTANCE HELPCARDMANAGER YANG DITEMUKAN 🔽
             Debug.Log($"[TenderOffer] Menunggu {player.playerName} memilih target...");
-            // Perhatikan: kita menjalankan coroutine menggunakan variabel 'helpCardManager'
             yield return helpCardManager.StartCoroutine(helpCardManager.ShowPlayerSelectionUI(validTargets, selectedPlayer =>
             {
                 targetPlayer = selectedPlayer;
             }));
             Debug.Log($"[TenderOffer] {player.playerName} memilih untuk menargetkan {targetPlayer.playerName}.");
         }
+        else // Logika untuk Bot
+        {
+            targetPlayer = validTargets[Random.Range(0, validTargets.Count)];
+            Debug.Log($"[TenderOffer] {player.playerName} (Bot) menargetkan {targetPlayer.playerName}.");
+        }
+        // --- AKHIR PERBAIKAN ---
 
-        // 3. Hitung harga beli (setengah harga, dibulatkan ke atas)
         int fullPrice = sellingManager.GetFullCardPrice(color);
         int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f);
 
         Debug.Log($"[TenderOffer] Harga asli kartu {color} adalah {fullPrice}. Harga beli paksa: {purchasePrice}.");
 
-        // 4. Lakukan transaksi
         if (player.CanAfford(purchasePrice))
         {
             Card cardToMove = targetPlayer.cards.FirstOrDefault(c => c.color == color);
             if (cardToMove != null)
             {
-                // Lakukan transaksi
                 player.DeductFinpoint(purchasePrice);
-                targetPlayer.finpoint += purchasePrice; // Pemain target menerima uangnya
+                targetPlayer.finpoint += purchasePrice;
                 targetPlayer.cards.Remove(cardToMove);
                 player.AddCard(cardToMove);
 
                 Debug.Log($"[TenderOffer] {player.playerName} berhasil membeli kartu {color} dari {targetPlayer.playerName} seharga {purchasePrice} Finpoint.");
-                gameManager.UpdatePlayerUI(); // Update UI semua pemain
+                gameManager.UpdatePlayerUI();
             }
         }
         else
@@ -268,82 +260,75 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
             Debug.LogWarning($"[TenderOffer] {player.playerName} tidak memiliki cukup Finpoint untuk membeli kartu (butuh {purchasePrice}). Efek dibatalkan.");
         }
     }
-// Tambahkan method coroutine baru ini di dalam kelas CardEffectManager
-private static IEnumerator TradeFreeEffect(PlayerProfile player, string color)
-{
-    // 1. Dapatkan referensi manager
-    SellingPhaseManager sellingManager = GameObject.FindObjectOfType<SellingPhaseManager>();
-    if (sellingManager == null)
+
+    private static IEnumerator TradeFreeEffect(PlayerProfile player, string color)
     {
-        Debug.LogError("SellingPhaseManager tidak ditemukan!");
-        yield break;
-    }
-
-    // 2. Cek apakah pemain punya kartu untuk dijual
-    int cardsOwned = player.cards.Count(c => c.color == color);
-    if (cardsOwned == 0)
-    {
-        Debug.Log($"[TradeFree] {player.playerName} tidak memiliki kartu warna '{color}' untuk dijual.");
-        yield break;
-    }
-
-    int quantityToSell = 0;
-
-    // 3. Logika untuk Bot vs Pemain
-    if (player.isBot)
-    {
-        // Bot akan selalu menjual semua kartu yang dimilikinya dari warna tersebut
-        quantityToSell = cardsOwned;
-        Debug.Log($"[TradeFree] {player.playerName} (Bot) memutuskan untuk menjual {quantityToSell} kartu '{color}'.");
-    }
-    else // Untuk pemain manusia, tampilkan UI
-    {
-        int sellAmountFromUI = -1; // Variabel untuk menampung hasil dari UI
-
-        Debug.Log($"[TradeFree] Menampilkan UI penjualan untuk {player.playerName}...");
-        yield return sellingManager.StartCoroutine(
-            sellingManager.ShowSingleColorSellUI(player, color, (confirmedAmount) =>
-            {
-                sellAmountFromUI = confirmedAmount;
-            })
-        );
-        
-        quantityToSell = sellAmountFromUI;
-    }
-
-    // 4. Proses transaksi jika ada kartu yang dijual
-    if (quantityToSell > 0)
-    {
-        // Dapatkan harga jual saat ini
-        int pricePerCard = sellingManager.GetFullCardPrice(color);
-        int totalEarnings = quantityToSell * pricePerCard;
-
-        // Tambahkan finpoint ke pemain
-        player.finpoint += totalEarnings;
-
-        // Hapus kartu dari tangan pemain
-        List<Card> cardsToRemove = player.cards.Where(c => c.color == color).Take(quantityToSell).ToList();
-        foreach (var card in cardsToRemove)
+        SellingPhaseManager sellingManager = GameObject.FindObjectOfType<SellingPhaseManager>();
+        if (sellingManager == null)
         {
-            player.cards.Remove(card);
+            Debug.LogError("SellingPhaseManager tidak ditemukan!");
+            yield break;
         }
 
-        Debug.Log($"[TradeFree] Transaksi Berhasil! {player.playerName} menjual {quantityToSell} kartu '{color}' dan mendapatkan {totalEarnings} Finpoint.");
+        int cardsOwned = player.cards.Count(c => c.color == color);
+        if (cardsOwned == 0)
+        {
+            Debug.Log($"[TradeFree] {player.playerName} tidak memiliki kartu warna '{color}' untuk dijual.");
+            yield break;
+        }
 
-        // Perbarui UI game
-        GameManager.Instance.UpdatePlayerUI();
+        int quantityToSell = 0;
+
+        // --- LOGIKA DIPERBAIKI ---
+        if (player.playerName.Contains("You")) // Logika untuk Pemain Manusia
+        {
+            int sellAmountFromUI = -1;
+            Debug.Log($"[TradeFree] Menampilkan UI penjualan untuk {player.playerName}...");
+            yield return sellingManager.StartCoroutine(
+                sellingManager.ShowSingleColorSellUI(player, color, (confirmedAmount) =>
+                {
+                    sellAmountFromUI = confirmedAmount;
+                })
+            );
+            
+            quantityToSell = sellAmountFromUI;
+        }
+        else // Logika untuk Bot
+        {
+            quantityToSell = cardsOwned;
+            Debug.Log($"[TradeFree] {player.playerName} (Bot) memutuskan untuk menjual {quantityToSell} kartu '{color}'.");
+        }
+        // --- AKHIR PERBAIKAN ---
+
+        if (quantityToSell > 0)
+        {
+            int pricePerCard = sellingManager.GetFullCardPrice(color);
+            int totalEarnings = quantityToSell * pricePerCard;
+
+            player.finpoint += totalEarnings;
+
+            List<Card> cardsToRemove = player.cards.Where(c => c.color == color).Take(quantityToSell).ToList();
+            foreach (var card in cardsToRemove)
+            {
+                player.cards.Remove(card);
+            }
+
+            Debug.Log($"[TradeFree] Transaksi Berhasil! {player.playerName} menjual {quantityToSell} kartu '{color}' dan mendapatkan {totalEarnings} Finpoint.");
+
+            GameManager.Instance.UpdatePlayerUI();
+        }
+        else
+        {
+            Debug.Log($"[TradeFree] {player.playerName} memilih untuk tidak menjual kartu.");
+        }
+        
+        yield break;
     }
-    else
-    {
-        Debug.Log($"[TradeFree] {player.playerName} memilih untuk tidak menjual kartu.");
-    }
-    
-    yield break; // Efek selesai
+
+    // ... (sisa kode di CardEffectManager.cs tetap sama) ...
 }
 
 
 
 
 
-
-}

@@ -326,10 +326,7 @@ public class GameManager : MonoBehaviour
         List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
 
-        deck.Add(new Card("TradeFree", "Deal 5 damage", 0, GetRandomColor(colors)));
-        deck.Add(new Card("TenderOffer", "Recover 3 HP", 0, GetRandomColor(colors)));
-        deck.Add(new Card("StockSplit", "Block next attack", 1, GetRandomColor(colors)));
-        deck.Add(new Card("InsiderTrade", "Take 1 card", 2, GetRandomColor(colors)));
+        
         deck.Add(new Card("Flashbuy", "Take 2 more cards", 3, GetRandomColor(colors)));
 
         ShuffleDeck();
@@ -680,8 +677,7 @@ public class GameManager : MonoBehaviour
             if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(false);
             yield return new WaitForSeconds(1f);
         }
-        // Jika itu "Flashbuy", kita biarkan cardHolderParent tetap aktif untuk pemilihan kartu tambahan.
-        // --- MODIFIKASI SELESAI ---
+        
 
 
         // 2. Memanggil ActivateCard dan MENUNGGU sampai selesai.
@@ -690,6 +686,7 @@ public class GameManager : MonoBehaviour
 
         // 3. Setelah efek selesai, perbarui status giliran.
         yield return new WaitForSeconds(1.5f);
+        if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
         Debug.Log("✅ Efek ActivateCard selesai. Melanjutkan giliran.");
         skipCount = 0;
         currentCardIndex++;
@@ -786,6 +783,7 @@ public class GameManager : MonoBehaviour
                 foreach (var cardToTake in cardsToProcess)
                 {
                     TakeCard(cardToTake, currentPlayer);
+                    currentCardIndex++; 
                 }
             }
             else
@@ -816,6 +814,7 @@ public class GameManager : MonoBehaviour
                     GameObject cardToTake = affordableCards.First();
                     Debug.Log($"[Flashbuy] {currentPlayer.playerName} (Bot) membeli {cardToTake.name}.");
                     TakeCard(cardToTake, currentPlayer);
+                    currentCardIndex++;
                     cardsBought++;
                 }
                 else
