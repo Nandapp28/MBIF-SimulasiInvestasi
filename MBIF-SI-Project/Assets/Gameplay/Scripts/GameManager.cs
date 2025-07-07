@@ -72,7 +72,7 @@ public class GameManager : MonoBehaviour
     private int currentTurnIndex = 0;
     public int skipCount = 0;
     public int resetCount = 0;
-    public int maxResetCount = 3;
+    public int maxResetCount = 1;
 
     private Coroutine autoSelectCoroutine;
 
@@ -326,7 +326,7 @@ public class GameManager : MonoBehaviour
         List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
 
-        deck.Add(new Card("TradeFree", "Deal 5 damage", 0, GetRandomColor(colors)));
+        deck.Add(new Card("TradeFree", "Deal 5 damage", 1, GetRandomColor(colors)));
         deck.Add(new Card("TenderOffer", "Recover 3 HP", 0, GetRandomColor(colors)));
         deck.Add(new Card("StockSplit", "Block next attack", 1, GetRandomColor(colors)));
         deck.Add(new Card("InsiderTrade", "Take 1 card", 2, GetRandomColor(colors)));
@@ -1194,9 +1194,14 @@ public class GameManager : MonoBehaviour
             Destroy(child.gameObject);
         }
     }
+    
     public void ShowLeaderboard()
     {
+        List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
+        allPlayers.AddRange(bots);
+        sellingManager.ForceSellAllCards(allPlayers);
         leaderboardPanel.SetActive(true);
+
 
         // Bersihkan entri sebelumnya
         foreach (Transform child in leaderboardContainer)
@@ -1205,8 +1210,6 @@ public class GameManager : MonoBehaviour
         }
 
         // Gabungkan player dan bot
-        List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
-        allPlayers.AddRange(bots);
 
         // Urutkan berdasarkan finpoint secara menurun
         var rankedPlayers = allPlayers.OrderByDescending(p => p.finpoint).ToList();
