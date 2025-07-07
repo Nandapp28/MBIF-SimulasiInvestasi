@@ -70,8 +70,35 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
     rumorEffects = new List<RumorEffect>
     {
         
+        new RumorEffect { color = "Konsumer",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Konsumer",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Konsumer",cardName = "Revaluasi_Asset", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Buyback", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Buyback", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Tender_Kompetitif", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Audit_Forensik", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Suap_Audit", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Depresiasi_Rupiah", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Krisis_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Rencana_Ekspansi", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Stimulus_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Ekspansi_Produk", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Investasi_Asing", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Kenaikan_Upah", effectType = RumorEffect.EffectType.ModifyIPO, value = 2, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Siasat_Pajak", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Konsumer",cardName = "Defisit_Keuangan", effectType = RumorEffect.EffectType.ModifyIPO, value = -3, description = "Red market sedikit turun" },
+        new RumorEffect { color = "Konsumer",cardName = "Merger", effectType = RumorEffect.EffectType.ModifyIPO, value = 3, description = "Red market sedikit naik" },
+        new RumorEffect { color = "Konsumer",cardName = "Merger", effectType = RumorEffect.EffectType.ModifyIPO, value = 3, description = "Red market sedikit naik" },
         new RumorEffect { color = "Konsumer",cardName = "Reformasi_Ekonomi", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
         new RumorEffect { color = "Konsumer",cardName = "Reformasi_Ekonomi", effectType = RumorEffect.EffectType.ResetAllIPO, value = 0, description = "Reformasi ekonomi" },
+        new RumorEffect { color = "Konsumer",cardName = "Extra_Fee", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Extra Fee" },
+        new RumorEffect { color = "Konsumer",cardName = "Extra_Fee", effectType = RumorEffect.EffectType.PenaltyFinpoint, value = 1, description = "Extra Fee" },
+        new RumorEffect { color = "Konsumer",cardName = "Pajak_Jalan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Pajak Jalan" },
+        new RumorEffect { color = "Konsumer",cardName = "Pajak_Jalan", effectType = RumorEffect.EffectType.TaxByTurnOrder, value = 1, description = "Pajak Jalan" },
+        new RumorEffect { color = "Konsumer",cardName = "Penerbitan_Saham", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Reformasi ekonomi" },
+        new RumorEffect { color = "Konsumer",cardName = "Penerbitan_Saham", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Reformasi ekonomi" },
+
        
 
         new RumorEffect { color = "Infrastruktur",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
@@ -295,45 +322,62 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
     }
     // Tambahkan metode ini di dalam kelas RumorPhaseManager.cs
 
-public IEnumerator ShowPredictionCardAtCenter(RumorPhaseManager.RumorEffect rumorToShow)
+public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
 {
-    HideAllCardObjects(); // Pastikan tidak ada kartu lain yang aktif
+    Debug.Log($"Menampilkan bocoran kartu rumor: {rumorToShow.cardName}");
 
-    // 1. Dapatkan referensi visual kartu berdasarkan warna rumor
+    // Langkah 1: Tentukan objek kartu dan renderer yang akan digunakan
     GameObject cardObject = null;
-    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == rumorToShow.cardName)?.texture;
-
-    if (frontTexture == null)
-    {
-        Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{rumorToShow.cardName}' tidak ditemukan!");
-        yield break; // Keluar dari coroutine jika texture tidak ada
-    }
-
+    Renderer cardRenderer = null;
     switch (rumorToShow.color)
     {
-        case "Konsumer": cardObject = cardRed; break;
-        case "Infrastruktur": cardObject = cardBlue; break;
-        case "Keuangan": cardObject = cardGreen; break;
-        case "Tambang": cardObject = cardOrange; break;
+        case "Konsumer":
+            cardObject = cardRed;
+            cardRenderer = rendererRed;
+            break;
+        case "Infrastruktur":
+            cardObject = cardBlue;
+            cardRenderer = rendererBlue;
+            break;
+        case "Keuangan":
+            cardObject = cardGreen;
+            cardRenderer = rendererGreen;
+            break;
+        case "Tambang":
+            cardObject = cardOrange;
+            cardRenderer = rendererOrange;
+            break;
     }
 
-    if (cardObject != null)
+    if (cardObject == null || cardRenderer == null)
     {
-        // 2. Atur posisi dan rotasi kartu ke posisi panggung
-        cardObject.transform.position = predictionCardStage.position;
-        cardObject.transform.rotation = predictionCardStage.rotation;
-
-        // 3. Set texture dan jalankan animasi flip
-        // Kita perlu mengambil renderer yang sesuai
-        Renderer cardRenderer = cardObject.GetComponentInChildren<Renderer>(); // Cara mudah mendapatkannya
-        if (cardRenderer)
-        {
-            cardRenderer.material.mainTexture = frontTexture;
-        }
-
-        // Jalankan animasi flip dan TUNGGU sampai selesai
-        yield return StartCoroutine(FlipCard(cardObject));
+        Debug.LogError($"Objek kartu atau renderer untuk warna '{rumorToShow.color}' tidak ditemukan!");
+        yield break;
     }
+
+    // Validasi texture
+    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == rumorToShow.cardName)?.texture;
+    if (frontTexture == null)
+    {
+        Debug.LogWarning($"Texture untuk '{rumorToShow.cardName}' tidak ditemukan!");
+        yield break;
+    }
+
+    Vector3 originalPosition = cardObject.transform.position;
+
+    cardObject.transform.position = predictionCardStage.position;
+    cardObject.transform.rotation = predictionCardStage.rotation;
+
+    cardRenderer.material.mainTexture = frontTexture;
+    yield return StartCoroutine(FlipCard(cardObject));
+
+    yield return new WaitForSeconds(2f);
+
+    cardObject.SetActive(false);
+
+    // Langkah 7: Kembalikan kartu ke posisi aslinya
+    cardObject.transform.position = originalPosition;
+    Debug.Log($"Kartu {cardObject.name} telah dikembalikan ke posisi semula.");
 }
 
 
