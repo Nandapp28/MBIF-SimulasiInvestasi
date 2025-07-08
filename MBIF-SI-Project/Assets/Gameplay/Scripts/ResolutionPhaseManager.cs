@@ -21,7 +21,7 @@ public class ResolutionPhaseManager : MonoBehaviour
         public GameObject indicatorObject; // Referensi ke indikator visual (bisa berupa text, arrow, UI element, dll)
         public List<GameObject> tokenObjects;
     }
-    private List<string> resolutionOrder = new List<string> { "Red", "Blue", "Green", "Orange" };
+    private List<string> resolutionOrder = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
     public Material tokenMinus2Material;
     public Material tokenMinus1Material;
@@ -161,7 +161,8 @@ public class ResolutionPhaseManager : MonoBehaviour
                 }
             }
         }
-        
+         ApplyNegativeFinpointPenalty(players);
+
 
         gameManager.UpdatePlayerUI();
         // Cek jika resetCount di dalam gameManager sama dengan 0
@@ -267,5 +268,18 @@ public class ResolutionPhaseManager : MonoBehaviour
             }
         }
     }
+    private void ApplyNegativeFinpointPenalty(List<PlayerProfile> players)
+{
+    Debug.Log("[ResolutionPhase] Mengecek pemain dengan finpoint negatif untuk penalti...");
+    foreach (var player in players)
+    {
+        // Jika finpoint pemain menjadi negatif setelah pembagian dividen
+        if (player.finpoint < 0)
+        {
+            player.finpoint -= 1; // Kurangi 1 finpoint lagi
+            Debug.LogWarning($"[PENALTI] {player.playerName} memiliki finpoint negatif. Dikenakan penalti -1 FP. Finpoint baru: {player.finpoint}");
+        }
+    }
+}
 
 }

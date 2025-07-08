@@ -3,6 +3,13 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+[System.Serializable]
+public class CardTextureMapping
+{
+    public string cardName;
+    public string color;
+    public Sprite cardSprite;
+}
 public class GameManager : MonoBehaviour
 {
     public TicketManager ticketManager;
@@ -27,6 +34,8 @@ public class GameManager : MonoBehaviour
     public GameObject leaderboardPanel;
     public Transform leaderboardContainer;
     public GameObject leaderboardEntryPrefab;
+    [Header("Card Visuals")]
+    public List<CardTextureMapping> cardTextureMappings; // ⬅️ TAMBAHKAN INI
 
 
     [Header("Button References")]
@@ -35,7 +44,9 @@ public class GameManager : MonoBehaviour
     public Button bot4Button;
     public GameObject resetSemesterButton;
     public GameObject skipButton;
-
+    [Header("Ticket Sprites")]
+    public Sprite defaultTicketSprite; // Texture A
+    public List<Sprite> ticketNumberSprites;
 
 
 
@@ -140,6 +151,8 @@ public class GameManager : MonoBehaviour
         bot2Button.onClick.AddListener(() => SetBotCount(2));
         bot3Button.onClick.AddListener(() => SetBotCount(3));
         bot4Button.onClick.AddListener(() => SetBotCount(4));
+
+
     }
 
 
@@ -182,9 +195,13 @@ public class GameManager : MonoBehaviour
             GameObject btnObj = Instantiate(ticketButtonPrefab, ticketListContainer);
             ticketButtons.Add(btnObj);
 
-            Text btnText = btnObj.GetComponentInChildren<Text>();
-            if (btnText != null)
-                btnText.text = "Choose";
+            // Set sprite awal (belum dipilih)
+            Image img = btnObj.GetComponent<Image>();
+            if (img != null && defaultTicketSprite != null)
+            {
+                img.sprite = defaultTicketSprite;
+            }
+
 
             Button btn = btnObj.GetComponent<Button>();
             if (btn != null)
@@ -196,6 +213,7 @@ public class GameManager : MonoBehaviour
                 });
             }
         }
+
         // Jalankan timer auto-pilih jika player tidak klik
 
 
@@ -215,14 +233,15 @@ public class GameManager : MonoBehaviour
 
         player.ticketNumber = ticketManager.PickTicketForPlayer(chosenTicket);
 
-        // Ganti tulisan tombol yang diklik saja
-        Text btnText = clickedButton.GetComponentInChildren<Text>();
-        if (btnText != null)
+
+        // 🟡 Ganti sprite tombol yang diklik
+        Image img = clickedButton.GetComponent<Image>();
+        if (img != null && ticketNumberSprites.Count >= chosenTicket)
         {
-            btnText.text = $"{chosenTicket}"; // 🛠️ Update text yang diklik saja
+            img.sprite = ticketNumberSprites[chosenTicket - 1]; // karena index mulai dari 0
         }
 
-        // Mulai delay 3 detik buat bot
+        // ⏳ Mulai delay 3 detik buat bot
         StartCoroutine(AssignTicketsToBotsAfterDelay());
     }
 
@@ -303,13 +322,15 @@ public class GameManager : MonoBehaviour
     {
         deck.Clear();
 
-        List<string> colors = new List<string> { "Red", "Blue", "Green", "Orange" };
 
-        deck.Add(new Card("Trade Offer", "Deal 5 damage", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Heal", "Recover 3 HP", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Stock Split", "Block next attack", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Steal", "Take 1 card", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Flashbuy", "Take 2 more cards", 0, GetRandomColor(colors)));
+        List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
+
+
+        deck.Add(new Card("TradeFree", "Deal 5 damage", 0, GetRandomColor(colors)));
+        deck.Add(new Card("TenderOffer", "Recover 3 HP", 0, GetRandomColor(colors)));
+        deck.Add(new Card("StockSplit", "Block next attack", 1, GetRandomColor(colors)));
+        deck.Add(new Card("InsiderTrade", "Take 1 card", 2, GetRandomColor(colors)));
+        deck.Add(new Card("Flashbuy", "Take 2 more cards", 3, GetRandomColor(colors)));
 
         ShuffleDeck();
 
@@ -328,7 +349,7 @@ public class GameManager : MonoBehaviour
         {
             deck = new List<Card>(deck.GetRange(0, totalCardsToGive));
         }
-        
+
 
         // Update nilai kartu setelah deck dibuat
         UpdateDeckCardValuesWithIPO();
@@ -338,7 +359,7 @@ public class GameManager : MonoBehaviour
     {
         foreach (Card card in deck)
         {
-            int ipoValue = sellingManager.GetCurrentColorValue(card.color);
+            int ipoValue = sellingManager.GetFullCardPrice(card.color);
             card.value = card.baseValue + ipoValue;
         }
         Debug.Log("Update harga");
@@ -363,6 +384,12 @@ public class GameManager : MonoBehaviour
         if (cardValueText != null) int.TryParse(cardValueText.text, out cardValue);
         return cardValue;
     }
+    private Sprite GetCardSprite(string cardName, string color)
+    {
+        var mapping = cardTextureMappings.FirstOrDefault(m => m.cardName == cardName && m.color == color);
+        return mapping != null ? mapping.cardSprite : null;
+    }
+
 
     private string GetRandomColor(List<string> colorOptions)
     {
@@ -392,6 +419,13 @@ public class GameManager : MonoBehaviour
         {
             Card card = deck[i];
             GameObject cardObj = Instantiate(cardPrefab, cardHolderParent);
+            Sprite sprite = GetCardSprite(card.cardName, card.color);
+            Image cardImage = cardObj.transform.Find("CardImage")?.GetComponent<Image>();
+            if (cardImage != null && sprite != null)
+            {
+                cardImage.sprite = sprite;
+            }
+
 
             // Ambil Text untuk nama kartu
             Text cardText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
@@ -432,7 +466,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator NextTurn()
     {
-        sellingManager.InitializePlayers(turnOrder); 
+        sellingManager.InitializePlayers(turnOrder);
         int totalCardsToGive = totalCards * (bots.Count + 1);
         if (skipCount >= turnOrder.Count)
         {
@@ -445,7 +479,7 @@ public class GameManager : MonoBehaviour
             yield return new WaitForSeconds(2f);
 
             Debug.Log("Memulai fase penjualan...");
-           helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
+            helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
 
 
             yield break;
@@ -524,21 +558,35 @@ public class GameManager : MonoBehaviour
 
                         activateBtnInstance.GetComponent<Button>().onClick.AddListener(() =>
                         {
-                            int cardValue = GetCardValue(obj);
-                            if (currentPlayer.finpoint < cardValue)
+
+                            Text cardNameText = obj.transform.Find("CardText")?.GetComponent<Text>();
+                            Text cardColorText = obj.transform.Find("CardColor")?.GetComponent<Text>();
+                            string cardName = cardNameText != null ? cardNameText.text : "";
+                            string cardColor = cardColorText != null ? cardColorText.text : "";
+
+                            // 1. Cek dulu apakah syarat aktivasi efek terpenuhi
+                            if (!CanActivateEffect(cardName, cardColor, currentPlayer))
                             {
-                                Debug.LogWarning($"{currentPlayer.playerName} tidak punya finpoint cukup untuk mengaktifkan kartu ini.");
-                                return;
+                                // Jika tidak, tampilkan pesan error spesifik dan hentikan aksi
+                                Debug.LogWarning(GetActivationErrorMessage(cardName));
+                                return; // Hentikan eksekusi
                             }
+
+                            // 2. Jika syarat efek terpenuhi, baru cek finpoint
+                            int cardValue = GetCardValue(obj);
+                            if (!currentPlayer.CanAfford(cardValue))
+                            {
+                                Debug.LogWarning($"{currentPlayer.playerName} tidak punya finpoint cukup ({cardValue} FP) untuk mengaktifkan kartu ini.");
+                                return; // Hentikan eksekusi
+                            }
+
+
                             cardTaken = true;
-                            ActivateCard(obj, currentPlayer);
-                            ResetCardSelection();
-                            skipCount = 0;
-                            currentCardIndex++;
-                            currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-                            if (skipButton != null) skipButton.SetActive(false);
-                            StartCoroutine(NextTurn());
+                            StartCoroutine(ActivateCardAndProceed(obj, currentPlayer));
+
+                            // --- MODIFIKASI SELESAI ---
                         });
+
 
                         saveBtnInstance.GetComponent<Button>().onClick.AddListener(() =>
                         {
@@ -549,13 +597,21 @@ public class GameManager : MonoBehaviour
                                 return;
                             }
                             cardTaken = true;
-                            TakeCard(obj, currentPlayer);
                             ResetCardSelection();
+                            if (skipButton != null) skipButton.SetActive(false);
+
+                            // 2. Memanggil TakeCard (ini adalah metode void, jadi langsung dijalankan).
+                            TakeCard(obj, player);
+
+                            // 3. Setelah kartu diambil, perbarui status giliran.
+                            Debug.Log("✅ TakeCard selesai. Melanjutkan giliran.");
                             skipCount = 0;
                             currentCardIndex++;
                             currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-                            if (skipButton != null) skipButton.SetActive(false);
+
+                            // 4. Mulai giliran berikutnya.
                             StartCoroutine(NextTurn());
+
                         });
                     });
                 }
@@ -602,22 +658,45 @@ public class GameManager : MonoBehaviour
                 yield break;
             }
 
+            // ... di dalam blok 'else' untuk giliran Bot
+
             GameObject randomCard = affordableCards[Random.Range(0, affordableCards.Count)];
 
+            // --- MODIFIKASI DIMULAI ---
+            // Ambil nama dan warna kartu untuk pengecekan
+            Text cardNameTextBot = randomCard.transform.Find("CardText")?.GetComponent<Text>();
+            Text cardColorTextBot = randomCard.transform.Find("CardColor")?.GetComponent<Text>();
+            string cardNameBot = cardNameTextBot != null ? cardNameTextBot.text : "";
+            string cardColorBot = cardColorTextBot != null ? cardColorTextBot.text : "";
 
-            if (botActivates)
+            // Cek apakah bot boleh mengaktifkan kartu ini
+            bool canBotActivate = CanActivateEffect(cardNameBot, cardColorBot, currentPlayer);
+
+            // Bot akan mencoba mengaktifkan HANYA JIKA syarat terpenuhi DAN ia memutuskan untuk aktif
+            if (canBotActivate && botActivates)
             {
-                TakeCard(randomCard, currentPlayer);
-                Debug.Log($"{currentPlayer.playerName} took a card.");
+                Debug.Log($"[BOT-LOGIC] {currentPlayer.playerName} memenuhi syarat dan memilih untuk MENGAKTIFKAN '{cardNameBot}'.");
+                yield return StartCoroutine(ActivateCard(randomCard, currentPlayer));
             }
             else
             {
-                ActivateCard(randomCard, currentPlayer);
+                // Jika syarat tidak terpenuhi ATAU bot memilih untuk tidak aktif, ia akan MENYIMPAN kartu.
+                if (!canBotActivate)
+                {
+                    Debug.Log($"[BOT-LOGIC] {currentPlayer.playerName} TIDAK memenuhi syarat untuk '{cardNameBot}', jadi MENYIMPAN kartu.");
+                }
+                else
+                {
+                    Debug.Log($"[BOT-LOGIC] {currentPlayer.playerName} memenuhi syarat, tapi memilih untuk MENYIMPAN kartu.");
+                }
+                TakeCard(randomCard, currentPlayer);
             }
+            // --- MODIFIKASI SELESAI ---
 
             // Reset skip counter karena aksi diambil
             currentCardIndex++;
             skipCount = 0;
+            // ... (sisa kodenya tetap sama)
 
             // Lanjut ke giliran berikutnya
             currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
@@ -627,7 +706,250 @@ public class GameManager : MonoBehaviour
 
 
     }
-    private void ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
+    public bool CanActivateEffect(string cardName, string cardColor, PlayerProfile activator)
+    {
+        switch (cardName)
+        {
+            case "TradeFree":
+            case "StockSplit":
+                // Syarat: Pengaktif harus punya minimal 1 kartu tersimpan dengan warna yang sama.
+                return activator.GetCardColorCounts()[cardColor] >= 1;
+
+            case "TenderOffer":
+                // Syarat: Harus ada target yang jumlah kartunya di warna itu lebih sedikit dari si pengaktif.
+                int activatorColorCount = activator.GetCardColorCounts()[cardColor];
+                if (activatorColorCount < 1) return false; // Pengaktif harus punya minimal 1 untuk perbandingan.
+
+                // Cari di semua pemain lain (turnOrder berisi semua pemain)
+                foreach (var target in turnOrder)
+                {
+                    if (target == activator) continue; // Jangan bandingkan dengan diri sendiri
+
+                    int targetColorCount = target.GetCardColorCounts()[cardColor];
+                    if (targetColorCount < activatorColorCount)
+                    {
+                        return true; // Ditemukan target yang valid!
+                    }
+                }
+                return false; // Tidak ada target yang memenuhi syarat.
+
+            case "Flashbuy":
+                int availableCardsCount = cardObjects.Count(c => c != null && c.activeSelf && !takenCards.Contains(c));
+                return availableCardsCount > 1;
+
+            default:
+                // Kartu lain tidak punya syarat khusus.
+                return true;
+        }
+    }
+    private IEnumerator ActivateCardAndProceed(GameObject cardObj, PlayerProfile player)
+    {
+        // 1. Membersihkan UI (tombol, dll.)
+        ResetCardSelection();
+        if (skipButton != null) skipButton.SetActive(false);
+
+        // --- MODIFIKASI DIMULAI ---
+        // Ambil nama kartu terlebih dahulu
+        Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+        string cardName = cardNameText != null ? cardNameText.text : "";
+
+        // Sembunyikan holder kartu HANYA JIKA kartu yang diaktifkan BUKAN "Flashbuy"
+        if (cardName != "Flashbuy")
+        {
+            if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(false);
+            yield return new WaitForSeconds(1f);
+        }
+
+
+
+        // 2. Memanggil ActivateCard dan MENUNGGU sampai selesai.
+        // Ini akan menjalankan HandleFlashbuySelection jika kartunya adalah Flashbuy.
+        yield return StartCoroutine(ActivateCard(cardObj, player));
+
+        // 3. Setelah efek selesai, perbarui status giliran.
+        yield return new WaitForSeconds(1.5f);
+        if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
+        Debug.Log("✅ Efek ActivateCard selesai. Melanjutkan giliran.");
+        skipCount = 0;
+        currentCardIndex++;
+        currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+
+        // 4. Mulai giliran berikutnya.
+        StartCoroutine(NextTurn());
+    }
+    public IEnumerator HandleFlashbuySelection(PlayerProfile currentPlayer)
+{
+    // Menggunakan pola yang sama persis dengan NextTurn
+    if (currentPlayer.playerName.Contains("You"))
+    {
+        // --- LOGIKA UNTUK PEMAIN MANUSIA ---
+        if (cardHolderParent != null) cardHolderParent.gameObject.SetActive(true);
+
+        List<GameObject> selectedCards = new List<GameObject>();
+        Dictionary<Button, UnityEngine.Events.UnityAction> originalListeners = new Dictionary<Button, UnityEngine.Events.UnityAction>();
+
+        GameObject takeButtonObj = Instantiate(saveButtonPrefab, ActiveSaveContainer);
+        takeButtonObj.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -150);
+        Button takeButton = takeButtonObj.GetComponent<Button>();
+        Text takeButtonText = takeButton.GetComponentInChildren<Text>();
+        
+        // --- MODIFIKASI 1 ---
+        // Teks awal diubah menjadi "Lewati" karena 0 kartu dipilih
+        takeButtonText.text = "Lewati"; 
+        // Tombol langsung bisa ditekan untuk kasus 0 kartu
+        takeButton.interactable = true; 
+
+        System.Action cleanupUI = () =>
+        {
+            foreach (var card in selectedCards)
+            {
+                if (card != null) card.transform.localScale = Vector3.one;
+            }
+            foreach (var pair in originalListeners)
+            {
+                if (pair.Key != null)
+                {
+                    pair.Key.onClick.RemoveAllListeners();
+                    if (pair.Value != null) pair.Key.onClick.AddListener(pair.Value);
+                }
+            }
+            if (takeButtonObj != null) Destroy(takeButtonObj);
+        };
+
+        List<GameObject> availableCards = cardObjects.FindAll(c => c != null && c.activeSelf && !takenCards.Contains(c));
+        foreach (var cardObj in availableCards)
+        {
+            Button cardBtn = cardObj.GetComponent<Button>();
+            if (cardBtn == null) continue;
+
+            var registeredListeners = new UnityEngine.Events.UnityAction(() => cardBtn.onClick.Invoke());
+            originalListeners[cardBtn] = cardBtn.onClick.GetPersistentEventCount() > 0 ? registeredListeners : null;
+
+            cardBtn.onClick.RemoveAllListeners();
+            cardBtn.onClick.AddListener(() =>
+            {
+                if (selectedCards.Contains(cardObj))
+                {
+                    selectedCards.Remove(cardObj);
+                    cardObj.transform.localScale = Vector3.one;
+                }
+                else
+                {
+                    if (selectedCards.Count < 2)
+                    {
+                        selectedCards.Add(cardObj);
+                        cardObj.transform.localScale = Vector3.one * 1.1f;
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[Flashbuy] Maksimal 2 kartu yang bisa dipilih.");
+                    }
+                }
+
+                // --- MODIFIKASI 2 ---
+                // Logika untuk tombol konfirmasi diubah di sini
+                int totalCost = 0;
+                foreach (var selectedCard in selectedCards) totalCost += GetCardValue(selectedCard);
+
+                // Jika tidak ada kartu dipilih, tampilkan teks "Lewati"
+                if (selectedCards.Count == 0)
+                {
+                    takeButtonText.text = "Lewati";
+                }
+                else
+                {
+                    // Jika ada kartu, tampilkan detailnya
+                    takeButtonText.text = $"Ambil ({selectedCards.Count}) - {totalCost} FP";
+                }
+
+                // Tombol bisa ditekan HANYA berdasarkan apakah finpoint cukup
+                // Untuk 0 kartu, totalCost adalah 0, jadi akan selalu bisa.
+                takeButton.interactable = currentPlayer.CanAfford(totalCost);
+            });
+        }
+
+        bool purchaseAttempted = false;
+        takeButton.onClick.AddListener(() =>
+        {
+            purchaseAttempted = true;
+        });
+
+        yield return new WaitUntil(() => purchaseAttempted);
+
+        int finalCost = 0;
+        foreach (var card in selectedCards) finalCost += GetCardValue(card);
+
+        if (currentPlayer.CanAfford(finalCost))
+        {
+            // Jika tidak ada kartu dipilih (finalCost == 0), pesan ini tetap valid
+            Debug.Log($"[Flashbuy] {currentPlayer.playerName} mencoba membeli {selectedCards.Count} kartu seharga {finalCost} FP.");
+            
+            // Jika selectedCards kosong, loop ini tidak akan berjalan, yang mana sudah benar
+            List<GameObject> cardsToProcess = new List<GameObject>(selectedCards);
+            foreach (var cardToTake in cardsToProcess)
+            {
+                TakeCard(cardToTake, currentPlayer);
+                currentCardIndex++;
+            }
+        }
+        else
+        {
+            // Pesan ini hanya akan muncul jika pemain mencoba membeli kartu yang tidak mampu mereka bayar
+            Debug.LogWarning($"[Flashbuy] Pembelian dibatalkan, Finpoint tidak cukup.");
+        }
+
+        cleanupUI();
+        UpdatePlayerUI();
+        yield return new WaitForSeconds(1f);
+    }
+        else // Ini adalah giliran Bot
+        {
+            // --- LOGIKA BARU DAN HANDAL UNTUK BOT ---
+            Debug.Log($"[Flashbuy] {currentPlayer.playerName} (Bot) sedang memilih kartu...");
+            yield return new WaitForSeconds(1.5f);
+
+            int cardsBought = 0;
+            for (int i = 0; i < 2; i++)
+            {
+                var affordableCards = cardObjects
+                    .Where(c => c != null && c.activeSelf && !takenCards.Contains(c) && currentPlayer.CanAfford(GetCardValue(c)))
+                    .OrderByDescending(c => GetCardValue(c))
+                    .ToList();
+
+                if (affordableCards.Count > 0)
+                {
+                    GameObject cardToTake = affordableCards.First();
+                    Debug.Log($"[Flashbuy] {currentPlayer.playerName} (Bot) membeli {cardToTake.name}.");
+                    TakeCard(cardToTake, currentPlayer);
+                    currentCardIndex++;
+                    cardsBought++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (cardsBought == 0)
+            {
+                Debug.Log($"[Flashbuy] {currentPlayer.playerName} (Bot) tidak membeli kartu tambahan.");
+            }
+        }
+
+        // --- PENGECEKAN KONDISI AKHIR FASE ---
+        int totalCardsToGive = totalCards * (bots.Count + 1);
+        if (takenCards.Count >= totalCardsToGive || takenCards.Count >= cardObjects.Count)
+        {
+            Debug.Log("✅ Semua kartu sudah dibagikan setelah Flashbuy.");
+
+            yield return new WaitForSeconds(1f);
+            ClearHiddenCards();
+
+            Debug.Log("Memulai fase penjualan...");
+            helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
+        }
+    }
+    private IEnumerator ActivateCard(GameObject cardObj, PlayerProfile currentPlayer)
     {
         Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
         int cardValue = 0;
@@ -635,33 +957,15 @@ public class GameManager : MonoBehaviour
 
         // Kurangi finpoint sesuai nilai kartu
         currentPlayer.finpoint -= cardValue;
-        if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
-        if (cardObj == null || takenCards.Contains(cardObj)) return;
+        if (cardObj == null || takenCards.Contains(cardObj)) yield break;
 
-        // Ambil nama kartu dari UI
-        // Ambil nama kartu
+
         Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
         string cardName = cardNameText != null ? cardNameText.text : "";
 
         // Ambil warna kartu
         Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
-        string cardColor = cardColorText != null ? cardColorText.text : "Red";
-
-        if (!string.IsNullOrEmpty(cardName))
-        {
-            // Kirim nama, pemain, dan warna ke efek
-            Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
-            CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor);
-
-        }
-        else
-        {
-            Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
-            return;
-        }
-
-
-
+        string cardColor = cardColorText != null ? cardColorText.text : "Konsumer";
 
         // Tandai kartu sudah diambil
         takenCards.Add(cardObj);
@@ -681,6 +985,20 @@ public class GameManager : MonoBehaviour
 
         // Perbarui UI
         UpdatePlayerUI();
+        if (!string.IsNullOrEmpty(cardName))
+        {
+            // Kirim nama, pemain, dan warna ke efek
+            Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
+            yield return StartCoroutine(CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor));
+
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ Nama kartu tidak ditemukan. Efek tidak dijalankan.");
+            yield break;
+        }
+        UpdatePlayerUI();
+
     }
 
     void ResetCardSelection()
@@ -781,7 +1099,6 @@ public class GameManager : MonoBehaviour
 
         // Kurangi finpoint sesuai nilai kartu
         currentPlayer.finpoint -= cardValue;
-        if (currentPlayer.finpoint < 0) currentPlayer.finpoint = 0;
 
         // Buat kartu dan tambahkan
         // Ambil nilai warna dari UI
@@ -847,13 +1164,14 @@ public class GameManager : MonoBehaviour
         Text orangeCardText = entry.transform.Find("OrangeCardText")?.GetComponent<Text>();
 
         if (redCardText != null)
-            redCardText.text = $"M: {(colorCounts.ContainsKey("Red") ? colorCounts["Red"] : 0)}";
+            redCardText.text = $"K: {(colorCounts.ContainsKey("Konsumer") ? colorCounts["Konsumer"] : 0)}";
         if (blueCardText != null)
-            blueCardText.text = $"B: {(colorCounts.ContainsKey("Blue") ? colorCounts["Blue"] : 0)}";
+            blueCardText.text = $"I: {(colorCounts.ContainsKey("Infrastruktur") ? colorCounts["Infrastruktur"] : 0)}";
         if (greenCardText != null)
-            greenCardText.text = $"H: {(colorCounts.ContainsKey("Green") ? colorCounts["Green"] : 0)}";
+            greenCardText.text = $"U: {(colorCounts.ContainsKey("Keuangan") ? colorCounts["Keuangan"] : 0)}";
         if (orangeCardText != null)
-            orangeCardText.text = $"O: {(colorCounts.ContainsKey("Orange") ? colorCounts["Orange"] : 0)}";
+            orangeCardText.text = $"T: {(colorCounts.ContainsKey("Tambang") ? colorCounts["Tambang"] : 0)}";
+
 
         playerEntries.Add(entry);
     }
@@ -914,6 +1232,23 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+    private string GetActivationErrorMessage(string cardName)
+    {
+        switch (cardName)
+        {
+            case "TradeFree":
+            case "StockSplit":
+                return $"Aktivasi {cardName} gagal: Anda harus memiliki minimal 1 kartu tersimpan dengan warna yang sama.";
 
+            case "TenderOffer":
+                return "Aktivasi TenderOffer gagal: Tidak ada target yang valid (pemain lain dengan kartu warna sama yang lebih sedikit).";
+
+            case "Flashbuy":
+                return "Aktivasi Flashbuy gagal: Harus ada lebih dari 1 kartu yang tersedia di meja.";
+
+            default:
+                return "Aktivasi gagal: Syarat kartu tidak terpenuhi.";
+        }
+    }
 
 }

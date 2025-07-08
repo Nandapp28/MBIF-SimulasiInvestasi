@@ -1,5 +1,3 @@
-// File: CardMultiplayer.cs
-
 [System.Serializable]
 public class CardMultiplayer
 {
@@ -9,12 +7,12 @@ public class CardMultiplayer
     public int value; // Nilai setelah ditambah IPO
     public string color;
 
-    public CardMultiplayer(string name, string desc, int baseVal, string c)
+    public CardMultiplayer(string name, string desc, int baseVal = 0, string color = "Konsumer")
     {
         cardName = name;
         description = desc;
         baseValue = baseVal;
-        color = c;
+        this.color = color;
         value = baseValue;
     }
 }

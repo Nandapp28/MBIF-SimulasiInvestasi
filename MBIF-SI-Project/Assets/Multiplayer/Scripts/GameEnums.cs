@@ -5,13 +5,15 @@ public enum HelpCardEffect
 {
     ExtraFinpoints,
     BoostRandomIPO,
-    AdministrativePenalties, // Typo diperbaiki
+    AdministrativePenalties,
     NegativeEquity,
     FreeCardPurchase,
     TaxEvasion,
     MarketPrediction,
     EyeOfTruth,
-    MarketStabilization
+    MarketStabilization,
+    CardSwap,        // <-- TAMBAHKAN INI
+    ForcedPurchase   // <-- TAMBAHKAN INI
 }
 
 // Anda juga bisa memindahkan enum lain ke sini jika ada.
