@@ -72,7 +72,7 @@ public class GameManager : MonoBehaviour
     private int currentTurnIndex = 0;
     public int skipCount = 0;
     public int resetCount = 0;
-    public int maxResetCount = 1;
+    public int maxResetCount = 3;
 
     private Coroutine autoSelectCoroutine;
 
@@ -91,17 +91,19 @@ public class GameManager : MonoBehaviour
 
     public void ResetSemesterButton()
     {
-        if (resetSemesterButton != null)
+
+
+        if (resetCount >= maxResetCount)
         {
-            resetSemesterButton.SetActive(resetCount < maxResetCount);
-            if (resetCount >= maxResetCount)
-            {
-                ShowLeaderboard();
-                Debug.Log("Semester sudah berakhir");
-            }
+            ShowLeaderboard();
+            Debug.Log("Semester sudah berakhir");
+        }
+        else
+        {
+            ResetSemester();
         }
 
-        Debug.Log("Fase penjualan selesai.");
+        Debug.Log("Semeter telah selesai");
     }
     // Fungsi yang dipanggil saat semester direset
     public void ResetSemester()
