@@ -16,6 +16,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private SellingPhaseManager sellingManager;
     public RumorPhaseManager rumorPhaseManager;
     public HelpCardPhaseManager helpCardPhaseManager;
+    public ResolutionPhaseManager resolutionPhaseManager;
 
     private CardEffectManager cardEffect;
     private PlayerProfile player;
@@ -258,6 +259,8 @@ public class GameManager : MonoBehaviour
         }
 
         ClearTicketButtons();
+        yield return StartCoroutine(resolutionPhaseManager.RevealNextTokenForAllColors());
+        yield return new WaitForSeconds(1.5f);
         ResetAll();
     }
 

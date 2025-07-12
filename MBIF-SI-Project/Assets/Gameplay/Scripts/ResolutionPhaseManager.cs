@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
 
 public class ResolutionPhaseManager : MonoBehaviour
 {
@@ -113,7 +114,36 @@ public class ResolutionPhaseManager : MonoBehaviour
             }
         }
     }
+    public IEnumerator RevealNextTokenForAllColors()
+    {
+        Debug.Log("--- FASE RAMALAN: Membalik token berikutnya untuk semua sektor (Visual Saja). ---");
+        yield return new WaitForSeconds(1.5f);
 
+        foreach (string color in resolutionOrder)
+        {
+            var data = dividendDataList.FirstOrDefault(d => d.color == color);
+            yield return StartCoroutine(RevealNextToken(data)); // Memanggil coroutine baru
+            yield return new WaitForSeconds(1f); // Jeda antar warna
+        }
+    }
+    public IEnumerator RevealNextToken(DividendData data)
+    {
+        if (data != null && data.revealedTokenCount < data.tokenObjects.Count)
+        {
+            int index = data.revealedTokenCount;
+            GameObject tokenObj = data.tokenObjects[index];
+
+            Debug.Log($"[Visual] Mengungkap token #{index + 1} untuk {data.color}...");
+
+            // Set material (seharusnya sudah di-set saat Inisialisasi, tapi aman untuk set lagi)
+            Renderer rend = tokenObj.GetComponent<Renderer>();
+            if (rend != null) rend.material = GetTokenMaterial(data.ramalanTokens[index]);
+
+            // Aktifkan dan animasikan
+            tokenObj.SetActive(true);
+            yield return StartCoroutine(AnimateTokenFlip(tokenObj));
+        }
+    }
     public void StartResolutionPhase(List<PlayerProfile> players)
     {
         StartCoroutine(ResolutionSequence(players));
@@ -129,7 +159,6 @@ public class ResolutionPhaseManager : MonoBehaviour
             if (data != null)
             {
                 ApplyRamalanEffect(data);
-                yield return new WaitForSeconds(1.5f);     // Balik token
                 UpdateDividendVisuals();
                 yield return new WaitForSeconds(1f);
                 sellingPhaseManager.UpdateIPOVisuals(); // Perbarui posisi indikator
@@ -182,41 +211,33 @@ public class ResolutionPhaseManager : MonoBehaviour
             int tokenEffect = data.ramalanTokens[index];
             data.dividendIndex += tokenEffect;
 
-            Debug.Log($"[Ramalan - {data.color}] Token #{index + 1}: {tokenEffect}, Index sebelum clamp: {data.dividendIndex}");
+            Debug.Log($"[Ramalan - {data.color}] Efek token #{index + 1} diterapkan: {tokenEffect}. Index dividen sementara: {data.dividendIndex}");
 
             // Cek overflow/underflow sebelum clamp
             if (data.dividendIndex < -3)
             {
                 Debug.LogWarning($"[Dividen Crash] {data.color} terlalu rendah (index: {data.dividendIndex}). Mengurangi IPO index.");
                 ModifyIPOIndex(data.color, -1);
-                data.dividendIndex = 0;
+                data.dividendIndex = 0; // Reset dividend index
             }
             else if (data.dividendIndex > 3)
             {
                 Debug.LogWarning($"[Dividen Boom] {data.color} terlalu tinggi (index: {data.dividendIndex}). Menambah IPO index.");
                 ModifyIPOIndex(data.color, 1);
-                data.dividendIndex = 0;
+                data.dividendIndex = 0; // Reset dividend index
             }
             else
             {
+                // Jika tidak boom/crash, clamp nilainya seperti biasa
                 data.dividendIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
             }
 
-            // Tampilkan token yang dibalik
-            if (index < data.tokenObjects.Count)
-            {
-                GameObject tokenObj = data.tokenObjects[index];
-                tokenObj.SetActive(true);
-
-                // Opsional: animasi flip
-                StartCoroutine(AnimateTokenFlip(tokenObj));
-            }
-
+            // Naikkan counter HANYA setelah efek diterapkan
             data.revealedTokenCount++;
         }
         else
         {
-            Debug.LogWarning($"[Ramalan - {data.color}] Semua token telah dibalik.");
+            Debug.LogWarning($"[Ramalan - {data.color}] Semua token telah diterapkan efeknya.");
         }
     }
     private void ModifyIPOIndex(string color, int delta)
