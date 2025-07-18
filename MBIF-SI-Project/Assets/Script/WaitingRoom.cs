@@ -87,7 +87,7 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
         PhotonNetwork.LeaveRoom(); // Keluar dari room sebelum ke main menu
     }
 
-    private void OnPlayButtonClicked()
+    private void OnPlayButtonClicked() // Ubah ke public untuk testing
     {
         if (SfxManager.Instance != null)
             SfxManager.Instance.PlayButtonClick();

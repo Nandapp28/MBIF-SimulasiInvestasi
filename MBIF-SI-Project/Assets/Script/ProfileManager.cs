@@ -1,24 +1,27 @@
 using System.Collections;
-using System.Collections.Generic;
+using System.Collections.Generic; // Untuk Dictionary
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro; // Pakai ini kalau kamu pakai TextMeshProUGUI
-using Firebase.Auth;
-using Firebase.Database;
+using UnityEngine.UI; // Untuk Image
+using UnityEngine.SceneManagement; // Untuk SceneManager
+using TMPro; // Untuk TextMeshProUGUI
+using Firebase.Auth; // Untuk FirebaseAuth
+using Firebase.Database; // Untuk DatabaseReference, DataSnapshot
 
 public class ProfileManager : MonoBehaviour
 {
-    [Header("Profile Display")]
-    public Image profileBorder;
-    public Image profilePicture;
-    public Text nicknameText;
+    public static ProfileManager Instance { get; private set; }
 
-    [Header("Popup References")]
-    public GameObject popupPanel;
+    [Header("Profile Display")]
+    public Image profileBorder; // Untuk menampilkan border
+    public Image profilePicture; // Untuk menampilkan avatar
+    public TextMeshProUGUI nicknameText; // Untuk menampilkan nickname
+
+    // Variabel lokal untuk menyimpan pilihan sementara avatar dan border
+    [Header("Selections (Temporary)")]
     private Sprite selectedAvatar;
     private Sprite selectedBorder;
 
-    // Tambahkan variabel untuk menyimpan nama aset yang akan disimpan ke Firebase
+    // Nama aset (string) dari pilihan sementara, untuk disimpan ke Firebase nanti
     private string selectedAvatarName;
     private string selectedBorderName;
 
@@ -26,138 +29,129 @@ public class ProfileManager : MonoBehaviour
     private FirebaseAuth auth;
     private DatabaseReference dbRef;
 
+    // Metode Awake() yang akan dipanggil Unity saat objek ini aktif
+    void Awake()
+    {
+        // Logika untuk memastikan hanya ada satu instance dari ProfileManager
+        // Jika sudah ada instance lain dan itu bukan object ini, hancurkan object ini.
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this.gameObject);
+        }
+        else
+        {
+            // Jika belum ada instance, jadikan object ini sebagai instance utama.
+            Instance = this;
+        }
+    }
+
     void Start()
     {
-        popupPanel.SetActive(false);
         auth = FirebaseAuth.DefaultInstance;
         dbRef = FirebaseDatabase.DefaultInstance.RootReference;
 
-        StartCoroutine(LoadUserData());
+        StartCoroutine(LoadUserData()); // Muat data pengguna saat script aktif
     }
 
+    // Coroutine untuk memuat data pengguna dari Firebase
     private IEnumerator LoadUserData()
     {
-        if (auth.CurrentUser != null)
+        if (auth.CurrentUser == null)
         {
-            string userId = auth.CurrentUser.UserId;
+            Debug.LogWarning("ProfileManager: Pengguna belum login. Tidak bisa memuat data.");
+            nicknameText.text = "Guest";
 
-            var userTask = dbRef.Child("users").Child(userId).GetValueAsync();
+            yield break;
+        }
 
-            yield return new WaitUntil(() => userTask.IsCompleted);
+        string userId = auth.CurrentUser.UserId;
+        var userTask = dbRef.Child("users").Child(userId).GetValueAsync();
 
-            if (userTask.Exception == null)
+        yield return new WaitUntil(() => userTask.IsCompleted); // Tunggu task selesai
+
+        if (userTask.Exception == null)
+        {
+            DataSnapshot snapshot = userTask.Result;
+            if (snapshot.Exists)
             {
-                DataSnapshot snapshot = userTask.Result;
-                if (snapshot.Exists)
+                // Muat Username
+                nicknameText.text = snapshot.Child("userName").Exists ? snapshot.Child("userName").Value.ToString() : "Guest";
+
+                // Muat Avatar
+                string savedAvatarName = snapshot.Child("avatarName").Exists ? snapshot.Child("avatarName").Value.ToString() : null;
+                if (!string.IsNullOrEmpty(savedAvatarName))
                 {
-                    // === Load Username ===
-                    if (snapshot.Child("userName") != null)
+                    Sprite avatarSprite = Resources.Load<Sprite>("Avatars/" + savedAvatarName);
+                    if (avatarSprite != null)
                     {
-                        string userName = snapshot.Child("userName").Value.ToString();
-                        nicknameText.text = userName;
+                        profilePicture.sprite = avatarSprite; // Tampilkan avatar yang dimuat
+                        selectedAvatar = avatarSprite; // Set selectedAvatar untuk OnSaveClicked
+                        selectedAvatarName = savedAvatarName; // Simpan nama aset
+                        Debug.Log($"ProfileManager: Memuat avatar '{savedAvatarName}'");
                     }
                     else
                     {
-                        nicknameText.text = "Guest";
-                    }
-
-                    // === Load Avatar ===
-                    if (snapshot.Child("avatarName").Exists)
-                    {
-                        string savedAvatarName = snapshot.Child("avatarName").Value.ToString();
-                        Sprite avatarSprite = Resources.Load<Sprite>("Avatars/" + savedAvatarName); // Pastikan path Resources/Avatars/
-                        if (avatarSprite != null)
-                        {
-                            profilePicture.sprite = avatarSprite;
-                            selectedAvatar = avatarSprite; // Set selectedAvatar juga agar bisa di-save ulang jika tidak diubah
-                            selectedAvatarName = savedAvatarName; // Simpan nama aset yang sudah dimuat
-                            Debug.Log($"ProfileManager: Memuat avatar '{savedAvatarName}'");
-                        }
-                        else
-                        {
-                            Debug.LogWarning($"ProfileManager: Avatar asset '{savedAvatarName}' tidak ditemukan di Resources/Avatars/.");
-                            // Opsional: set default avatar
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log("ProfileManager: Tidak ada avatar tersimpan di Firebase.");
-                        // Opsional: set default avatar
-                    }
-
-                    // === Load Border ===
-                    if (snapshot.Child("borderName").Exists)
-                    {
-                        string savedBorderName = snapshot.Child("borderName").Value.ToString();
-                        Sprite borderSprite = Resources.Load<Sprite>("Borders/" + savedBorderName); // Pastikan path Resources/Borders/
-                        if (borderSprite != null)
-                        {
-                            profileBorder.sprite = borderSprite;
-                            selectedBorder = borderSprite; // Set selectedBorder juga
-                            selectedBorderName = savedBorderName; // Simpan nama aset yang sudah dimuat
-                            Debug.Log($"ProfileManager: Memuat border '{savedBorderName}'");
-                        }
-                        else
-                        {
-                            Debug.LogWarning($"ProfileManager: Border asset '{savedBorderName}' tidak ditemukan di Resources/Borders/.");
-                            // Opsional: set default border
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log("ProfileManager: Tidak ada border tersimpan di Firebase.");
-                        // Opsional: set default border
+                        Debug.LogWarning($"ProfileManager: Aset avatar '{savedAvatarName}' tidak ditemukan di Resources/Avatars/.");
                     }
                 }
                 else
                 {
-                    nicknameText.text = "Guest";
-                    Debug.Log("ProfileManager: Tidak ada profil pengguna tersimpan di Firebase.");
-                    // Opsional: set default avatar/border
+                    Debug.Log("ProfileManager: Tidak ada avatar tersimpan.");
+                }
+
+                // Muat Border
+                string savedBorderName = snapshot.Child("borderName").Exists ? snapshot.Child("borderName").Value.ToString() : null;
+                if (!string.IsNullOrEmpty(savedBorderName))
+                {
+                    Sprite borderSprite = Resources.Load<Sprite>("Borders/" + savedBorderName);
+                    if (borderSprite != null)
+                    {
+                        profileBorder.sprite = borderSprite; // Tampilkan border yang dimuat
+                        selectedBorder = borderSprite; // Set selectedBorder untuk OnSaveClicked
+                        selectedBorderName = savedBorderName; // Simpan nama aset
+                        Debug.Log($"ProfileManager: Memuat border '{savedBorderName}'");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"ProfileManager: Aset border '{savedBorderName}' tidak ditemukan di Resources/Borders/.");
+                    }
+                }
+                else
+                {
+                    Debug.Log("ProfileManager: Tidak ada border tersimpan.");
                 }
             }
             else
             {
-                Debug.LogWarning("Gagal mengambil data user dari Firebase: " + userTask.Exception);
-                nicknameText.text = "Error";
+                nicknameText.text = "Guest";
+                Debug.Log("ProfileManager: Tidak ada profil pengguna tersimpan.");
             }
         }
         else
         {
-            Debug.LogWarning("ProfileManager: Pengguna belum login. Tidak bisa memuat data.");
-            nicknameText.text = "Guest";
+            Debug.LogWarning("Gagal mengambil data user dari Firebase: " + userTask.Exception);
+            nicknameText.text = "Error";
         }
     }
 
+    // Dipanggil saat tombol "Edit Profile" atau sejenisnya diklik
     public void OnProfileClicked()
     {
         if (SfxManager.Instance != null)
         {
             SfxManager.Instance.PlayButtonClick();
         }
-
-        popupPanel.SetActive(true);
+        // Asumsi "EditAvatar" adalah scene untuk memilih avatar/border
+        SceneManager.LoadScene("Profile");
     }
 
-    public void OnCancelClicked()
-    {
-        if (SfxManager.Instance != null)
-        {
-            SfxManager.Instance.PlayButtonClick();
-        }
-
-        popupPanel.SetActive(false);
-    }
-
-    // === MODIFIKASI OnSaveClicked() ===
+    // Dipanggil saat tombol "Save" di UI pemilihan avatar/border diklik
     public void OnSaveClicked()
     {
         if (SfxManager.Instance != null)
         {
             SfxManager.Instance.PlayButtonClick();
         }
-
-        // Terapkan perubahan ke tampilan profil
         if (selectedAvatar != null)
         {
             profilePicture.sprite = selectedAvatar;
@@ -167,19 +161,17 @@ public class ProfileManager : MonoBehaviour
             profileBorder.sprite = selectedBorder;
         }
 
-        // Simpan perubahan ke Firebase Realtime Database
+        // Simpan perubahan ke Firebase melalui PlayerDatabase
         StartCoroutine(SaveProfileChangesToFirebase());
-
-        popupPanel.SetActive(false);
     }
 
-    // === Fungsi Coroutine baru untuk menyimpan perubahan ke Firebase ===
+    // Coroutine untuk menyimpan perubahan avatar/border ke Firebase
     private IEnumerator SaveProfileChangesToFirebase()
     {
         if (auth.CurrentUser == null)
         {
             Debug.LogError("Pengguna belum login. Tidak dapat menyimpan perubahan profil.");
-            yield break; // Keluar dari coroutine
+            yield break;
         }
 
         string userId = auth.CurrentUser.UserId;
@@ -187,21 +179,32 @@ public class ProfileManager : MonoBehaviour
 
         Dictionary<string, object> updates = new Dictionary<string, object>();
 
-        // Hanya tambahkan ke update jika ada sprite yang dipilih
-        if (selectedAvatar != null)
+        // Tambahkan avatarName yang dipilih ke updates
+        if (!string.IsNullOrEmpty(selectedAvatarName))
         {
-            // Ambil nama dari sprite yang dipilih
-            // Penting: Pastikan nama sprite sesuai dengan nama file aset di Resources
-            updates["avatarName"] = selectedAvatar.name;
-            Debug.Log($"Menyimpan avatar: {selectedAvatar.name}");
+            updates["avatarName"] = selectedAvatarName;
+            Debug.Log($"Menyimpan avatar: {selectedAvatarName}");
+        }
+        else
+        {
+            updates["avatarName"] = profilePicture.sprite != null ? profilePicture.sprite.name : "default_avatar";
+            Debug.LogWarning("selectedAvatarName kosong, menyimpan avatar saat ini atau default.");
         }
 
-        if (selectedBorder != null)
+
+        // Tambahkan borderName yang dipilih ke updates
+        if (!string.IsNullOrEmpty(selectedBorderName))
         {
-            // Ambil nama dari sprite yang dipilih
-            updates["borderName"] = selectedBorder.name;
-            Debug.Log($"Menyimpan border: {selectedBorder.name}");
+            updates["borderName"] = selectedBorderName;
+            Debug.Log($"Menyimpan border: {selectedBorderName}");
         }
+        else
+        {
+            // Jika tidak ada border baru dipilih, pertahankan yang sudah ada atau set default
+            updates["borderName"] = profileBorder.sprite != null ? profileBorder.sprite.name : "default_border";
+            Debug.LogWarning("selectedBorderName kosong, menyimpan border saat ini atau default.");
+        }
+
 
         if (updates.Count > 0)
         {
@@ -223,8 +226,7 @@ public class ProfileManager : MonoBehaviour
         }
     }
 
-
-    // === MODIFIKASI SelectProfilePicture() ===
+    // Dipanggil ketika pemain memilih gambar avatar
     public void SelectProfilePicture(Sprite avatar)
     {
         if (SfxManager.Instance != null)
@@ -233,12 +235,14 @@ public class ProfileManager : MonoBehaviour
         }
 
         selectedAvatar = avatar;
-        // Simpan juga nama sprite untuk disimpan ke Firebase
-        selectedAvatarName = avatar.name; 
+        selectedAvatarName = avatar.name;
+
+        profilePicture.sprite = selectedAvatar; // Update tampilan profilePicture (Preview Lokal)
+
         Debug.Log($"Avatar '{avatar.name}' dipilih sementara.");
     }
 
-    // === MODIFIKASI SelectBorder() ===
+    // Dipanggil ketika pemain memilih gambar border
     public void SelectBorder(Sprite border)
     {
         if (SfxManager.Instance != null)
@@ -247,8 +251,10 @@ public class ProfileManager : MonoBehaviour
         }
 
         selectedBorder = border;
-        // Simpan juga nama sprite untuk disimpan ke Firebase
         selectedBorderName = border.name;
+
+        profileBorder.sprite = selectedBorder; // Update tampilan profileBorder secara instan
+
         Debug.Log($"Border '{border.name}' dipilih sementara.");
     }
 }

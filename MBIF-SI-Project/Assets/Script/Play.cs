@@ -37,7 +37,6 @@ public class GameModeSelector : MonoBehaviour
         SceneManager.LoadScene("Lobby");
     }
 
-    // Fungsi ini akan dipanggil ketika tombol Multiplayer ditekan
     public void OnMainMenuButtonPress()
     {
         if (SfxManager.Instance != null)
@@ -49,6 +48,17 @@ public class GameModeSelector : MonoBehaviour
         SceneManager.LoadScene("MainMenu");
     }
 
+    public void OnPlayButtonPress()
+    {
+        if (SfxManager.Instance != null)
+        {
+            SfxManager.Instance.PlayButtonClick();
+        }
+
+        SaveCurrentScene();
+        SceneManager.LoadScene("Play");
+    }
+
     public void OnOptionPress()
     {
         if (SfxManager.Instance != null)
@@ -58,6 +68,39 @@ public class GameModeSelector : MonoBehaviour
 
         // Memuat scene berdasarkan indeks
         SceneManager.LoadScene("Options");
+    }
+
+    public void OnShopPress()
+    {
+        if (SfxManager.Instance != null)
+        {
+            SfxManager.Instance.PlayButtonClick();
+        }
+
+        // Memuat scene berdasarkan indeks
+        SceneManager.LoadScene("Shop");
+    }
+
+    public void OnAvatarShopPress()
+    {
+        if (SfxManager.Instance != null)
+        {
+            SfxManager.Instance.PlayButtonClick();
+        }
+
+        // Memuat scene berdasarkan indeks
+        SceneManager.LoadScene("AvatarShop");
+    }
+
+    public void OnBorderShopPress()
+    {
+        if (SfxManager.Instance != null)
+        {
+            SfxManager.Instance.PlayButtonClick();
+        }
+
+        // Memuat scene berdasarkan indeks
+        SceneManager.LoadScene("BorderShop");
     }
 
     public void OnBackButtonPress()

@@ -24,8 +24,8 @@ public class CardEffectManager
             case "TenderOffer":
                 yield return GameManager.Instance.StartCoroutine(TenderOfferEffect(player, color));
                 break;
-            case "TradeFree":
-                yield return GameManager.Instance.StartCoroutine(TradeFreeEffect(player, color));
+            case "TradeFee":
+                yield return GameManager.Instance.StartCoroutine(TradeFeeEffect(player, color));
                 break;
             case "Flashbuy":
                 yield return GameManager.Instance.StartCoroutine(FlashbuyEffect(player));
@@ -278,7 +278,7 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         }
     }
 
-    private static IEnumerator TradeFreeEffect(PlayerProfile player, string color)
+    private static IEnumerator TradeFeeEffect(PlayerProfile player, string color)
     {
         SellingPhaseManager sellingManager = GameObject.FindObjectOfType<SellingPhaseManager>();
         if (sellingManager == null)
@@ -290,7 +290,7 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         int cardsOwned = player.cards.Count(c => c.color == color);
         if (cardsOwned == 0)
         {
-            Debug.Log($"[TradeFree] {player.playerName} tidak memiliki kartu warna '{color}' untuk dijual.");
+            Debug.Log($"[TradeFee] {player.playerName} tidak memiliki kartu warna '{color}' untuk dijual.");
             yield break;
         }
 
@@ -300,7 +300,7 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         if (player.playerName.Contains("You")) // Logika untuk Pemain Manusia
         {
             int sellAmountFromUI = -1;
-            Debug.Log($"[TradeFree] Menampilkan UI penjualan untuk {player.playerName}...");
+            Debug.Log($"[TradeFee] Menampilkan UI penjualan untuk {player.playerName}...");
             yield return sellingManager.StartCoroutine(
                 sellingManager.ShowSingleColorSellUI(player, color, (confirmedAmount) =>
                 {
@@ -313,7 +313,7 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         else // Logika untuk Bot
         {
             quantityToSell = cardsOwned;
-            Debug.Log($"[TradeFree] {player.playerName} (Bot) memutuskan untuk menjual {quantityToSell} kartu '{color}'.");
+            Debug.Log($"[TradeFee] {player.playerName} (Bot) memutuskan untuk menjual {quantityToSell} kartu '{color}'.");
         }
         // --- AKHIR PERBAIKAN ---
 
@@ -330,13 +330,13 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
                 player.cards.Remove(card);
             }
 
-            Debug.Log($"[TradeFree] Transaksi Berhasil! {player.playerName} menjual {quantityToSell} kartu '{color}' dan mendapatkan {totalEarnings} Finpoint.");
+            Debug.Log($"[TradeFee] Transaksi Berhasil! {player.playerName} menjual {quantityToSell} kartu '{color}' dan mendapatkan {totalEarnings} Finpoint.");
 
             GameManager.Instance.UpdatePlayerUI();
         }
         else
         {
-            Debug.Log($"[TradeFree] {player.playerName} memilih untuk tidak menjual kartu.");
+            Debug.Log($"[TradeFee] {player.playerName} memilih untuk tidak menjual kartu.");
         }
         
         yield break;

@@ -3,7 +3,6 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
-public enum IPOState { Normal, Ascend, Advanced }
 public class SellingPhaseManager : MonoBehaviour
 {
     [Header("Game References")]
@@ -34,8 +33,8 @@ public class SellingPhaseManager : MonoBehaviour
     public Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
         { "Konsumer", new int[] { 1, 2, 3, 5, 6, 7, 8 } },
-        { "Infrastruktur", new int[] { 1, 3, 4, 5, 6, 7, 9 } },
-        { "Keuangan", new int[] { 1, 2, 4, 5, 6, 8, 9 } },
+        { "Infrastruktur", new int[] { 1, 2, 4, 5, 6, 8, 9 } },
+        { "Keuangan", new int[] { 1, 3, 4, 5, 6, 7, 9 } },
         { "Tambang",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
     };
 
@@ -48,6 +47,8 @@ public class SellingPhaseManager : MonoBehaviour
         [System.NonSerialized] public SellingPhaseManager manager;
         public IPOState currentState = IPOState.Normal;
         public int salesBonus = 0;
+        [Header("Visual Indicators")]
+        public GameObject statusVisualObject;
 
         public int ipoIndex
         {
@@ -110,8 +111,9 @@ public class SellingPhaseManager : MonoBehaviour
             }
             data.manager = this; // INJEKSI Referensi ke manager
         }
+
     }
-    
+
     private void Update()
     {
 
@@ -163,6 +165,9 @@ public class SellingPhaseManager : MonoBehaviour
         {
             GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
             row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
+            int pricePerCard = GetFullCardPrice(color);
+            Text priceLabel = row.transform.Find("PriceLabel").GetComponent<Text>();
+            priceLabel.text = $"{pricePerCard}";
 
             Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
             Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
@@ -320,7 +325,37 @@ public class SellingPhaseManager : MonoBehaviour
 
         Debug.Log("Fase penjualan selesai.");
     }
-    public void UpdateIPOState(IPOData data)
+    public void ForceSellAllCards(List<PlayerProfile> players)
+{
+    Debug.Log("💰 Menjual semua sisa kartu pemain untuk skor akhir...");
+
+    foreach (var player in players)
+    {
+        int earnedFinpoints = 0;
+        
+        // Buat salinan daftar kartu untuk diiterasi, karena kita akan memodifikasi daftar aslinya
+        List<Card> cardsToSell = new List<Card>(player.cards);
+
+        foreach (var card in cardsToSell)
+        {
+            // Dapatkan harga penuh (harga dasar + bonus state) untuk warna kartu
+            int price = GetFullCardPrice(card.color);
+            earnedFinpoints += price;
+        }
+
+        if (earnedFinpoints > 0)
+        {
+            Debug.Log($"[Penjualan Akhir] {player.playerName} mendapatkan {earnedFinpoints} Finpoint dari {cardsToSell.Count} kartu.");
+            player.finpoint += earnedFinpoints;
+        }
+        
+        // Hapus semua kartu dari profil pemain
+        player.cards.Clear();
+    }
+
+    // Perbarui UI pemain untuk terakhir kalinya jika diperlukan
+    gameManager.UpdatePlayerUI();
+}    public void UpdateIPOState(IPOData data)
     {
         bool stateHasChanged;
         do
@@ -339,11 +374,11 @@ public class SellingPhaseManager : MonoBehaviour
                         // Hitung kelebihan nilai
                         int excess = currentIndex - (maxThreshold + 1);
                         Debug.Log($"[STATE CHANGE] {data.color}: Normal ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
-                        
+
                         // Ubah status dan bonus
                         data.currentState = IPOState.Ascend;
                         data.salesBonus = 5;
-                        
+
                         // Atur ulang index ke 0 dan tambahkan kelebihannya
                         data._ipoIndex = 0 + excess;
                         stateHasChanged = true; // Tandai bahwa perubahan terjadi untuk loop selanjutnya
@@ -354,7 +389,7 @@ public class SellingPhaseManager : MonoBehaviour
                         Debug.LogWarning($"[CRASH] {data.color} market crash! Saham dikembalikan ke bank.");
                         data._ipoIndex = 0;
                         data.salesBonus = 0;
-                        
+
                         foreach (var player in currentPlayers)
                         {
                             var cardsToSell = player.cards.Where(card => card.color == data.color).ToList();
@@ -373,10 +408,10 @@ public class SellingPhaseManager : MonoBehaviour
                     {
                         int excess = currentIndex - 1;
                         Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Advanced. Menyimpan kelebihan nilai: {excess}");
-                        
+
                         data.currentState = IPOState.Advanced;
                         data.salesBonus = 10;
-                        
+
                         // Atur ulang index ke nilai MINIMUM dari state baru dan tambahkan kelebihannya
                         data._ipoIndex = minThreshold + excess;
                         stateHasChanged = true;
@@ -403,7 +438,7 @@ public class SellingPhaseManager : MonoBehaviour
 
                         data.currentState = IPOState.Ascend;
                         data.salesBonus = 5;
-                        
+
                         // Atur ulang index ke 0 dan tambahkan kelebihannya
                         data._ipoIndex = 0 + excess;
                         stateHasChanged = true;
@@ -411,12 +446,13 @@ public class SellingPhaseManager : MonoBehaviour
                     break;
             }
 
-        // Jika state berubah, loop akan berjalan lagi untuk memeriksa apakah
-        // index yang baru (setelah ditambah `excess`) menyebabkan perubahan state lagi.
+            // Jika state berubah, loop akan berjalan lagi untuk memeriksa apakah
+            // index yang baru (setelah ditambah `excess`) menyebabkan perubahan state lagi.
         } while (stateHasChanged);
+        UpdateVisualsForState(data);
     }
     // Tambahkan method ini di dalam kelas SellingPhaseManager
-public IEnumerator ShowSingleColorSellUI(PlayerProfile player, string color, System.Action<int> onConfirm)
+    public IEnumerator ShowSingleColorSellUI(PlayerProfile player, string color, System.Action<int> onConfirm)
 {
     sellingUI.SetActive(true);
     confirmSellButton.onClick.RemoveAllListeners();
@@ -499,6 +535,18 @@ public IEnumerator ShowSingleColorSellUI(PlayerProfile player, string color, Sys
         }
     }
 
+    public void UpdateVisualsForState(IPOData data)
+    {
+        // Cek apakah GameObject sudah di-assign di Inspector untuk menghindari error
+        if (data.statusVisualObject == null)
+        {
+            return; // Keluar dari method jika tidak ada visual yang perlu diupdate
+        }
 
+        bool shouldBeActive = data.currentState == IPOState.Ascend || data.currentState == IPOState.Advanced;
+
+        // Atur status aktif/nonaktif GameObject berdasarkan kondisi di atas.
+        data.statusVisualObject.SetActive(shouldBeActive);
+    }
 
 }

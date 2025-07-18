@@ -16,6 +16,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private SellingPhaseManager sellingManager;
     public RumorPhaseManager rumorPhaseManager;
     public HelpCardPhaseManager helpCardPhaseManager;
+    public ResolutionPhaseManager resolutionPhaseManager;
 
     private CardEffectManager cardEffect;
     private PlayerProfile player;
@@ -23,7 +24,9 @@ public class GameManager : MonoBehaviour
 
     [Header("UI References")]
     public GameObject playerEntryPrefab;
-    public Transform playerListContainer;
+    public GameObject cardUIPrefab;
+    public Transform playerUIPosition;      // ⬅️ TAMBAHKAN INI
+    public Transform botListContainer;
     public GameObject cardPrefab;
     public Transform cardHolderParent;
     public GameObject ticketButtonPrefab;
@@ -42,6 +45,8 @@ public class GameManager : MonoBehaviour
     public Button bot2Button;
     public Button bot3Button;
     public Button bot4Button;
+    public Button playButton;
+    public GameObject botSelectionPanel;
     public GameObject resetSemesterButton;
     public GameObject skipButton;
     [Header("Ticket Sprites")]
@@ -91,17 +96,19 @@ public class GameManager : MonoBehaviour
 
     public void ResetSemesterButton()
     {
-        if (resetSemesterButton != null)
+
+
+        if (resetCount >= maxResetCount)
         {
-            resetSemesterButton.SetActive(resetCount < maxResetCount);
-            if (resetCount >= maxResetCount)
-            {
-                ShowLeaderboard();
-                Debug.Log("Semester sudah berakhir");
-            }
+            ShowLeaderboard();
+            Debug.Log("Semester sudah berakhir");
+        }
+        else
+        {
+            ResetSemester();
         }
 
-        Debug.Log("Fase penjualan selesai.");
+        Debug.Log("Semeter telah selesai");
     }
     // Fungsi yang dipanggil saat semester direset
     public void ResetSemester()
@@ -152,9 +159,18 @@ public class GameManager : MonoBehaviour
         bot3Button.onClick.AddListener(() => SetBotCount(3));
         bot4Button.onClick.AddListener(() => SetBotCount(4));
 
-
+        // Listener play button
+        playButton.onClick.AddListener(OnPlayButtonClicked);
     }
 
+
+    private void OnPlayButtonClicked()
+    {
+        if (botSelectionPanel != null)
+        {
+            botSelectionPanel.SetActive(false); // Hide panel
+        }
+    }
 
     private void SetBotCount(int count)
     {
@@ -256,9 +272,10 @@ public class GameManager : MonoBehaviour
         }
 
         ClearTicketButtons();
+        yield return StartCoroutine(resolutionPhaseManager.RevealNextTokenForAllColors());
+        yield return new WaitForSeconds(1.5f);
         ResetAll();
     }
-
 
     private void ClearTicketButtons()
     {
@@ -298,20 +315,13 @@ public class GameManager : MonoBehaviour
 
     private void ResetAll()
     {
-        ClearPlayerListUI();
-        AddPlayerEntry(player.playerName, player.ticketNumber, player.cardCount, player.finpoint);
-
-        foreach (var bot in bots)
-        {
-            AddPlayerEntry(bot.playerName, bot.ticketNumber, bot.cardCount, bot.finpoint);
-        }
 
         List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
         allPlayers.AddRange(bots);
-        allPlayers.Sort((a, b) => a.ticketNumber.CompareTo(b.ticketNumber)); // 🎟️ Urut berdasarkan tiket kecil ke besar
+        allPlayers.Sort((a, b) => a.ticketNumber.CompareTo(b.ticketNumber));
 
         turnOrder = new List<PlayerProfile>(allPlayers);
-        UpdatePlayerUI();
+        UpdatePlayerUI(); // This single call is now enough to update all UI.
 
         DrawCardsInOrder();
     }
@@ -326,7 +336,7 @@ public class GameManager : MonoBehaviour
         List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
 
-        deck.Add(new Card("TradeFree", "Deal 5 damage", 0, GetRandomColor(colors)));
+        deck.Add(new Card("TradeFee", "Deal 5 damage", 1, GetRandomColor(colors)));
         deck.Add(new Card("TenderOffer", "Recover 3 HP", 0, GetRandomColor(colors)));
         deck.Add(new Card("StockSplit", "Block next attack", 1, GetRandomColor(colors)));
         deck.Add(new Card("InsiderTrade", "Take 1 card", 2, GetRandomColor(colors)));
@@ -710,7 +720,7 @@ public class GameManager : MonoBehaviour
     {
         switch (cardName)
         {
-            case "TradeFree":
+            case "TradeFee":
             case "StockSplit":
                 // Syarat: Pengaktif harus punya minimal 1 kartu tersimpan dengan warna yang sama.
                 return activator.GetCardColorCounts()[cardColor] >= 1;
@@ -793,8 +803,6 @@ public class GameManager : MonoBehaviour
         Button takeButton = takeButtonObj.GetComponent<Button>();
         Text takeButtonText = takeButton.GetComponentInChildren<Text>();
         
-        // --- MODIFIKASI 1 ---
-        // Teks awal diubah menjadi "Lewati" karena 0 kartu dipilih
         takeButtonText.text = "Lewati"; 
         // Tombol langsung bisa ditekan untuk kasus 0 kartu
         takeButton.interactable = true; 
@@ -1090,7 +1098,7 @@ public class GameManager : MonoBehaviour
 
         // Ambil nama kartu
         Text textComp = cardObj.GetComponentInChildren<Text>();
-        string cardName = textComp != null ? textComp.text : "Unknown";
+        
 
         // Ambil nilai kartu
         Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
@@ -1102,6 +1110,8 @@ public class GameManager : MonoBehaviour
 
         // Buat kartu dan tambahkan
         // Ambil nilai warna dari UI
+        Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
+        string cardName = cardNameText != null ? cardNameText.text : "StockSplit";
         Text cardColorText = cardObj.transform.Find("CardColor")?.GetComponent<Text>();
         string cardColor = cardColorText != null ? cardColorText.text : "Red"; // default Red jika null
 
@@ -1134,48 +1144,94 @@ public class GameManager : MonoBehaviour
 
     public void UpdatePlayerUI()
     {
+        // Clear all existing player UI entries
         ClearPlayerListUI();
-        for (int i = 0; i < turnOrder.Count; i++)
+
+        // 1. Display the main player at their fixed position
+        if (player != null)
         {
-            var p = turnOrder[i];
-            AddPlayerEntry($"{i + 1}. {p.playerName}", p.ticketNumber, p.cardCount, p.finpoint);
+            AddPlayerEntry(player, playerUIPosition);
+        }
+
+        // 2. Display all bots in the grid layout container
+        // We find the bot's profile in turnOrder to ensure the data is up-to-date
+        foreach (var bot in bots)
+        {
+            PlayerProfile botProfile = turnOrder.Find(p => p.playerName == bot.playerName);
+            if (botProfile != null)
+            {
+                AddPlayerEntry(botProfile, botListContainer);
+            }
         }
     }
 
-
-    private void AddPlayerEntry(string name, int ticket, int cardCount, int finpoint)
+    private void AddPlayerEntry(PlayerProfile playerProfile, Transform parentContainer)
     {
-        GameObject entry = Instantiate(playerEntryPrefab, playerListContainer);
+        // Instantiate the prefab into the correct container (PlayerUIPosition or BotListContainer)
+        GameObject entry = Instantiate(playerEntryPrefab, parentContainer);
+        playerEntries.Add(entry); // Keep tracking the entry for cleanup
+
+        // --- Fill in the UI data ---
         Text[] texts = entry.GetComponentsInChildren<Text>();
         foreach (Text t in texts)
         {
-            if (t.name == "NameText") t.text = name;
-            else if (t.name == "ScoreText") t.text = $"Tiket {ticket}";
-            else if (t.name == "CardText") t.text = $"{cardCount} kartu";
-            else if (t.name == "Finpoint") t.text = $"FP {finpoint}";
+            if (t.name == "NameText") t.text = playerProfile.playerName;
+            else if (t.name == "ScoreText") t.text = $"Turn {playerProfile.ticketNumber}";
+            else if (t.name == "CardText") t.text = $"";
+            else if (t.name == "Finpoint") t.text = $"{playerProfile.finpoint}";
         }
+        Transform cardContainer = entry.transform.Find("CardDisplayContainer");
 
-        // Ambil jumlah kartu berdasarkan warna dari player yang sedang diproses (bisa player atau bot)
-        var colorCounts = turnOrder.Find(p => $"{turnOrder.IndexOf(p) + 1}. {p.playerName}" == name)?.GetCardColorCounts() ?? new Dictionary<string, int>();
+        // Periksa apakah prefab UI kartu dan kontainernya ada
+        if (cardUIPrefab != null && cardContainer != null)
+        {
+            // Loop melalui setiap kartu yang dimiliki pemain
+            foreach (Card card in playerProfile.cards)
+            {
+                // Dapatkan sprite untuk kartu saat ini
+                Sprite cardSprite = GetCardSprite(card.cardName, card.color);
+                if (cardSprite == null) continue; // Lanjut ke kartu berikutnya jika sprite tidak ditemukan
 
+                // Buat instance prefab UI kartu di dalam kontainer
+                GameObject cardImageObj = Instantiate(cardUIPrefab, cardContainer);
+
+                // Atur sprite-nya pada komponen Image
+                Image cardImage = cardImageObj.GetComponent<Image>();
+                if (cardImage != null)
+                {
+                    cardImage.sprite = cardSprite;
+                    cardImage.preserveAspect = true;
+                }
+            }
+        }
+        else
+        {
+            // Tampilkan peringatan jika ada yang belum di-assign
+            if (cardUIPrefab == null)
+            {
+                Debug.LogWarning("Prefab 'Card UI' belum di-assign di Inspector!");
+            }
+            if (cardContainer == null)
+            {
+                Debug.LogWarning("Tidak ditemukan 'CardDisplayContainer' di dalam prefab entri pemain!");
+            }
+        }
+        // --- Fill in the card color counts ---
+        var colorCounts = playerProfile.GetCardColorCounts();
         Text redCardText = entry.transform.Find("RedCardText")?.GetComponent<Text>();
+        Text orangeCardText = entry.transform.Find("OrangeCardText")?.GetComponent<Text>();
         Text blueCardText = entry.transform.Find("BlueCardText")?.GetComponent<Text>();
         Text greenCardText = entry.transform.Find("GreenCardText")?.GetComponent<Text>();
-        Text orangeCardText = entry.transform.Find("OrangeCardText")?.GetComponent<Text>();
 
         if (redCardText != null)
-            redCardText.text = $"K: {(colorCounts.ContainsKey("Konsumer") ? colorCounts["Konsumer"] : 0)}";
-        if (blueCardText != null)
-            blueCardText.text = $"I: {(colorCounts.ContainsKey("Infrastruktur") ? colorCounts["Infrastruktur"] : 0)}";
-        if (greenCardText != null)
-            greenCardText.text = $"U: {(colorCounts.ContainsKey("Keuangan") ? colorCounts["Keuangan"] : 0)}";
+            redCardText.text = $"{(colorCounts.ContainsKey("Konsumer") ? colorCounts["Konsumer"] : 0)}";
         if (orangeCardText != null)
-            orangeCardText.text = $"T: {(colorCounts.ContainsKey("Tambang") ? colorCounts["Tambang"] : 0)}";
-
-
-        playerEntries.Add(entry);
+            orangeCardText.text = $"{(colorCounts.ContainsKey("Infrastruktur") ? colorCounts["Infrastruktur"] : 0)}";
+        if (blueCardText != null)
+            blueCardText.text = $"{(colorCounts.ContainsKey("Keuangan") ? colorCounts["Keuangan"] : 0)}";
+        if (greenCardText != null)
+            greenCardText.text = $"{(colorCounts.ContainsKey("Tambang") ? colorCounts["Tambang"] : 0)}";
     }
-
 
 
     private void ClearPlayerListUI()
@@ -1194,9 +1250,14 @@ public class GameManager : MonoBehaviour
             Destroy(child.gameObject);
         }
     }
+    
     public void ShowLeaderboard()
     {
+        List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
+        allPlayers.AddRange(bots);
+        sellingManager.ForceSellAllCards(allPlayers);
         leaderboardPanel.SetActive(true);
+
 
         // Bersihkan entri sebelumnya
         foreach (Transform child in leaderboardContainer)
@@ -1205,8 +1266,6 @@ public class GameManager : MonoBehaviour
         }
 
         // Gabungkan player dan bot
-        List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
-        allPlayers.AddRange(bots);
 
         // Urutkan berdasarkan finpoint secara menurun
         var rankedPlayers = allPlayers.OrderByDescending(p => p.finpoint).ToList();
@@ -1236,7 +1295,7 @@ public class GameManager : MonoBehaviour
     {
         switch (cardName)
         {
-            case "TradeFree":
+            case "TradeFee":
             case "StockSplit":
                 return $"Aktivasi {cardName} gagal: Anda harus memiliki minimal 1 kartu tersimpan dengan warna yang sama.";
 

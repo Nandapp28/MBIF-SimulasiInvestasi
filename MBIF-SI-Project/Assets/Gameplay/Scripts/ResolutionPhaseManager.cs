@@ -1,12 +1,17 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
 
 public class ResolutionPhaseManager : MonoBehaviour
 {
     public GameManager gameManager;
     public SellingPhaseManager sellingPhaseManager;
     public HelpCardPhaseManager helpCardPhaseManager;
+  
+    [Header("System References")]
+    public CameraController cameraController; // <-- TAMBAHKAN INI
+
 
 
     // Dividend Index disimpan terpisah dari IPO
@@ -45,7 +50,7 @@ public class ResolutionPhaseManager : MonoBehaviour
         { -1, 1 },
         { 0, 1 },
         { 1, 2 },
-        { 2, 2 },
+        { 2, 3 },
         { 3, 3 }
     };
     private void Start()
@@ -113,67 +118,127 @@ public class ResolutionPhaseManager : MonoBehaviour
             }
         }
     }
+    public IEnumerator RevealNextTokenForAllColors()
+    {
+        Debug.Log("--- FASE RAMALAN: Membalik token berikutnya untuk semua sektor (Visual Saja). ---");
+        yield return new WaitForSeconds(1.5f);
+
+        foreach (string color in resolutionOrder)
+        {
+            var data = dividendDataList.FirstOrDefault(d => d.color == color);
+            yield return StartCoroutine(RevealNextToken(data)); // Memanggil coroutine baru
+            yield return new WaitForSeconds(1f); // Jeda antar warna
+        }
+    }
+    public IEnumerator RevealNextToken(DividendData data)
+    {
+        if (data != null && data.revealedTokenCount < data.tokenObjects.Count)
+        {
+            int index = data.revealedTokenCount;
+            GameObject tokenObj = data.tokenObjects[index];
+
+            Debug.Log($"[Visual] Mengungkap token #{index + 1} untuk {data.color}...");
+
+            // Set material (seharusnya sudah di-set saat Inisialisasi, tapi aman untuk set lagi)
+            Renderer rend = tokenObj.GetComponent<Renderer>();
+            if (rend != null) rend.material = GetTokenMaterial(data.ramalanTokens[index]);
+
+            // Aktifkan dan animasikan
+            tokenObj.SetActive(true);
+            yield return StartCoroutine(AnimateTokenFlip(tokenObj));
+        }
+    }
 
     public void StartResolutionPhase(List<PlayerProfile> players)
     {
         StartCoroutine(ResolutionSequence(players));
     }
-    private IEnumerator<WaitForSeconds> ResolutionSequence(List<PlayerProfile> players)
+    private IEnumerator ResolutionSequence(List<PlayerProfile> players)
     {
         Debug.Log("[ResolutionPhase] Memulai fase resolusi secara berurutan...");
         yield return new WaitForSeconds(2.0f);
 
+        // Loop utama per sektor
         foreach (string color in resolutionOrder)
         {
+            // --- 1. Gerakkan Kamera ke Sektor yang Sesuai ---
+            if (cameraController != null)
+            {
+                // Tentukan posisi kamera berdasarkan nama warna
+                CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
+                switch (color)
+                {
+                    case "Konsumer": targetPos = CameraController.CameraPosition.Konsumer; break;
+                    case "Infrastruktur": targetPos = CameraController.CameraPosition.Infrastruktur; break;
+                    case "Keuangan": targetPos = CameraController.CameraPosition.Keuangan; break;
+                    case "Tambang": targetPos = CameraController.CameraPosition.Tambang; break;
+                }
+                Debug.Log($"[Camera] Bergerak ke view {color}...");
+                yield return cameraController.MoveTo(targetPos); // Tunggu kamera sampai
+                yield return new WaitForSeconds(0.5f); // Jeda sejenak agar pemain bisa lihat
+            }
+
             var data = dividendDataList.FirstOrDefault(d => d.color == color);
             if (data != null)
             {
+                // --- 2. Terapkan Efek Token Ramalan ---
                 ApplyRamalanEffect(data);
-                yield return new WaitForSeconds(1.5f);     // Balik token
-                UpdateDividendVisuals();
-                yield return new WaitForSeconds(1f);
-                sellingPhaseManager.UpdateIPOVisuals(); // Perbarui posisi indikator
-                yield return new WaitForSeconds(2f); // Delay antar warna (ubah sesuai kebutuhan)
-            }
-        }
+                UpdateDividendVisuals(); // Perbarui posisi indikator dividen
+                yield return new WaitForSeconds(0.5f); // Jeda untuk melihat pergerakan marker
 
-        // Proses pemberian finpoint
-        foreach (var data in dividendDataList)
-        {
-            string color = data.color;
-            int dividendIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
-            int reward = dividendRewards[dividendIndex];
+                // Cek apakah ada efek Boom/Crash ke IPO
+                sellingPhaseManager.UpdateIPOVisuals();
+                yield return new WaitForSeconds(0.5f);
 
-            if (reward == 0)
-            {
-                Debug.Log($"[ResolutionPhase] Tidak ada dividen untuk {color} (dividend index: {dividendIndex})");
-                continue;
-            }
+                // --- 3. Hitung dan Bagikan Dividen untuk Sektor Ini (PINDAH KE SINI) ---
+                int dividendIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
+                int reward = dividendRewards[dividendIndex];
 
-            foreach (var player in players)
-            {
-                int cardCount = player.cards.Count(c => c.color == color);
-                if (cardCount > 0)
+                Debug.Log($"--- Resolusi Dividen untuk {color} (Index: {dividendIndex}, Reward/kartu: {reward} FP) ---");
+
+                if (reward > 0)
                 {
-                    int totalReward = cardCount * reward;
-                    player.finpoint += totalReward;
-                    Debug.Log($"{player.playerName} mendapat {totalReward} finpoint dari {cardCount} kartu {color} (dividend index {dividendIndex})");
+                    foreach (var player in players)
+                    {
+                        int cardCount = player.cards.Count(c => c.color == color);
+                        if (cardCount > 0)
+                        {
+                            int totalReward = cardCount * reward;
+                            player.finpoint += totalReward;
+                            Debug.Log($"-> {player.playerName} mendapat {totalReward} finpoint dari {cardCount} kartu {color}.");
+                            gameManager.UpdatePlayerUI(); // Update UI langsung agar terlihat
+                            yield return new WaitForSeconds(0.5f); // Jeda singkat per pemain
+                        }
+                    }
                 }
+                else
+                {
+                    Debug.Log($"-> Tidak ada dividen yang dibagikan untuk {color}.");
+                }
+
+                yield return new WaitForSeconds(1f); // Jeda sebelum pindah ke sektor berikutnya
             }
         }
-         ApplyNegativeFinpointPenalty(players);
 
+        // --- 4. Proses Akhir Setelah Semua Sektor Selesai ---
+        if (cameraController != null)
+        {
+            Debug.Log("[Camera] Kembali ke view normal...");
+            yield return cameraController.MoveTo(CameraController.CameraPosition.Normal); // Kembalikan kamera
+        }
 
-        gameManager.UpdatePlayerUI();
-        // Cek jika resetCount di dalam gameManager sama dengan 0
+        ApplyNegativeFinpointPenalty(players);
+        gameManager.UpdatePlayerUI(); // Final UI update
+
+        yield return new WaitForSeconds(2f);
+
         if (gameManager.resetCount == 0)
         {
-            // Jika ya, jalankan fungsi ini
             helpCardPhaseManager.DistributeHelpCards(players);
         }
+
         gameManager.ResetSemesterButton();
     }
-
     private void ApplyRamalanEffect(DividendData data)
     {
         if (data.revealedTokenCount < data.ramalanTokens.Count)
@@ -182,41 +247,33 @@ public class ResolutionPhaseManager : MonoBehaviour
             int tokenEffect = data.ramalanTokens[index];
             data.dividendIndex += tokenEffect;
 
-            Debug.Log($"[Ramalan - {data.color}] Token #{index + 1}: {tokenEffect}, Index sebelum clamp: {data.dividendIndex}");
+            Debug.Log($"[Ramalan - {data.color}] Efek token #{index + 1} diterapkan: {tokenEffect}. Index dividen sementara: {data.dividendIndex}");
 
             // Cek overflow/underflow sebelum clamp
             if (data.dividendIndex < -3)
             {
                 Debug.LogWarning($"[Dividen Crash] {data.color} terlalu rendah (index: {data.dividendIndex}). Mengurangi IPO index.");
                 ModifyIPOIndex(data.color, -1);
-                data.dividendIndex = 0;
+                data.dividendIndex = 0; // Reset dividend index
             }
             else if (data.dividendIndex > 3)
             {
                 Debug.LogWarning($"[Dividen Boom] {data.color} terlalu tinggi (index: {data.dividendIndex}). Menambah IPO index.");
                 ModifyIPOIndex(data.color, 1);
-                data.dividendIndex = 0;
+                data.dividendIndex = 0; // Reset dividend index
             }
             else
             {
+                // Jika tidak boom/crash, clamp nilainya seperti biasa
                 data.dividendIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
             }
 
-            // Tampilkan token yang dibalik
-            if (index < data.tokenObjects.Count)
-            {
-                GameObject tokenObj = data.tokenObjects[index];
-                tokenObj.SetActive(true);
-
-                // Opsional: animasi flip
-                StartCoroutine(AnimateTokenFlip(tokenObj));
-            }
-
+            // Naikkan counter HANYA setelah efek diterapkan
             data.revealedTokenCount++;
         }
         else
         {
-            Debug.LogWarning($"[Ramalan - {data.color}] Semua token telah dibalik.");
+            Debug.LogWarning($"[Ramalan - {data.color}] Semua token telah diterapkan efeknya.");
         }
     }
     private void ModifyIPOIndex(string color, int delta)

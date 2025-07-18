@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Firebase.Auth;
 using Firebase.Database;
+using ExitGames.Client.Photon; // Testing
 
 public class CreateAndJoin : MonoBehaviourPunCallbacks
 {
@@ -20,7 +21,7 @@ public class CreateAndJoin : MonoBehaviourPunCallbacks
     public TMP_InputField popupRoomPasswordInput;
     public GameObject enterPasswordPopup;
     public TMP_InputField passwordInput;
-    public float invalidPopupDuration = 2.5f; // durasi tampil (detik)
+    public float invalidPopupDuration = 5f; // durasi tampil (detik)
     public GameObject invalidPassAlert;
     public Color defaultColor = Color.white;
     public Color selectedColor = Color.green;
@@ -32,7 +33,7 @@ public class CreateAndJoin : MonoBehaviourPunCallbacks
     private int selectedCount = 5; // default
     private Button selectedButton = null;
 
-     // Firebase references
+    // Firebase references
     private FirebaseAuth auth;
     private DatabaseReference dbRef;
 
@@ -391,11 +392,16 @@ public class CreateAndJoin : MonoBehaviourPunCallbacks
         }
     }
 
+    public void ConfirmInvalidPass()
+    {
+        invalidPassAlert.SetActive(false);
+    }
+
     void Update()
     {
         Debug.Log("Photon State: " + PhotonNetwork.NetworkClientState);
     }
-    
+
     void ResetPlayerCountButtonColors()
     {
         foreach (Button btn in playerCountButtons)

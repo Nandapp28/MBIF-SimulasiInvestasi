@@ -9,7 +9,7 @@ public class PlayerButtonSelector : MonoBehaviour
 
     [Header("Colors")]
     public Color selectedColor = Color.green;
-    public Color defaultColor = Color.white;
+    public Color defaultColor = Color.white; // Default warna putih
 
     private Button selectedButton;
 
@@ -19,12 +19,8 @@ public class PlayerButtonSelector : MonoBehaviour
         foreach (Button btn in playerButtons)
         {
             btn.onClick.AddListener(() => OnPlayerButtonClicked(btn));
-        }
-
-        // Inisialisasi: pilih tombol pertama jika ada
-        if (playerButtons.Count > 0)
-        {
-            OnPlayerButtonClicked(playerButtons[0]);
+            // Pastikan semua tombol diatur ke warna default saat startup
+            btn.image.color = defaultColor; // <-- TAMBAHKAN BARIS INI
         }
     }
 

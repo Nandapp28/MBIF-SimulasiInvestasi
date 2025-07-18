@@ -3,9 +3,26 @@ using UnityEngine.UI;
 
 public class AvatarPicker : MonoBehaviour
 {
+    public static AvatarPicker Instance { get; private set; }
+
     public RawImage avatarImage;
     public int avatarSize = 256;
     public ProfileManager profileManager;
+
+
+    // Metode Awake untuk inisialisasi singleton
+    void Awake()
+    {
+        // Logikanya sama persis, hanya nama kelasnya yang berbeda
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this.gameObject);
+        }
+        else
+        {
+            Instance = this;
+        }
+    }
 
     public void PickImageFromGallery()
     {

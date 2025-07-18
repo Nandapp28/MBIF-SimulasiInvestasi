@@ -6,20 +6,45 @@ using UnityEngine.UI;
 public class AvatarSelector : MonoBehaviour
 {
     [Header("Dependencies")]
-    public ProfileManager profileManager;
-    public Image avatarImage; // Ini adalah image dari tombol/avatar yang dipilih user
-    public AvatarPicker avatarPicker;
+    
+    public Image Image;
 
     public void SelectPresetAvatar(Image buttonImage)
     {
-        if (profileManager != null && buttonImage != null)
+        // MODIFIKASI: Ganti 'profileManager' dengan 'ProfileManager.Instance'
+        if (ProfileManager.Instance != null && buttonImage != null)
         {
-            profileManager.SelectProfilePicture(buttonImage.sprite);
+            ProfileManager.Instance.SelectProfilePicture(buttonImage.sprite);
+        }
+        else
+        {
+            Debug.LogError("ProfileManager.Instance belum siap atau buttonImage null.");
+        }
+    }
+
+    public void SelectPresetBorder(Image buttonImage)
+    {
+        // MODIFIKASI: Ganti 'profileManager' dengan 'ProfileManager.Instance'
+        if (ProfileManager.Instance != null && buttonImage != null)
+        {
+            ProfileManager.Instance.SelectBorder(buttonImage.sprite);
+        }
+        else
+        {
+            Debug.LogError("ProfileManager.Instance belum siap atau buttonImage null.");
         }
     }
 
     public void SelectFromGallery()
     {
-        avatarPicker.PickImageFromGallery();
+        // MODIFIKASI: Ganti 'avatarPicker' dengan 'AvatarPicker.Instance'
+        if (AvatarPicker.Instance != null)
+        {
+            AvatarPicker.Instance.PickImageFromGallery();
+        }
+        else
+        {
+            Debug.LogError("AvatarPicker.Instance belum siap.");
+        }
     }
 }

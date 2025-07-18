@@ -3,6 +3,8 @@ apply plugin: 'com.android.library'
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation(name: 'NativeGallery', ext: 'aar')
 // Android Resolver Dependencies Start
     implementation 'com.google.android.gms:play-services-base:18.6.0' // Assets/Firebase/Editor/DatabaseDependencies.xml:17
     implementation 'com.google.firebase:firebase-analytics:22.4.0' // Assets/Firebase/Editor/DatabaseDependencies.xml:15
@@ -40,6 +42,7 @@ android {
     defaultConfig {
         minSdkVersion **MINSDKVERSION**
         targetSdkVersion **TARGETSDKVERSION**
+        multiDexEnabled true
         ndk {
             abiFilters **ABIFILTERS**
         }
@@ -59,4 +62,4 @@ android {
 }
 **IL_CPP_BUILD_SETUP**
 **SOURCE_BUILD_SETUP**
-**EXTERNAL_SOURCES**
+**EXTERNAL_SOURCES** 

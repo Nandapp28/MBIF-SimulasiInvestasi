@@ -12,7 +12,7 @@ using System.Linq;
 
 public class AnonymousLogin : MonoBehaviour
 {
-    public GameObject loginBtn, SucessPopup;
+    public GameObject loginBtn;
 
     private const string GuestUserIdKey = "GuestUserId";      // Firebase UID
     private const string GuestPlayerIdKey = "GuestPlayerId";  // Short custom ID
@@ -101,7 +101,11 @@ public class AnonymousLogin : MonoBehaviour
         {
             { "playerId", playerId },
             { "userName", username },
-            { "finPoin", 0 } // Nilai default awal
+            { "finPoin", 0 }, // Nilai default awal
+            { "avatarName", "avatar_0" },
+            { "borderName", "border_0" },
+            { "owned_avatar", "" },
+            { "owned_border", "" }
         };
 
         Debug.Log($"Menyimpan ke Firebase: UID={firebaseUid}, playerId={playerId}, userName={username}");
@@ -117,7 +121,7 @@ public class AnonymousLogin : MonoBehaviour
 
     string GeneratePlayerID()
     {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
         return new string(Enumerable.Repeat(chars, 6)
             .Select(s => s[Random.Range(0, s.Length)]).ToArray());
     }
