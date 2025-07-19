@@ -23,7 +23,6 @@ public class PlayerDatabase : MonoBehaviour
     [Header("UI References")]
     public TextMeshProUGUI playerIdText;
     public TMP_InputField userNameInput;
-    public TextMeshProUGUI finPoinText;
     public GameObject confirmLogoutPopUp;
 
     // Mengaktifkan srollview antara avatar dan border
@@ -128,7 +127,6 @@ public class PlayerDatabase : MonoBehaviour
         playerIdText.text = dts.playerId;
         userNameInput.text = dts.userName;
         if (userNameInput.placeholder is TextMeshProUGUI placeholder) placeholder.text = dts.userName;
-        finPoinText.text = dts.finPoin.ToString();
 
         // Perbarui gambar profil dari data yang dimuat
         LoadProfileImage(dts.avatarName, profilePicture, "Avatars");

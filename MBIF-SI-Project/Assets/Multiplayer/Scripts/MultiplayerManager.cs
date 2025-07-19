@@ -8,6 +8,9 @@ using System.Collections.Generic;
 using System.Linq; // Diperlukan untuk sorting (OrderBy)
 using ExitGames.Client.Photon;
 using UnityEngine.SceneManagement;
+using Firebase;
+using Firebase.Database;
+using Firebase.Auth;
 
 public class MultiplayerManager : MonoBehaviourPunCallbacks
 {
@@ -29,6 +32,9 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     public GameObject leaderboardEntryPrefab;
     public Button exitGameButton;
 
+    private DatabaseReference dbReference;
+    private FirebaseAuth auth;
+
     void Awake()
     {
         if (GameStatusUI.Instance != null)
@@ -40,10 +46,37 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
 
         // Ambil komponen TicketManager yang ada di GameObject yang sama
         ticketManager = FindObjectOfType<TicketManagerMultiplayer>();
+
+        auth = FirebaseAuth.DefaultInstance;
+        dbReference = FirebaseDatabase.DefaultInstance.RootReference;
     }
 
-    void Start()
+    async void Start()
     {
+        if (playerPrefab == null) return;
+
+        // 1. Ambil playerId dari Firebase
+        string localUserId = auth.CurrentUser.UserId;
+        DataSnapshot snapshot = await dbReference.Child("users").Child(localUserId).Child("playerId").GetValueAsync();
+
+        if (snapshot.Exists)
+        {
+            string playerId = snapshot.Value.ToString();
+
+            // 2. Simpan playerId ke Custom Properties pemain lokal
+            Hashtable playerProps = new Hashtable
+            {
+                { "playerId", playerId },
+                { "authId", localUserId }
+            };
+            PhotonNetwork.LocalPlayer.SetCustomProperties(playerProps);
+            Debug.Log($"PlayerId '{playerId}' berhasil disimpan ke Custom Properties.");
+        }
+        else
+        {
+            Debug.LogError($"Tidak dapat menemukan playerId untuk user: {localUserId}");
+        }
+
         if (playerPrefab == null) return;
         PhotonNetwork.Instantiate(playerPrefab.name, Vector3.zero, Quaternion.identity);
 
@@ -150,6 +183,12 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             (int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY]
         ).ToList();
 
+        // PANGGIL FUNGSI SIMPAN DATA, HANYA DIJALANKAN OLEH MASTERCLIENT
+        if (PhotonNetwork.IsMasterClient)
+        {
+            SaveMatchHistoryToFirebase(rankedPlayers);
+        }
+
         // Buat entri leaderboard untuk setiap pemain
         for (int i = 0; i < rankedPlayers.Count; i++)
         {
@@ -163,6 +202,70 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
                 texts[1].text = $"{(int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY]} FP";
             }
         }
+    }
+
+    private void SaveMatchHistoryToFirebase(List<Player> rankedPlayers)
+    {
+        // 1. Buat ID unik untuk pertandingan ini
+        string matchId = dbReference.Child("matchHistories").Push().Key;
+
+        // 2. Siapkan data pertandingan
+        long timestamp = System.DateTimeOffset.Now.ToUnixTimeMilliseconds();
+        List<Dictionary<string, object>> playersData = new List<Dictionary<string, object>>();
+        Dictionary<string, object> playerIndexUpdates = new Dictionary<string, object>();
+
+        for (int i = 0; i < rankedPlayers.Count; i++)
+        {
+            Player p = rankedPlayers[i];
+            
+            // Ambil playerId dari Custom Properties (asumsi sudah tersimpan di sana)
+            string playerId = p.CustomProperties.ContainsKey("playerId") ? p.CustomProperties["playerId"].ToString() : "N/A";
+            
+            // Siapkan data untuk setiap pemain
+            Dictionary<string, object> playerData = new Dictionary<string, object>
+            {
+                { "rank", i + 1 },
+                { "userName", p.NickName },
+                { "playerId", playerId },
+                { "invesPoin", (int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY] } 
+            };
+            playersData.Add(playerData);
+
+            // 3. Siapkan data untuk indeks pemain
+            // Ambil 'authId' dari Custom Properties
+            if (p.CustomProperties.ContainsKey("authId"))
+            {
+                string playerAuthId = p.CustomProperties["authId"].ToString();
+                playerIndexUpdates[$"/playerMatchHistories/{playerAuthId}/{matchId}"] = true;
+            }
+        }
+
+        Dictionary<string, object> matchData = new Dictionary<string, object>
+        {
+            { "timestamp", timestamp },
+            { "players", playersData }
+        };
+
+        // 4. Simpan data utama pertandingan
+        dbReference.Child("matchHistories").Child(matchId).SetValueAsync(matchData).ContinueWith(task => {
+            if (task.IsFaulted)
+            {
+                Debug.LogError("Gagal menyimpan matchHistories: " + task.Exception);
+                return;
+            }
+            Debug.Log("Berhasil menyimpan matchHistories.");
+        });
+
+        // 5. Update indeks untuk semua pemain yang terlibat
+        dbReference.UpdateChildrenAsync(playerIndexUpdates).ContinueWith(task => {
+            if (task.IsFaulted)
+            {
+                // INI YANG AKAN MENAMPILKAN ERROR YANG SEBENARNYA
+                Debug.LogError("Gagal menyimpan playerMatchHistories: " + task.Exception);
+                return;
+            }
+            Debug.Log("Berhasil menyimpan playerMatchHistories.");
+        });
     }
 
     public void OnExitGameButtonClicked()
