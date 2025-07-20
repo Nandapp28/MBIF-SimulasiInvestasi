@@ -183,18 +183,22 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             (int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY]
         ).ToList();
 
-        // PANGGIL FUNGSI SIMPAN DATA, HANYA DIJALANKAN OLEH MASTERCLIENT
+        // Hanya MasterClient yang menjalankan logika penyimpanan dan pembagian poin
         if (PhotonNetwork.IsMasterClient)
         {
+            // Panggil fungsi simpan data yang sudah ada
             SaveMatchHistoryToFirebase(rankedPlayers);
+            // Panggil fungsi baru untuk membagikan finPoin
+            DistributeFinPoinRewards(rankedPlayers);
         }
 
-        // Buat entri leaderboard untuk setiap pemain
+        // Buat entri leaderboard untuk setiap pemain (logika ini tidak berubah)
         for (int i = 0; i < rankedPlayers.Count; i++)
         {
             Player p = rankedPlayers[i];
             GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContainer);
 
+            // Pastikan Anda menggunakan Text atau TextMeshPro sesuai dengan prefab Anda
             Text[] texts = entry.GetComponentsInChildren<Text>();
             if (texts.Length >= 2)
             {
@@ -266,6 +270,57 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             }
             Debug.Log("Berhasil menyimpan playerMatchHistories.");
         });
+    }
+
+    private void DistributeFinPoinRewards(List<Player> rankedPlayers)
+    {
+        if (rankedPlayers.Count <= 1)
+        {
+            Debug.Log("Hanya ada 1 pemain, tidak ada finPoin yang dibagikan.");
+            return;
+        }
+
+        Debug.Log("MasterClient mengirimkan perintah RPC untuk pembagian finPoin...");
+
+        for (int i = 0; i < rankedPlayers.Count; i++)
+        {
+            Player targetPlayer = rankedPlayers[i]; // Pemain tujuan RPC
+            int rank = i + 1;
+
+            int pointsToAward = 0;
+            if (rank == 1) pointsToAward = 50;
+            else if (rank == 2) pointsToAward = 45;
+            else if (rank == 3) pointsToAward = 40;
+            else if (rank == 4) pointsToAward = 35;
+            else if (rank == 5) pointsToAward = 30;
+
+            if (pointsToAward > 0)
+            {
+                // Kirim RPC ke pemain spesifik (targetPlayer) dengan poin yang harus ditambahkan
+                photonView.RPC("Rpc_UpdateFinPoin", targetPlayer, pointsToAward);
+            }
+        }
+    }
+
+    [PunRPC]
+    private void Rpc_UpdateFinPoin(int pointsToAdd)
+    {
+        string playerAuthId = auth.CurrentUser.UserId;
+        DatabaseReference finPoinRef = dbReference.Child("users").Child(playerAuthId).Child("finPoin");
+
+        // Setiap klien menjalankan transaksi untuk dirinya sendiri, sehingga izinnya valid.
+        finPoinRef.RunTransaction(mutableData => {
+            long currentPoin = 0;
+            if (mutableData.Value != null)
+            {
+                long.TryParse(mutableData.Value.ToString(), out currentPoin);
+            }
+            
+            mutableData.Value = currentPoin + pointsToAdd;
+            return TransactionResult.Success(mutableData);
+        });
+
+        Debug.Log($"RPC diterima: Menambahkan {pointsToAdd} finPoin ke user {playerAuthId}");
     }
 
     public void OnExitGameButtonClicked()
