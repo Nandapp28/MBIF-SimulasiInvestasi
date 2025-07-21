@@ -8,53 +8,49 @@ using UnityEngine.SceneManagement;
 public class WaitingRoom : MonoBehaviourPunCallbacks
 {
     public TMP_Text roomNameText;
-    public GameObject playerListItemPrefab;     // Prefab yang berisi tombol & teks nama player
-    public Transform playerListContainer;       // Parent object (misalnya ScrollView Content)
+    public GameObject playerListItemPrefab;
+    public Transform playerListContainer;
     public Button backButton;
     public Button playButton;
 
     private void Start()
     {
-        PhotonNetwork.AutomaticallySyncScene = true; // Sync scene across all players
-        // Tampilkan nama room yang sedang diikuti
+        PhotonNetwork.AutomaticallySyncScene = true;
         if (PhotonNetwork.InRoom)
-    {
-        string roomName = PhotonNetwork.CurrentRoom.Name;
-        int maxPlayers = PhotonNetwork.CurrentRoom.MaxPlayers;
-
-        // Coba ambil dari CustomProperties kalau ada
-        if (PhotonNetwork.CurrentRoom.CustomProperties.ContainsKey("maxP"))
         {
-            maxPlayers = (int)PhotonNetwork.CurrentRoom.CustomProperties["maxP"];
+            string roomName = PhotonNetwork.CurrentRoom.Name;
+            int maxPlayers = PhotonNetwork.CurrentRoom.MaxPlayers;
+
+            if (PhotonNetwork.CurrentRoom.CustomProperties.ContainsKey("maxP"))
+            {
+                maxPlayers = (int)PhotonNetwork.CurrentRoom.CustomProperties["maxP"];
+            }
+
+            roomNameText.text = $"Room: {roomName} ({maxPlayers} Player)";
+            UpdatePlayerList();
         }
 
-        roomNameText.text = $"Room: {roomName} ({maxPlayers} Player)";
-        UpdatePlayerList();
-    }
-        // Tambahkan listener tombol
         backButton.onClick.AddListener(OnBackButtonClicked);
         playButton.onClick.AddListener(OnPlayButtonClicked);
+
+        // Panggil pengecekan awal saat masuk scene
+        UpdatePlayButtonState();
     }
 
     private void UpdatePlayerList()
     {
-        // Bersihkan isi lama
         foreach (Transform child in playerListContainer)
         {
             Destroy(child.gameObject);
         }
 
-        // Loop semua player yang ada di room sekarang
         foreach (Photon.Realtime.Player player in Photon.Pun.PhotonNetwork.PlayerList)
         {
             GameObject item = Instantiate(playerListItemPrefab, playerListContainer);
-
-            // Coba ambil komponen teks dari prefab
-            Text legacyText = item.GetComponentInChildren<Text>(true); // true untuk include inactive
+            Text legacyText = item.GetComponentInChildren<Text>(true);
             if (legacyText != null)
             {
-                // Cek apakah player ini adalah MasterClient (host room)
-                string role = (player == PhotonNetwork.MasterClient) ? "(Host)" : "(Guest)";
+                string role = (player.IsMasterClient) ? "(Host)" : "(Guest)";
                 legacyText.text = $"{player.NickName} {role}";
             }
             else
@@ -62,21 +58,53 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
                 Debug.LogWarning("Tidak ditemukan komponen Text di prefab!");
             }
         }
+        
+        // Setiap kali daftar pemain diperbarui, cek kembali kondisi tombol Play
+        UpdatePlayButtonState();
     }
+
+    // --- FUNGSI BARU UNTUK MENGONTROL TOMBOL PLAY ---
+    private void UpdatePlayButtonState()
+    {
+        // Tombol Play hanya bisa diinteraksi oleh MasterClient
+        if (PhotonNetwork.IsMasterClient)
+        {
+            // Cek apakah jumlah pemain saat ini sudah sama dengan kapasitas maksimal room
+            bool isRoomFull = PhotonNetwork.CurrentRoom.PlayerCount == PhotonNetwork.CurrentRoom.MaxPlayers;
+            
+            // Aktifkan tombol HANYA jika room sudah penuh
+            playButton.interactable = isRoomFull;
+        }
+        else
+        {
+            // Jika bukan MasterClient, tombol Play selalu non-aktif
+            playButton.interactable = false;
+        }
+    }
+    // ------------------------------------------------
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
     {
-        UpdatePlayerList(); // Pemain baru masuk
+        UpdatePlayerList();
     }
 
     public override void OnPlayerLeftRoom(Player otherPlayer)
     {
-        UpdatePlayerList(); // Pemain keluar
+        UpdatePlayerList();
     }
+
+    // --- TAMBAHAN: PENTING UNTUK HOST MIGRATION ---
+    // Dipanggil saat MasterClient lama keluar dan MasterClient baru terpilih
+    public override void OnMasterClientSwitched(Player newMasterClient)
+    {
+        // Update state tombol untuk semua orang, terutama untuk host yang baru
+        UpdatePlayButtonState();
+    }
+    // ---------------------------------------------
 
     public override void OnJoinedRoom()
     {
-        UpdatePlayerList(); // Inisialisasi awal
+        UpdatePlayerList();
     }
 
     private void OnBackButtonClicked()
@@ -84,28 +112,27 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
         if (SfxManager.Instance != null)
             SfxManager.Instance.PlayButtonClick();
 
-        PhotonNetwork.LeaveRoom(); // Keluar dari room sebelum ke main menu
+        PhotonNetwork.LeaveRoom();
     }
 
-    private void OnPlayButtonClicked() // Ubah ke public untuk testing
+    private void OnPlayButtonClicked()
     {
         if (SfxManager.Instance != null)
             SfxManager.Instance.PlayButtonClick();
 
-        // Hanya MasterClient yang bisa mulai game
-        if (PhotonNetwork.IsMasterClient)
+        // Pengecekan ini tetap ada sebagai lapisan keamanan kedua
+        if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount == PhotonNetwork.CurrentRoom.MaxPlayers)
         {
-            PhotonNetwork.LoadLevel("Multiplayer"); // Pastikan scene Gameplay sudah ada di Build Settings
+            PhotonNetwork.LoadLevel("Multiplayer");
         }
         else
         {
-            Debug.Log("Only MasterClient can start the game.");
+            Debug.Log("Game hanya bisa dimulai oleh Host saat room sudah penuh.");
         }
     }
 
     public override void OnLeftRoom()
     {
-        // Saat sudah berhasil keluar room, kembali ke scene MainMenu
         SceneManager.LoadScene("MainMenu");
     }
 }

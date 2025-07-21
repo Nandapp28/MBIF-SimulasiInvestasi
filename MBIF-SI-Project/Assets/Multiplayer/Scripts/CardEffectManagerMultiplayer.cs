@@ -117,15 +117,20 @@ public static class CardEffectManagerMultiplayer
     {
         if (PhotonNetwork.IsMasterClient)
         {
+            Debug.Log($"[Flashbuy] {activator.NickName} mengaktifkan Flashbuy. Memulai mode pemilihan kartu...");
             // Beri tahu semua pemain untuk masuk ke mode pemilihan Flashbuy
             // dan kirim ID pemain yang bisa memilih.
             ActionPhaseManager.Instance.photonView.RPC(
                 "Rpc_StartFlashbuyMode",
-                RpcTarget.All,
+                RpcTarget.All, // Kirim ke semua untuk sinkronisasi visual dan UI
                 activator.ActorNumber 
             );
+
+            // PENTING: JANGAN LANGSUNG PANGGIL AdvanceToNextTurn() DI SINI.
+            // Giliran akan dilanjutkan setelah pemain pengaktif mengirimkan pilihannya
+            // melalui Rpc_SubmitFlashbuyChoices di ActionPhaseManager.
+            yield return null; // Kembali ke dispatcher
         }
-        yield return null;
     }
 
     private static IEnumerator StockSplitEffect(Player activator, Sektor color)
@@ -154,9 +159,9 @@ public static class CardEffectManagerMultiplayer
             // Kita akan menurunkan indeks IPO sebanyak 2 level.
             string ipoIndexKey = "ipo_index_" + color;
             int currentIndex = PhotonNetwork.CurrentRoom.CustomProperties.ContainsKey(ipoIndexKey) ? (int)PhotonNetwork.CurrentRoom.CustomProperties[ipoIndexKey] : 0;
-            
+
             int newIndex = currentIndex - 2; // Turun 2 level sebagai efek stock split
-            
+
             // Batasi agar tidak lebih rendah dari -3 (atau -2 untuk Tambang)
             int minIndex = (color == Sektor.Tambang) ? -2 : -3;
             newIndex = Mathf.Max(newIndex, minIndex);
@@ -164,6 +169,7 @@ public static class CardEffectManagerMultiplayer
             Hashtable ipoProp = new Hashtable { { ipoIndexKey, newIndex } };
             PhotonNetwork.CurrentRoom.SetCustomProperties(ipoProp);
             Debug.Log($"[Stock Split] Harga pasar {color} diturunkan. Indeks baru: {newIndex}");
+            ActionPhaseManager.Instance.ForceNextTurn();
         }
         yield return new WaitForSeconds(1f);
     }
@@ -174,28 +180,44 @@ public static class CardEffectManagerMultiplayer
         {
             Debug.Log($"[Insider Trade] MasterClient mencari rumor AKURAT untuk sektor {color}...");
             
-            // Mengambil data dek rumor yang sudah di-shuffle untuk ronde ini
             var rumorManager = RumorPhaseManagerMultiplayer.Instance;
-            var deck = rumorManager.GetShuffledDeck(); // Anda perlu membuat fungsi ini di RumorPhaseManager
+            var deck = rumorManager.GetShuffledDeck();
 
             if (deck != null && deck.Count > 0)
             {
-                // Cari rumor pertama di dek yang sesuai dengan warna kartu
-                int futureRumorIndex = deck.Find(index => rumorManager.allRumorEffects[index].color == color);
-
-                if (futureRumorIndex != -1)
+                // Cari data rumor yang sesuai dari dek yang diacak
+                RumorEffectData secretRumor = null;
+                foreach(int index in deck)
                 {
-                    RumorEffectData secretRumor = rumorManager.allRumorEffects[futureRumorIndex];
-                    // Kirim deskripsi rumor yang akurat ini HANYA ke pemain yang mengaktifkan
-                    ActionPhaseManager.Instance.photonView.RPC("Rpc_ShowInsiderTrade", activator, secretRumor.description);
+                    if (rumorManager.allRumorEffects[index].color == color)
+                    {
+                        secretRumor = rumorManager.allRumorEffects[index];
+                        break;
+                    }
+                }
+
+                if (secretRumor != null)
+                {
+                    Debug.Log($"[Insider Trade] Rumor ditemukan: {secretRumor.cardName}. Mengirim RPC ke {activator.NickName} untuk animasi.");
+                    // Kirim NAMA KARTU dan WARNA untuk keperluan visual
+                    ActionPhaseManager.Instance.photonView.RPC(
+                        "Rpc_ShowInsiderTradePrediction", // Nama RPC baru yang lebih deskriptif
+                        activator, 
+                        secretRumor.cardName, 
+                        secretRumor.color.ToString()
+                    );
+                    // PENTING: MasterClient berhenti di sini. Giliran akan dilanjutkan
+                    // setelah menerima RPC konfirmasi dari klien.
                 }
                 else
                 {
-                     Debug.LogWarning($"[Insider Trade] Tidak ada rumor untuk sektor {color} di dek ronde ini.");
+                    Debug.LogWarning($"[Insider Trade] Tidak ada rumor untuk sektor {color}. Giliran langsung dilanjutkan.");
+                    // Jika tidak ada rumor, tidak ada animasi, maka MasterClient harus melanjutkan giliran secara manual.
+                    ActionPhaseManager.Instance.ForceNextTurn();
                 }
             }
         }
-        yield return null;
+        yield return null; // Coroutine harus selalu yield sesuatu.
     }
 
     // Fungsi bantuan untuk mengubah enum Sektor menjadi string kunci

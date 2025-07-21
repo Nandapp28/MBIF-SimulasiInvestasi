@@ -117,21 +117,6 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             Debug.Log("MasterClient memulai Fase Penjualan dan mengatur IPO awal...");
             playersToWaitFor = new List<Player>(turnOrder);
             allPlayerSellDecisions.Clear();
-
-            // Hapus ketergantungan pada manajer single-player
-            // Atur kondisi pasar awal langsung di sini
-            Hashtable ipoProps = new Hashtable();
-            string[] colors = { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
-            foreach (string color in colors)
-            {
-                // Atur semua posisi token IPO ke 0 (tengah) dan bonus ke 0
-                ipoProps[IPO_INDEX_PREFIX + color] = 0;
-                ipoProps[IPO_BONUS_PREFIX + color] = 0;
-            }
-
-            // Simpan kondisi pasar awal ini ke Room Properties
-            PhotonNetwork.CurrentRoom.SetCustomProperties(ipoProps);
-
             // Kirim RPC ke semua pemain untuk memulai fase
             photonView.RPC("Rpc_ShowSellingUI", RpcTarget.All);
         }
