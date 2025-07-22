@@ -232,6 +232,8 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
     private IEnumerator RunRumorSequence()
     {
         yield return new WaitForSeconds(2f);
+        UITransitionAnimator.Instance.StartTransition("Rumour Phase");
+        yield return new WaitForSeconds(4f);
 
         foreach (var selected in shuffledRumorDeck)
         {
@@ -272,6 +274,8 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
         }
 
         rumorRunning = false;
+        UITransitionAnimator.Instance.StartTransition("Resolution Phase");
+        yield return new WaitForSeconds(4f);
         resolutionPhaseManager.StartResolutionPhase(players);
     }
 

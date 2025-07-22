@@ -156,7 +156,6 @@ public class ResolutionPhaseManager : MonoBehaviour
     private IEnumerator ResolutionSequence(List<PlayerProfile> players)
     {
         Debug.Log("[ResolutionPhase] Memulai fase resolusi secara berurutan...");
-        yield return new WaitForSeconds(2.0f);
 
         // Loop utama per sektor
         foreach (string color in resolutionOrder)
@@ -230,12 +229,22 @@ public class ResolutionPhaseManager : MonoBehaviour
         ApplyNegativeFinpointPenalty(players);
         gameManager.UpdatePlayerUI(); // Final UI update
 
-        yield return new WaitForSeconds(2f);
+        yield return new WaitForSeconds(1f);
 
         if (gameManager.resetCount == 0)
         {
             helpCardPhaseManager.DistributeHelpCards(players);
         }
+        if (gameManager.resetCount == gameManager.maxResetCount)
+        {
+            UITransitionAnimator.Instance.StartTransition("Menghitung Hasil...");
+        }
+        else
+        {
+            UITransitionAnimator.Instance.StartTransition("Bidding Phase");
+        }
+        
+        yield return new WaitForSeconds(4f);
 
         gameManager.ResetSemesterButton();
     }

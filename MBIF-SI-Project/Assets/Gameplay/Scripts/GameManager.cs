@@ -25,7 +25,7 @@ public class GameManager : MonoBehaviour
     [Header("UI References")]
     public GameObject playerEntryPrefab;
     public GameObject cardUIPrefab;
-    public Transform playerUIPosition;      // ⬅️ TAMBAHKAN INI
+    public Transform playerUIPosition;     
     public Transform botListContainer;
     public GameObject cardPrefab;
     public Transform cardHolderParent;
@@ -112,38 +112,41 @@ public class GameManager : MonoBehaviour
     }
     // Fungsi yang dipanggil saat semester direset
     public void ResetSemester()
+{
+    Debug.Log("🔁 Resetting Semester...");
+    resetCount++;
+
+    // --- PERUBAHAN DIMULAI DI SINI ---
+    // Reset data internal pemain tanpa menghapus objeknya
+    foreach (var p in turnOrder)
     {
-        Debug.Log("🔁 Resetting Semester...");
-        resetCount++;
-
-        // Reset data internal pemain
-        foreach (var p in turnOrder)
-        {
-            p.ticketNumber = 0;
-            // Jika mau hapus kartu juga, bisa panggil: p.ClearCards(); (jika tersedia)
-        }
-
-        rumorPhaseManager.InitializeRumorDeck();
-
-        currentCardIndex = 0;
-        currentTurnIndex = 0;
-        skipCount = 0;
-        ticketChosen = false;
-        takenCards.Clear();
-        turnOrder.Clear();
-
-        // Bersihkan kartu dari UI
-        ClearHiddenCards();
-        ClearAllCardsInHolder();
-
-        // Bersihkan UI pemain
-        ClearPlayerListUI();
-
-        // Tampilkan kembali pilihan tiket
-        ShowTicketChoices();
-        resetSemesterButton.SetActive(false);
-
+        p.ticketNumber = 0;
+        // Anda bisa menambahkan reset data lain di sini jika perlu
+        // contoh: p.marketPredictions.Clear();
     }
+
+    rumorPhaseManager.InitializeRumorDeck();
+
+    currentCardIndex = 0;
+    currentTurnIndex = 0;
+    skipCount = 0;
+    ticketChosen = false;
+    takenCards.Clear();
+    // JANGAN hapus turnOrder (turnOrder.Clear();)
+    // JANGAN hapus UI pemain (ClearPlayerListUI();)
+
+    // Bersihkan kartu dari UI
+    ClearHiddenCards();
+    ClearAllCardsInHolder();
+
+    // Perbarui tampilan UI pemain dengan data yang sudah di-reset
+    UpdatePlayerUI();
+    // --- PERUBAHAN SELESAI ---
+
+    // Tampilkan kembali pilihan tiket
+    ShowTicketChoices();
+    resetSemesterButton.SetActive(false);
+}
 
 
     private void Start()
@@ -173,16 +176,25 @@ public class GameManager : MonoBehaviour
     }
 
     private void SetBotCount(int count)
+{
+    bots.Clear();
+    for (int i = 0; i < count; i++)
     {
-        bots.Clear();
-        for (int i = 0; i < count; i++)
-        {
-            bots.Add(new PlayerProfile("Bot " + (i + 1)));
-        }
-
-        ShowTicketChoices();
-
+        bots.Add(new PlayerProfile("Bot " + (i + 1)));
     }
+
+    // --- PERUBAHAN DIMULAI DI SINI ---
+    // Gabungkan pemain utama dan bot ke dalam turnOrder untuk pertama kalinya
+    turnOrder.Clear();
+    turnOrder.Add(player);
+    turnOrder.AddRange(bots);
+
+    // Langsung tampilkan UI pemain di sini
+    UpdatePlayerUI(); 
+    // --- PERUBAHAN SELESAI ---
+
+    ShowTicketChoices();
+}
     public int GetPlayerCount()
     {
         int totalPlayers = bots.Count + 1;
@@ -274,6 +286,8 @@ public class GameManager : MonoBehaviour
         ClearTicketButtons();
         yield return StartCoroutine(resolutionPhaseManager.RevealNextTokenForAllColors());
         yield return new WaitForSeconds(1.5f);
+        UITransitionAnimator.Instance.StartTransition("Action Phase");
+        yield return new WaitForSeconds(4f);
         ResetAll();
     }
 
@@ -314,18 +328,17 @@ public class GameManager : MonoBehaviour
 
 
     private void ResetAll()
-    {
+{
+    // --- PERUBAHAN DIMULAI DI SINI ---
+    // Urutkan kembali 'turnOrder' yang sudah ada berdasarkan nomor tiket baru
+    turnOrder.Sort((a, b) => a.ticketNumber.CompareTo(b.ticketNumber));
 
-        List<PlayerProfile> allPlayers = new List<PlayerProfile> { player };
-        allPlayers.AddRange(bots);
-        allPlayers.Sort((a, b) => a.ticketNumber.CompareTo(b.ticketNumber));
+    // Perbarui UI untuk menampilkan urutan giliran (nomor tiket) yang baru
+    UpdatePlayerUI(); 
+    // --- PERUBAHAN SELESAI ---
 
-        turnOrder = new List<PlayerProfile>(allPlayers);
-        UpdatePlayerUI(); // This single call is now enough to update all UI.
-
-        DrawCardsInOrder();
-    }
-
+    DrawCardsInOrder();
+}
 
 
     private void InitializeDeck()

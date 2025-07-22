@@ -122,6 +122,8 @@ public class HelpCardPhaseManager : MonoBehaviour
         }
 
         Debug.Log("--- Fase Kartu Bantuan Selesai ---");
+        UITransitionAnimator.Instance.StartTransition("Selling Phase");
+        yield return new WaitForSeconds(4f);
         sellingManager.StartSellingPhase(turnOrder, gameManager.resetCount, gameManager.maxResetCount, gameManager.resetSemesterButton);
 
 
