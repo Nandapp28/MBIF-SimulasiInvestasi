@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
+public enum IPOState { Normal, Ascend, Advanced }
 public class SellingPhaseManager : MonoBehaviour
 {
     [Header("Game References")]
