@@ -133,7 +133,7 @@ public class GameModeSelector : MonoBehaviour
 
     public void OnProfilePress()
     {
-        if (SfxManager.Instance != null)    
+        if (SfxManager.Instance != null)
         {
             SfxManager.Instance.PlayButtonClick();
         }
@@ -146,5 +146,21 @@ public class GameModeSelector : MonoBehaviour
     private void SaveCurrentScene()
     {
         previousSceneName = SceneManager.GetActiveScene().name;
+    }
+    
+    public void OnHelpButtonPress()
+    {
+        if (SfxManager.Instance != null)
+        {
+            SfxManager.Instance.PlayButtonClick();
+        }
+
+        // URL tujuan
+        string youtubeUrl = "https://youtu.be/WUOq-0oOYp0";
+
+        // Perintah untuk membuka URL di browser atau aplikasi YouTube
+        Application.OpenURL(youtubeUrl);
+
+        Debug.Log("Membuka link bantuan YouTube: " + youtubeUrl);
     }
 }

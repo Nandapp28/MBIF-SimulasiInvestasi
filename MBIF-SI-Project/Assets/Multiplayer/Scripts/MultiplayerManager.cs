@@ -32,8 +32,13 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     public GameObject leaderboardEntryPrefab;
     public Button exitGameButton;
 
+    [Header("Firebase Setup")]
     private DatabaseReference dbReference;
     private FirebaseAuth auth;
+
+    [Header("Semester Management")]
+    public const int MAX_SEMESTERS = 4;
+    public const string SEMESTER_KEY = "currentSemester";
 
     void Awake()
     {
@@ -46,7 +51,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
 
         // Ambil komponen TicketManager yang ada di GameObject yang sama
         ticketManager = FindObjectOfType<TicketManagerMultiplayer>();
-
+        
         auth = FirebaseAuth.DefaultInstance;
         dbReference = FirebaseDatabase.DefaultInstance.RootReference;
     }
@@ -84,6 +89,14 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         // langsung mulai fase bidding.
         if (PhotonNetwork.IsMasterClient)
         {
+            Hashtable initialProps = new Hashtable { { SEMESTER_KEY, 1 } };
+            PhotonNetwork.CurrentRoom.SetCustomProperties(initialProps);
+
+            if (ResolutionPhaseManagerMultiplayer.Instance != null)
+            {
+                ResolutionPhaseManagerMultiplayer.Instance.CreateInitialTokens();
+            }
+
             if (ticketManager != null)
             {
                 Debug.Log("MasterClient memulai fase bidding dari MultiplayerManager.Start()...");
@@ -92,6 +105,36 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             else
             {
                 Debug.LogError("Referensi TicketManager tidak ditemukan di MultiplayerManager!");
+            }
+        }
+    }
+
+    public void StartNewSemester()
+    {
+        if (PhotonNetwork.IsMasterClient)
+        {
+            int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties[SEMESTER_KEY];
+
+            if (currentSemester < MAX_SEMESTERS)
+            {
+                Debug.Log($"SEMESTER {currentSemester} SELESAI. Memulai semester berikutnya...");
+
+                // 1. Naikkan penghitung semester
+                Hashtable props = new Hashtable { { SEMESTER_KEY, currentSemester + 1 } };
+                PhotonNetwork.CurrentRoom.SetCustomProperties(props);
+
+                Debug.LogWarning(">>> [SEMESTER BARU] Harga pasar (IPO) TIDAK direset dan akan melanjutkan dari posisi terakhir.");
+                // 2. Mulai lagi dari Fase Bidding
+                if (ticketManager != null)
+                {
+                    ticketManager.InitializeBidding();
+                }
+            }
+            else
+            {
+                Debug.Log("SEMESTER FINAL SELESAI. Mengakhiri permainan...");
+                // Semester maksimum tercapai, panggil EndGame()
+                EndGame();
             }
         }
     }

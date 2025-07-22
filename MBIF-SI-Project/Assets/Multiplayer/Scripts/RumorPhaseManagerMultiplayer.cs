@@ -32,6 +32,18 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public GameObject rumorCardVisual; // Prefab atau objek kartu rumor yang akan ditampilkan
     private List<int> shuffledRumorDeckIndices; // Indeks dek rumor untuk ronde ini
 
+    [Header("Posisi Spesial")]
+    public Transform predictionCardStage;
+
+    [Header("Kartu Rumor per Sektor")]
+    public GameObject cardRed;
+    public GameObject cardBlue;
+    public GameObject cardGreen;
+    public GameObject cardOrange;
+
+    [Header("Visual Kartu Rumor")]
+    public List<CardVisual> allCardVisuals = new List<CardVisual>();
+
     void Awake()
     {
         if (Instance != null) Destroy(gameObject);
@@ -301,9 +313,47 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 break;
         }
     }
-    
+
     public List<int> GetShuffledDeck()
     {
         return shuffledRumorDeckIndices;
+    }
+
+    public GameObject GetCardObjectByColor(string colorName)
+    {
+        switch (colorName)
+        {
+            case "Konsumer": return cardRed;
+            case "Infrastruktur": return cardBlue;
+            case "Keuangan": return cardGreen;
+            case "Tambang": return cardOrange;
+            default: return null;
+        }
+    }
+
+    public Texture GetCardTextureByName(string cardName)
+    {
+        return allCardVisuals.FirstOrDefault(v => v.cardName == cardName)?.texture;
+    }
+
+    // Ubah FlipCard menjadi publik dan tambahkan parameter durasi
+    public IEnumerator FlipCard(GameObject cardObject, float duration)
+    {
+        cardObject.SetActive(true);
+        cardObject.transform.rotation = Quaternion.Euler(0, -180, 180); // Mulai dari terbalik
+
+        float elapsed = 0f;
+        Quaternion startRot = cardObject.transform.rotation;
+        Quaternion endRot = Quaternion.Euler(0, -180, 0); // Menghadap depan
+
+        yield return new WaitForSeconds(0.5f); 
+
+        while (elapsed < duration)
+        {
+            cardObject.transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed / duration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        cardObject.transform.rotation = endRot;
     }
 }
