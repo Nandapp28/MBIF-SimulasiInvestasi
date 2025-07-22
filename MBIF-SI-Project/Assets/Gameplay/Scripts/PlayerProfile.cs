@@ -1,8 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-
-
 [System.Serializable]
 public class PlayerProfile
 {
@@ -12,12 +10,17 @@ public class PlayerProfile
     public int lastRoll;
     public int cardCount => cards.Count;
     public List<Card> cards = new List<Card>();
-    public bool isBot; 
+    public bool isBot;
+    public List<HelpCard> helpCards = new List<HelpCard>();
+    public Dictionary<string, MarketPredictionType> marketPredictions = new Dictionary<string, MarketPredictionType>();
+
+
 
     public PlayerProfile(string name)
     {
         playerName = name;
         finpoint = 100;
+        ticketNumber = 0;
 
     }
 
@@ -25,10 +28,10 @@ public class PlayerProfile
 {
     Dictionary<string, int> colorCounts = new Dictionary<string, int>
     {
-        { "Red", 0 },
-        { "Blue", 0 },
-        { "Green", 0 },
-        { "Orange", 0 }
+        { "Konsumer", 0 },
+        { "Infrastruktur", 0 },
+        { "Keuangan", 0 },
+        { "Tambang", 0 }
     };
 
     foreach (var card in cards)

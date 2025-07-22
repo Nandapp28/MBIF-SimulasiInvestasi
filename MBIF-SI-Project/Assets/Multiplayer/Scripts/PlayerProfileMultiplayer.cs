@@ -1,0 +1,181 @@
+// File: PlayerProfileMultiplayer.cs
+
+using UnityEngine;
+using UnityEngine.UI;
+using Photon.Pun;
+using Photon.Realtime; // Diperlukan untuk mengakses Player dan callback
+using ExitGames.Client.Photon; // Diperlukan untuk Hashtable
+
+// Ganti warisan ke MonoBehaviourPunCallbacks untuk bisa menerima update properti
+public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
+{
+    [Header("UI References (Legacy Text)")]
+    public Text nameText;
+    public Text turnOrderText;  // Teks untuk urutan giliran, misal: ScoreText
+    public Text finpointText;   // Teks untuk Finpoint
+    public Text redCardText;    // Teks untuk jumlah kartu merah
+    public Text orangeCardText; // Teks untuk jumlah kartu oranye
+    public Text blueCardText;   // Teks untuk jumlah kartu biru
+    public Text greenCardText;  // Teks untuk jumlah kartu hijau
+
+    // Definisikan 'kunci' untuk Custom Properties agar tidak salah ketik
+    public const string FINPOINT_KEY = "finpoint";
+    public const string TURN_ORDER_KEY = "turn";
+    public const string KONSUMER_CARDS_KEY = "konsumer_cards";
+    public const string INFRASTRUKTUR_CARDS_KEY = "infrastruktur_cards";
+    public const string KEUANGAN_CARDS_KEY = "keuangan_cards";
+    public const string TAMBANG_CARDS_KEY = "tambang_cards";
+
+    private MultiplayerManager multiplayerManager;
+    void Awake()
+    {
+        multiplayerManager = MultiplayerManager.Instance;
+    }
+
+    void Start()
+    {
+        if (photonView.IsMine)
+        {
+            Hashtable initialProps = new Hashtable
+            {
+                { FINPOINT_KEY, 100 },
+                { TURN_ORDER_KEY, 0 },
+                { KONSUMER_CARDS_KEY, 0 },
+                { INFRASTRUKTUR_CARDS_KEY, 0 },
+                { KEUANGAN_CARDS_KEY, 0 },
+                { TAMBANG_CARDS_KEY, 0 }
+            };
+            PhotonNetwork.LocalPlayer.SetCustomProperties(initialProps);
+        }
+    }
+
+    #region Photon Callbacks
+
+    // Fungsi ini otomatis dipanggil saat pertama kali terhubung dan setiap kali ada update
+    public override void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps)
+    {
+        if (targetPlayer != null && targetPlayer == photonView.Owner)
+        {
+            UpdateAllUI(targetPlayer);
+
+            // LOGIKA BARU: Jika mendapat properti posisi, tampilkan diri dan pindah.
+            if (changedProps.ContainsKey(MultiplayerManager.POSITION_KEY))
+            {
+                // Tampilkan kembali prefabnya
+                gameObject.SetActive(true);
+                UpdatePosition(targetPlayer);
+            }
+        }
+    }
+
+    #endregion
+
+    #region UI Update
+
+    // Saat Start, langsung coba update UI dengan data yang ada
+    public override void OnEnable()
+    {
+        base.OnEnable();
+        UpdateAllUI(photonView.Owner);
+        UpdatePosition(photonView.Owner);
+    }
+
+    // Fungsi baru untuk memindahkan prefab
+    private void UpdatePosition(Player player)
+    {
+        if (player.CustomProperties.ContainsKey(MultiplayerManager.POSITION_KEY))
+        {
+            int positionIndex = (int)player.CustomProperties[MultiplayerManager.POSITION_KEY];
+
+            if (MultiplayerManager.Instance != null && positionIndex < MultiplayerManager.Instance.playerPositions.Count)
+            {
+                // Jadikan anak dari kontainer dan pindah ke posisi slot
+                transform.SetParent(MultiplayerManager.Instance.playerContainer, false);
+                transform.position = MultiplayerManager.Instance.playerPositions[positionIndex].position;
+                transform.localScale = Vector3.one; // Pastikan skala benar
+            }
+        }
+    }
+
+    // Fungsi untuk memperbarui semua teks di UI
+    private void UpdateAllUI(Player player)
+    {
+        if (player == null) return;
+
+        // Update Nama
+        if (nameText != null) nameText.text = player.NickName;
+
+        // Update Finpoint
+        if (finpointText != null)
+        {
+            object finpointValue;
+            if (player.CustomProperties.TryGetValue(FINPOINT_KEY, out finpointValue))
+                finpointText.text = finpointValue.ToString();
+            else
+                finpointText.text = "100"; // Nilai default
+        }
+
+        // Update Urutan Giliran
+        if (turnOrderText != null)
+        {
+            object turnOrderValue;
+            if (player.CustomProperties.TryGetValue(TURN_ORDER_KEY, out turnOrderValue))
+                turnOrderText.text = "Turn " + turnOrderValue.ToString();
+            else
+                turnOrderText.text = "Turn 0"; // Nilai default
+        }
+
+        // --- BAGIAN YANG DIPERBAIKI ---
+        // Update Jumlah Kartu berdasarkan Warna
+        object cardCount;
+
+        // Konsumer (Merah)
+        if (redCardText != null)
+        {
+            if (player.CustomProperties.TryGetValue(KONSUMER_CARDS_KEY, out cardCount))
+                redCardText.text = cardCount.ToString();
+            else
+                redCardText.text = "0";
+        }
+
+        // Infrastruktur (Oranye)
+        if (orangeCardText != null)
+        {
+            if (player.CustomProperties.TryGetValue(INFRASTRUKTUR_CARDS_KEY, out cardCount))
+                orangeCardText.text = cardCount.ToString();
+            else
+                orangeCardText.text = "0";
+        }
+
+        // Keuangan (Biru)
+        if (blueCardText != null)
+        {
+            if (player.CustomProperties.TryGetValue(KEUANGAN_CARDS_KEY, out cardCount))
+                blueCardText.text = cardCount.ToString();
+            else
+                blueCardText.text = "0";
+        }
+
+        // Tambang (Hijau)
+        if (greenCardText != null)
+        {
+            if (player.CustomProperties.TryGetValue(TAMBANG_CARDS_KEY, out cardCount))
+                greenCardText.text = cardCount.ToString();
+            else
+                greenCardText.text = "0";
+        }
+    }
+    
+    public static string GetCardKeyFromColor(string color)
+    {
+        switch(color)
+        {
+            case "Konsumer": return KONSUMER_CARDS_KEY;
+            case "Infrastruktur": return INFRASTRUKTUR_CARDS_KEY;
+            case "Keuangan": return KEUANGAN_CARDS_KEY;
+            case "Tambang": return TAMBANG_CARDS_KEY;
+            default: return "";
+        }
+    }
+    #endregion
+}
