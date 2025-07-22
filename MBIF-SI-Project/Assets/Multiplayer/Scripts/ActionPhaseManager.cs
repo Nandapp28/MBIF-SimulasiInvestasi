@@ -668,8 +668,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     public void OnActivateButtonClicked()
     {
-        photonView.RPC("RequestActivateCard", RpcTarget.MasterClient, selectedCardId, PhotonNetwork.LocalPlayer);
-        HideAndResetSelection();
+        if (selectedCardId != -1) // Tambahkan pemeriksaan sederhana
+        {
+            photonView.RPC("RequestActivateCard", RpcTarget.MasterClient, selectedCardId, PhotonNetwork.LocalPlayer);
+        }
     }
 
     private void HideAndResetSelection()
@@ -722,6 +724,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     [PunRPC]
     private void RequestActivateCard(int cardId, Player requestingPlayer)
     {
+        Debug.Log($"[MC-CHECK] Request from: '{requestingPlayer.NickName}' ({requestingPlayer.ActorNumber}). Current Turn is for Actor: {this.currentPlayerActorNumber}. IsInFlashbuyMode: {this.isInFlashbuyMode}");
         // Periksa apakah MasterClient dan apakah ini giliran pemain yang benar.
         if (!PhotonNetwork.IsMasterClient || requestingPlayer.ActorNumber != this.currentPlayerActorNumber || isInFlashbuyMode) return;
 
