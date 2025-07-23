@@ -75,6 +75,8 @@ public class HistoryManager : MonoBehaviour
             matchIds.Add(child.Key);
         }
 
+        matchIds.Reverse(); // history yang paling baru akan selalu berada di list paling atas
+
         foreach (string matchId in matchIds)
         {
             await FetchAndDisplayHistoryEntry(matchId);
