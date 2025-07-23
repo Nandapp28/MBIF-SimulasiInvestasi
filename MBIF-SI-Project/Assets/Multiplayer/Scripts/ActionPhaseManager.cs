@@ -517,7 +517,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (playerPropsToUpdate.Count > 0) {
             activator.SetCustomProperties(playerPropsToUpdate);
         }
-        
+        this.isInFlashbuyMode = false;
+        this.flashbuyActivatorActorNumber = -1;
         // Setelah selesai memproses pilihan Flashbuy, paksa giliran berikutnya
         AdvanceToNextTurn();
     }
