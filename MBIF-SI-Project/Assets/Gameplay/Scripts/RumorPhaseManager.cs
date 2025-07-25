@@ -335,7 +335,7 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
         Vector3 originalPosition = objectToMove.transform.position;
 
         // [DIUBAH] Hitung posisi target dengan menambah 10 dari posisi awal
-        Vector3 targetPosition = originalPosition + new Vector3(-1.96f, 2.72f, 0);
+        Vector3 targetPosition = originalPosition + new Vector3(-1.96f, 2.72f, 0f);
 
         float moveDuration = 1f;
         float elapsedTime = 0f;

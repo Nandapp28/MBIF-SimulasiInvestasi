@@ -12,14 +12,14 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     [Header("UI References (Legacy Text)")]
     public Text nameText;
     public Text turnOrderText;  // Teks untuk urutan giliran, misal: ScoreText
-    public Text finpointText;   // Teks untuk Finpoint
+    public Text investpointText;   // Teks untuk Investpoint
     public Text redCardText;    // Teks untuk jumlah kartu merah
     public Text orangeCardText; // Teks untuk jumlah kartu oranye
     public Text blueCardText;   // Teks untuk jumlah kartu biru
     public Text greenCardText;  // Teks untuk jumlah kartu hijau
 
     // Definisikan 'kunci' untuk Custom Properties agar tidak salah ketik
-    public const string FINPOINT_KEY = "finpoint";
+    public const string INVESTPOINT_KEY = "investpoint";
     public const string TURN_ORDER_KEY = "turn";
     public const string KONSUMER_CARDS_KEY = "konsumer_cards";
     public const string INFRASTRUKTUR_CARDS_KEY = "infrastruktur_cards";
@@ -38,7 +38,7 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
         {
             Hashtable initialProps = new Hashtable
             {
-                { FINPOINT_KEY, 100 },
+                { INVESTPOINT_KEY, 100 },
                 { TURN_ORDER_KEY, 0 },
                 { KONSUMER_CARDS_KEY, 0 },
                 { INFRASTRUKTUR_CARDS_KEY, 0 },
@@ -105,14 +105,14 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
         // Update Nama
         if (nameText != null) nameText.text = player.NickName;
 
-        // Update Finpoint
-        if (finpointText != null)
+        // Update Investpoint
+        if (investpointText != null)
         {
-            object finpointValue;
-            if (player.CustomProperties.TryGetValue(FINPOINT_KEY, out finpointValue))
-                finpointText.text = finpointValue.ToString();
+            object investpointValue;
+            if (player.CustomProperties.TryGetValue(INVESTPOINT_KEY, out investpointValue))
+                investpointText.text = investpointValue.ToString();
             else
-                finpointText.text = "100"; // Nilai default
+                investpointText.text = "100"; // Nilai default
         }
 
         // Update Urutan Giliran
