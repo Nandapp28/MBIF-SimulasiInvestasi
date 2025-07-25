@@ -221,9 +221,9 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             Destroy(child.gameObject);
         }
 
-        // Ambil daftar pemain dan urutkan berdasarkan finpoint
+        // Ambil daftar pemain dan urutkan berdasarkan investpoint
         List<Player> rankedPlayers = PhotonNetwork.PlayerList.OrderByDescending(p =>
-            (int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY]
+            (int)p.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY]
         ).ToList();
 
         // Hanya MasterClient yang menjalankan logika penyimpanan dan pembagian poin
@@ -246,7 +246,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             if (texts.Length >= 2)
             {
                 texts[0].text = $"{i + 1}. {p.NickName}";
-                texts[1].text = $"{(int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY]} FP";
+                texts[1].text = $"{(int)p.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY]} IP"; // IP singkatan dari InvestPoin
             }
         }
     }
@@ -274,7 +274,8 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
                 { "rank", i + 1 },
                 { "userName", p.NickName },
                 { "playerId", playerId },
-                { "invesPoin", (int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY] } 
+                // --- PERBAIKAN TYPO ---
+                { "investPoin", (int)p.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY] } 
             };
             playersData.Add(playerData);
 
@@ -323,47 +324,47 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        Debug.Log("MasterClient mengirimkan perintah RPC untuk pembagian finPoin...");
+        Debug.Log("MasterClient mengirimkan perintah RPC untuk pembagian FinPoin...");
 
         for (int i = 0; i < rankedPlayers.Count; i++)
         {
-            Player targetPlayer = rankedPlayers[i]; // Pemain tujuan RPC
+            Player targetPlayer = rankedPlayers[i];
             int rank = i + 1;
 
-            int pointsToAward = 0;
-            if (rank == 1) pointsToAward = 50;
-            else if (rank == 2) pointsToAward = 45;
-            else if (rank == 3) pointsToAward = 40;
-            else if (rank == 4) pointsToAward = 35;
-            else if (rank == 5) pointsToAward = 30;
+            int finPoinToAward = 0;
+            if (rank == 1) finPoinToAward = 50;
+            else if (rank == 2) finPoinToAward = 45;
+            else if (rank == 3) finPoinToAward = 40;
+            else if (rank == 4) finPoinToAward = 35;
+            else if (rank == 5) finPoinToAward = 30;
 
-            if (pointsToAward > 0)
+            if (finPoinToAward > 0)
             {
-                // Kirim RPC ke pemain spesifik (targetPlayer) dengan poin yang harus ditambahkan
-                photonView.RPC("Rpc_UpdateFinPoin", targetPlayer, pointsToAward);
+                // Kirim RPC dengan nilai FinPoin yang akan ditambahkan
+                photonView.RPC("Rpc_UpdateFinPoin", targetPlayer, finPoinToAward);
             }
         }
     }
 
     [PunRPC]
-    private void Rpc_UpdateFinPoin(int pointsToAdd)
+    private void Rpc_UpdateFinPoin(int finPoinToAdd) // Ganti nama parameter juga
     {
         string playerAuthId = auth.CurrentUser.UserId;
         DatabaseReference finPoinRef = dbReference.Child("users").Child(playerAuthId).Child("finPoin");
 
-        // Setiap klien menjalankan transaksi untuk dirinya sendiri, sehingga izinnya valid.
-        finPoinRef.RunTransaction(mutableData => {
+        finPoinRef.RunTransaction(mutableData =>
+        {
             long currentPoin = 0;
             if (mutableData.Value != null)
             {
                 long.TryParse(mutableData.Value.ToString(), out currentPoin);
             }
-            
-            mutableData.Value = currentPoin + pointsToAdd;
+
+            mutableData.Value = currentPoin + finPoinToAdd; // Gunakan parameter baru
             return TransactionResult.Success(mutableData);
         });
 
-        Debug.Log($"RPC diterima: Menambahkan {pointsToAdd} finPoin ke user {playerAuthId}");
+        Debug.Log($"RPC diterima: Menambahkan {finPoinToAdd} FinPoin ke user {playerAuthId}");
     }
 
     public void OnExitGameButtonClicked()

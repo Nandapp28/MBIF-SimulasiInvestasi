@@ -300,8 +300,8 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             if (totalDividendEarnings > 0)
             {
                 Hashtable propsToSet = new Hashtable();
-                int currentFinpoint = (int)player.CustomProperties["finpoint"]; // Pastikan key "finpoint" benar
-                propsToSet["finpoint"] = currentFinpoint + totalDividendEarnings;
+                int currentInvestpoint = (int)player.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+                propsToSet[PlayerProfileMultiplayer.INVESTPOINT_KEY] = currentInvestpoint + totalDividendEarnings;
                 player.SetCustomProperties(propsToSet);
                 Debug.Log($"[Dividen] {player.NickName} mendapatkan total {totalDividendEarnings} FP.");
             }

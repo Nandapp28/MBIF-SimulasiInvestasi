@@ -252,11 +252,11 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 }
             }
             
-            int currentFinpoint = playerProps.ContainsKey(PlayerProfileMultiplayer.FINPOINT_KEY) ? (int)playerProps[PlayerProfileMultiplayer.FINPOINT_KEY] : 0;
-            propsToSet[PlayerProfileMultiplayer.FINPOINT_KEY] = currentFinpoint + totalEarnings;
+            int currentInvestpoint = playerProps.ContainsKey(PlayerProfileMultiplayer.INVESTPOINT_KEY) ? (int)playerProps[PlayerProfileMultiplayer.INVESTPOINT_KEY] : 0;
+            propsToSet[PlayerProfileMultiplayer.INVESTPOINT_KEY] = currentInvestpoint + totalEarnings;
             
             player.SetCustomProperties(propsToSet);
-            Debug.Log($"[Penjualan] {player.NickName} mendapatkan {totalEarnings} FP.");
+            Debug.Log($"[Penjualan] {player.NickName} mendapatkan {totalEarnings} InvestPoint.");
         }
 
         // PANGGIL FASE BERIKUTNYA SETELAH SEMUA PEMAIN DIPROSES
@@ -295,8 +295,8 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             
             if (finalEarnings > 0)
             {
-                int currentFinpoint = (int)playerProps[PlayerProfileMultiplayer.FINPOINT_KEY];
-                propsToSet[PlayerProfileMultiplayer.FINPOINT_KEY] = currentFinpoint + finalEarnings;
+                int currentInvestpoint = (int)playerProps[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+                propsToSet[PlayerProfileMultiplayer.INVESTPOINT_KEY] = currentInvestpoint + finalEarnings;
             }
             
             if (propsToSet.Count > 0) player.SetCustomProperties(propsToSet);

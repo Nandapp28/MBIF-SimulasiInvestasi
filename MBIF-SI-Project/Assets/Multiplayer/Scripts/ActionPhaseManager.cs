@@ -310,27 +310,27 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         int fullPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardColor);
         int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f);
 
-        // 2. Ambil data Finpoint dan kartu saat ini dari kedua pemain
-        int activatorFP = (int)activator.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY];
-        int targetFP = (int)target.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY];
+        // 2. Ambil data Investpoint dan kartu saat ini dari kedua pemain
+        int activatorInvestPoin = (int)activator.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+        int targetInvestPoin = (int)target.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
 
         string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardColor);
         int activatorCardCount = activator.CustomProperties.ContainsKey(cardKey) ? (int)activator.CustomProperties[cardKey] : 0;
         int targetCardCount = target.CustomProperties.ContainsKey(cardKey) ? (int)target.CustomProperties[cardKey] : 0;
 
         // 3. Validasi sekali lagi jika pengaktif mampu membayar
-        if (activatorFP >= purchasePrice)
+        if (activatorInvestPoin >= purchasePrice)
         {
             // 4. Siapkan properti baru untuk kedua pemain
             Hashtable activatorProps = new Hashtable
             {
-                { PlayerProfileMultiplayer.FINPOINT_KEY, activatorFP - purchasePrice },
+                { PlayerProfileMultiplayer.INVESTPOINT_KEY, activatorInvestPoin - purchasePrice },
                 { cardKey, activatorCardCount + 1 }
             };
 
             Hashtable targetProps = new Hashtable
             {
-                { PlayerProfileMultiplayer.FINPOINT_KEY, targetFP + purchasePrice },
+                { PlayerProfileMultiplayer.INVESTPOINT_KEY, targetInvestPoin + purchasePrice },
                 { cardKey, targetCardCount - 1 }
             };
 
@@ -338,11 +338,11 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             activator.SetCustomProperties(activatorProps);
             target.SetCustomProperties(targetProps);
 
-            Debug.Log($"[Tender Offer] Transaksi berhasil. {activator.NickName} membayar {purchasePrice} FP ke {target.NickName}.");
+            Debug.Log($"[Tender Offer] Transaksi berhasil. {activator.NickName} membayar {purchasePrice} InvestPoin ke {target.NickName}.");
         }
         else
         {
-            Debug.LogWarning($"[Tender Offer] Transaksi dibatalkan oleh server, Finpoint {activator.NickName} tidak cukup.");
+            Debug.LogWarning($"[Tender Offer] Transaksi dibatalkan oleh server, Investpoint {activator.NickName} tidak cukup.");
         }
         AdvanceToNextTurn();
     }
@@ -417,18 +417,19 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         // Ambil data pemain saat ini
         string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(color);
         int currentCards = (int)activator.CustomProperties[cardKey];
-        int currentFP = (int)activator.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY];
+        // --- PERBAIKAN NAMA VARIABEL ---
+        int currentInvestpoint = (int)activator.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
 
-        // Siapkan properti baru
-        Hashtable propsToSet = new Hashtable
-    {
-        { cardKey, currentCards - quantity },
-        { PlayerProfileMultiplayer.FINPOINT_KEY, currentFP + totalEarnings }
-    };
+            // Siapkan properti baru
+            Hashtable propsToSet = new Hashtable
+        {
+            { cardKey, currentCards - quantity },
+            { PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint + totalEarnings }
+        };
 
         // Kirim pembaruan
         activator.SetCustomProperties(propsToSet);
-        Debug.Log($"[Trade Fee] Transaksi berhasil. {activator.NickName} mendapatkan {totalEarnings} FP.");
+        Debug.Log($"[Trade Fee] Transaksi berhasil. {activator.NickName} mendapatkan {totalEarnings} InvestPoin.");
         AdvanceToNextTurn();
     }
 
@@ -466,60 +467,69 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (!PhotonNetwork.IsMasterClient) return;
         Player activator = info.Sender;
 
-        // VALIDASI MASTERCLIENT SANGAT PENTING DI SINI
-        if (activator.ActorNumber != flashbuyActivatorActorNumber)
+        // ... (Validasi tetap sama) ...
+        if (activator.ActorNumber != flashbuyActivatorActorNumber || chosenCardIds.Length > 2)
         {
-            Debug.LogError($"[Flashbuy Bug] Pemain yang bukan pengaktif ({activator.NickName}) mencoba mengirim pilihan Flashbuy!");
+            Debug.LogError($"[Flashbuy Bug] Validasi gagal untuk {activator.NickName}.");
             return;
         }
-        if (chosenCardIds.Length > 2)
-        {
-            Debug.LogError($"[Flashbuy Bug] {activator.NickName} mencoba memilih lebih dari 2 kartu Flashbuy!");
-            return;
-        }
-        
-        Debug.Log($"[Flashbuy] MasterClient memproses pilihan {chosenCardIds.Length} kartu dari {activator.NickName}.");
 
-        Hashtable playerPropsToUpdate = new Hashtable();
-        // Salin properti yang sudah ada dari pemain ke Hashtable baru
-        foreach (DictionaryEntry entry in activator.CustomProperties)
-        {
-            playerPropsToUpdate.Add(entry.Key, entry.Value);
-        }
-
+        // Hitung total biaya DULU
+        int totalCost = 0;
         foreach (int cardId in chosenCardIds)
         {
-            // Ambil data kartu dari state meja MasterClient
-            CardMultiplayer cardData = GetCardFromTable(cardId); 
-            
-            // Pastikan kartu itu masih ada di meja dan belum diambil oleh efek lain secara bersamaan
+            CardMultiplayer cardData = GetCardFromTable(cardId);
             if (cardData != null)
             {
-                Debug.Log($"[Flashbuy] Memberikan kartu {cardData.cardName} ke {activator.NickName}.");
-
-                // Tambahkan kartu ke inventaris pemain (tanpa biaya)
-                string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardData.color.ToString());
-                if (!string.IsNullOrEmpty(cardKey))
-                {
-                    int currentCards = playerPropsToUpdate.ContainsKey(cardKey) ? (int)playerPropsToUpdate[cardKey] : 0;
-                    playerPropsToUpdate[cardKey] = currentCards + 1;
-                }
-
-                // Hapus kartu dari meja di semua klien
-                photonView.RPC("Rpc_RemoveCardFromTable", RpcTarget.All, cardId);
-                cardsTaken++; // Update jumlah kartu yang telah diambil
-            } else {
-                Debug.LogWarning($"[Flashbuy] Kartu dengan ID {cardId} tidak ditemukan di meja MasterClient. Mungkin sudah diambil/dihapus.");
+                int fullPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardData.color.ToString());
+                totalCost += cardData.baseValue + fullPrice;
             }
         }
 
-        // Hanya update properti pemain sekali setelah semua kartu diproses
-        if (playerPropsToUpdate.Count > 0) {
+        int currentInvestpoint = (int)activator.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+
+        // Cek apakah pemain mampu membayar
+        if (currentInvestpoint >= totalCost)
+        {
+            Debug.Log($"[Flashbuy] MasterClient memproses pilihan {chosenCardIds.Length} kartu dari {activator.NickName} seharga {totalCost} InvestPoin.");
+
+            // GUNAKAN Hashtable yang sudah ada. JANGAN BUAT YANG BARU.
+            Hashtable playerPropsToUpdate = new Hashtable();
+            foreach (DictionaryEntry entry in activator.CustomProperties)
+            {
+                playerPropsToUpdate.Add(entry.Key, entry.Value);
+            }
+
+            // Langsung kurangi InvestPoin di sini
+            playerPropsToUpdate[PlayerProfileMultiplayer.INVESTPOINT_KEY] = currentInvestpoint - totalCost;
+
+            foreach (int cardId in chosenCardIds)
+            {
+                CardMultiplayer cardData = GetCardFromTable(cardId);
+                if (cardData != null)
+                {
+                    string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardData.color.ToString());
+                    if (!string.IsNullOrEmpty(cardKey))
+                    {
+                        int currentCards = playerPropsToUpdate.ContainsKey(cardKey) ? (int)playerPropsToUpdate[cardKey] : 0;
+                        playerPropsToUpdate[cardKey] = currentCards + 1;
+                    }
+                    photonView.RPC("Rpc_RemoveCardFromTable", RpcTarget.All, cardId);
+                    cardsTaken++;
+                }
+            }
+            
+            // Update properti pemain SATU KALI dengan semua perubahan
             activator.SetCustomProperties(playerPropsToUpdate);
         }
+        else
+        {
+            Debug.LogWarning($"[Flashbuy] {activator.NickName} tidak mampu membayar {totalCost} InvestPoin. Pembelian dibatalkan.");
+        }
+
+        // Reset state dan lanjutkan giliran (ini sudah benar)
         this.isInFlashbuyMode = false;
         this.flashbuyActivatorActorNumber = -1;
-        // Setelah selesai memproses pilihan Flashbuy, paksa giliran berikutnya
         AdvanceToNextTurn();
     }
 
@@ -696,13 +706,20 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         CardMultiplayer cardData = GetCardFromTable(cardId);
         if (cardData == null) return;
 
-        int currentFinpoint = (int)requestingPlayer.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY];
+        // --- PERUBAHAN LOGIKA BIAYA ---
+        int fullPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardData.color.ToString());
+        int totalCost = cardData.baseValue + fullPrice;
+        int currentInvestpoint = (int)requestingPlayer.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
 
-        if (currentFinpoint >= cardData.value)
+        if (currentInvestpoint >= totalCost)
         {
             Hashtable propsToSet = new Hashtable();
-            propsToSet.Add(PlayerProfileMultiplayer.FINPOINT_KEY, currentFinpoint - cardData.value);
-            string cardColorKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardData.color.ToString()); if (!string.IsNullOrEmpty(cardColorKey))
+            // Kurangi INVESTPOINT, bukan FINPOINT
+            propsToSet.Add(PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint - totalCost);
+        // --- AKHIR PERUBAHAN ---
+
+            string cardColorKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardData.color.ToString());
+            if (!string.IsNullOrEmpty(cardColorKey))
             {
                 int currentCardCount = 0;
                 if (requestingPlayer.CustomProperties.ContainsKey(cardColorKey))
@@ -711,14 +728,13 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             }
             requestingPlayer.SetCustomProperties(propsToSet);
 
-            cardsTaken++; // Tandai satu kartu telah diambil
-
+            cardsTaken++;
             photonView.RPC("Rpc_RemoveCardFromTable", RpcTarget.All, cardId);
             AdvanceToNextTurn();
         }
         else
         {
-            Debug.LogWarning($"[SAVE GAGAL] {requestingPlayer.NickName} tidak punya cukup Finpoint.");
+            Debug.LogWarning($"[SAVE GAGAL] {requestingPlayer.NickName} tidak punya cukup InvestPoin (butuh {totalCost}).");
         }
     }
 
@@ -737,31 +753,25 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             return;
         }
         
-        int currentFinpoint = (int)requestingPlayer.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY];
+        // --- PERUBAHAN LOGIKA BIAYA ---
+        int fullPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardData.color.ToString());
+        int totalCost = cardData.baseValue + fullPrice;
+        int currentInvestpoint = (int)requestingPlayer.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
 
-        if (currentFinpoint >= cardData.value)
+        if (currentInvestpoint >= totalCost)
         {
-            // Kurangi finpoint pemain
-            Hashtable props = new Hashtable { { PlayerProfileMultiplayer.FINPOINT_KEY, currentFinpoint - cardData.value } };
+            // Kurangi INVESTPOINT, bukan FINPOINT
+            Hashtable props = new Hashtable { { PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint - totalCost } };
             requestingPlayer.SetCustomProperties(props);
+        // --- AKHIR PERUBAHAN ---
             
-            // Tandai kartu sudah diambil dan hapus dari meja
             cardsTaken++;
             photonView.RPC("Rpc_RemoveCardFromTable", RpcTarget.All, cardId);
-        
-            // PENTING: Panggil coroutine efek kartu.
-            // Sekarang, setiap efek bertanggung jawab untuk melanjutkan giliran.
-            // - InsiderTrade akan lanjut setelah RPC konfirmasi.
-            // - StockSplit akan lanjut dari dalam efeknya sendiri.
-            // - TenderOffer/TradeFee/Flashbuy akan lanjut setelah input dari pemain.
             StartCoroutine(CardEffectManagerMultiplayer.ApplyEffect(cardData.cardName, requestingPlayer, cardData.color));
         }
         else
         {
-            Debug.LogWarning($"[ACTIVATE GAGAL] {requestingPlayer.NickName} tidak punya cukup Finpoint.");
-            // Jika gagal karena tidak cukup uang, kita perlu beritahu klien untuk reset UI
-            // dan tidak melanjutkan giliran agar pemain bisa memilih aksi lain.
-            // Untuk kesederhanaan saat ini, kita biarkan pemain 'kehilangan' gilirannya jika mencoba cheat.
+            Debug.LogWarning($"[ACTIVATE GAGAL] {requestingPlayer.NickName} tidak punya cukup InvestPoin (butuh {totalCost}).");
             AdvanceToNextTurn();
         }
     }
