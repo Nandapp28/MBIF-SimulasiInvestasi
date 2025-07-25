@@ -49,7 +49,8 @@ public class SellingPhaseManager : MonoBehaviour
         public IPOState currentState = IPOState.Normal;
         public int salesBonus = 0;
         [Header("Visual Indicators")]
-        public GameObject statusVisualObject;
+public GameObject ascendVisualIndicator; // Visual untuk state Ascend
+public GameObject advancedVisualIndicator; // Visual untuk state Advanced
 
         public int ipoIndex
         {
@@ -537,17 +538,34 @@ public class SellingPhaseManager : MonoBehaviour
     }
 
     public void UpdateVisualsForState(IPOData data)
+{
+    // Pastikan kedua visual indicator telah di-assign di Inspector
+    if (data.ascendVisualIndicator == null || data.advancedVisualIndicator == null)
     {
-        // Cek apakah GameObject sudah di-assign di Inspector untuk menghindari error
-        if (data.statusVisualObject == null)
-        {
-            return; // Keluar dari method jika tidak ada visual yang perlu diupdate
-        }
-
-        bool shouldBeActive = data.currentState == IPOState.Ascend || data.currentState == IPOState.Advanced;
-
-        // Atur status aktif/nonaktif GameObject berdasarkan kondisi di atas.
-        data.statusVisualObject.SetActive(shouldBeActive);
+        // Anda bisa menambahkan Debug.LogWarning di sini jika mau
+        return; 
     }
+
+    // Atur visibilitas berdasarkan state saat ini
+    switch (data.currentState)
+    {
+        case IPOState.Ascend:
+            data.ascendVisualIndicator.SetActive(true);
+            data.advancedVisualIndicator.SetActive(false);
+            break;
+
+        case IPOState.Advanced:
+            data.ascendVisualIndicator.SetActive(false);
+            data.advancedVisualIndicator.SetActive(true);
+            break;
+
+        // Untuk state Normal atau state lainnya, nonaktifkan keduanya
+        case IPOState.Normal:
+        default:
+            data.ascendVisualIndicator.SetActive(false);
+            data.advancedVisualIndicator.SetActive(false);
+            break;
+    }
+}
 
 }
