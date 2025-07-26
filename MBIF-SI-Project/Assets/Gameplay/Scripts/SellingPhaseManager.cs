@@ -16,6 +16,8 @@ public class SellingPhaseManager : MonoBehaviour
     public Button confirmSellButton;
     public Transform colorSellPanelContainer;
     public GameObject colorSellRowPrefab;
+    [Header("System References")] // <-- TAMBAHKAN HEADER BARU
+    public CameraController cameraController;
 
     [Header("IPO Settings")]
     public List<IPOData> ipoDataList = new List<IPOData>();
@@ -538,34 +540,107 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
     }
 
     public void UpdateVisualsForState(IPOData data)
-{
-    // Pastikan kedua visual indicator telah di-assign di Inspector
-    if (data.ascendVisualIndicator == null || data.advancedVisualIndicator == null)
     {
-        // Anda bisa menambahkan Debug.LogWarning di sini jika mau
-        return; 
+        // Pastikan kedua visual indicator telah di-assign di Inspector
+        if (data.ascendVisualIndicator == null || data.advancedVisualIndicator == null)
+        {
+            // Anda bisa menambahkan Debug.LogWarning di sini jika mau
+            return;
+        }
+
+        // Atur visibilitas berdasarkan state saat ini
+        switch (data.currentState)
+        {
+            case IPOState.Ascend:
+                data.ascendVisualIndicator.SetActive(true);
+                data.advancedVisualIndicator.SetActive(false);
+                break;
+
+            case IPOState.Advanced:
+                data.ascendVisualIndicator.SetActive(false);
+                data.advancedVisualIndicator.SetActive(true);
+                break;
+
+            // Untuk state Normal atau state lainnya, nonaktifkan keduanya
+            case IPOState.Normal:
+            default:
+                data.ascendVisualIndicator.SetActive(false);
+                data.advancedVisualIndicator.SetActive(false);
+                break;
+        }
+    }
+public IEnumerator ModifyIPOIndexWithCamera(string color, int delta)
+    {
+        if (cameraController != null)
+        {
+            // 1. Tentukan target posisi kamera
+            CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
+            switch (color)
+            {
+                case "Konsumer": targetPos = CameraController.CameraPosition.Konsumer; break;
+                case "Infrastruktur": targetPos = CameraController.CameraPosition.Infrastruktur; break;
+                case "Keuangan": targetPos = CameraController.CameraPosition.Keuangan; break;
+                case "Tambang": targetPos = CameraController.CameraPosition.Tambang; break;
+            }
+
+            // 2. Gerakkan kamera dan tunggu
+            if (cameraController.CurrentPosition != targetPos)
+            {
+                yield return cameraController.MoveTo(targetPos);
+            }
+            yield return new WaitForSeconds(0.5f);
+            
+        }
+
+        // 3. Logika untuk mengubah IPO (seperti sebelumnya)
+        var data = ipoDataList.FirstOrDefault(i => i.color == color);
+        if (data != null)
+        {
+            data.ipoIndex += delta;
+            UpdateIPOVisuals();
+            Debug.Log($"[Modify IPO] {color} IPO index diubah sebesar {delta}, menjadi {data.ipoIndex}");
+        }
+        else
+        {
+            Debug.LogWarning($"[Modify IPO] Tidak ditemukan IPOData untuk warna: {color}");
+        }
+        
+        yield return new WaitForSeconds(1.5f); // Jeda untuk melihat perubahan
+
+        // 4. Kembalikan kamera
+        if (cameraController != null)
+        {
+            yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+        }
     }
 
-    // Atur visibilitas berdasarkan state saat ini
-    switch (data.currentState)
+    public IEnumerator ResetAllIPOIndexesWithCamera()
     {
-        case IPOState.Ascend:
-            data.ascendVisualIndicator.SetActive(true);
-            data.advancedVisualIndicator.SetActive(false);
-            break;
+        if (cameraController != null)
+        {
+            // 1. Gerakkan kamera ke tengah dan tunggu
+            yield return cameraController.MoveTo(CameraController.CameraPosition.Center);
+            yield return new WaitForSeconds(0.5f);
+        }
 
-        case IPOState.Advanced:
-            data.ascendVisualIndicator.SetActive(false);
-            data.advancedVisualIndicator.SetActive(true);
-            break;
+        // 2. Logika reset (seperti di RumorPhaseManager)
+        foreach (var data in ipoDataList)
+        {
+            data.ipoIndex = 0;
+            data.currentState = IPOState.Normal;
+            data.salesBonus = 0;
+            Debug.Log($"[IPO] IPO {data.color} di-reset ke 0");
+            UpdateIPOState(data);
+        }
+        UpdateIPOVisuals();
+        
+        yield return new WaitForSeconds(2.0f); // Jeda untuk melihat perubahan
 
-        // Untuk state Normal atau state lainnya, nonaktifkan keduanya
-        case IPOState.Normal:
-        default:
-            data.ascendVisualIndicator.SetActive(false);
-            data.advancedVisualIndicator.SetActive(false);
-            break;
+        // 3. Kembalikan kamera
+        if (cameraController != null)
+        {
+            yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+        }
     }
-}
 
 }

@@ -64,6 +64,7 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         Debug.LogError("SellingPhaseManager atau GameManager tidak ditemukan!");
         yield break;
     }
+    CameraController cameraController = spm.cameraController; // Ambil referensi kamera
 
     var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
     if (ipoData == null)
@@ -72,8 +73,35 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         yield break;
     }
 
+    // --- LOGIKA BARU: KAMERA DAN UI ---
+    // Sembunyikan card holder
+    if (gameManager.cardHolderParent != null)
+    {
+        gameManager.cardHolderParent.gameObject.SetActive(false);
+    }
+
+    // Gerakkan kamera ke target
+    if (cameraController != null)
+    {
+        CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
+        switch (color)
+        {
+            case "Konsumer": targetPos = CameraController.CameraPosition.Konsumer; break;
+            case "Infrastruktur": targetPos = CameraController.CameraPosition.Infrastruktur; break;
+            case "Keuangan": targetPos = CameraController.CameraPosition.Keuangan; break;
+            case "Tambang": targetPos = CameraController.CameraPosition.Tambang; break;
+        }
+
+        if (cameraController.CurrentPosition != targetPos)
+        {
+            yield return cameraController.MoveTo(targetPos);
+            yield return new WaitForSeconds(0.5f);
+        }
+    }
+    // --- AKHIR LOGIKA BARU ---
+
+
     // [ ... logika penyesuaian harga yang sudah ada tetap di sini ... ]
-    // Saya singkat untuk kejelasan, tidak ada yang berubah di bagian ini.
     #region Existing Price Logic (No Changes)
     int minIndex = (color == "Tambang") ? -2 : -3;
     if (ipoData.currentState == IPOState.Normal && ipoData.ipoIndex == minIndex)
@@ -118,6 +146,9 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         if (allPossibilities.Count == 0)
         {
             Debug.LogError("Tidak ada kemungkinan harga yang valid ditemukan!");
+            
+            // Kembalikan UI sebelum keluar
+            if (gameManager.cardHolderParent != null) gameManager.cardHolderParent.gameObject.SetActive(true);
             yield break;
         }
 
@@ -134,36 +165,41 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         gameManager.UpdateDeckCardValuesWithIPO();
     }
     #endregion
+    
+    yield return new WaitForSeconds(1.5f); // Jeda agar pemain bisa lihat perubahan IPO
 
-
-    // --- LOGIKA BARU: DUPLIKASI KARTU DIMULAI ---
+    // --- LOGIKA DUPLIKASI KARTU DIMULAI ---
     Debug.Log($"[Stock Split] Menggandakan semua kartu berwarna '{color}' untuk setiap pemain.");
 
-    // Iterasi melalui setiap pemain yang ada di dalam game (termasuk bot)
     foreach (var p in gameManager.turnOrder)
     {
-        // Cari semua kartu dengan warna yang sesuai yang dimiliki pemain ini.
-        // Kita gunakan .ToList() agar bisa menambah kartu baru tanpa mengganggu iterasi.
         var cardsToDuplicate = p.cards.Where(c => c.color == color).ToList();
-
-        if (cardsToDuplicate.Any()) // Jika pemain punya kartu dengan warna ini
+        if (cardsToDuplicate.Any())
         {
             Debug.Log($"Pemain {p.playerName} memiliki {cardsToDuplicate.Count} kartu '{color}'. Menggandakan...");
-
-            // Tambahkan duplikat untuk setiap kartu yang ditemukan
             foreach (var card in cardsToDuplicate)
             {
-                // Buat instance kartu baru yang identik
                 Card newCard = new Card(card.cardName, card.description, card.value, card.color);
                 p.AddCard(newCard);
                 Debug.Log($"    -> Menambahkan duplikat '{newCard.cardName}' ke {p.playerName}.");
             }
         }
     }
-
-    // Terakhir, perbarui UI pemain untuk menampilkan jumlah kartu yang baru
+    
     gameManager.UpdatePlayerUI();
-    // --- LOGIKA BARU SELESAI ---
+    // --- LOGIKA DUPLIKASI KARTU SELESAI ---
+
+    // --- LOGIKA BARU: KEMBALIKAN KAMERA DAN UI ---
+    if (cameraController != null && cameraController.CurrentPosition != CameraController.CameraPosition.Normal)
+    {
+        yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+    }
+    
+    if (gameManager.cardHolderParent != null)
+    {
+        gameManager.cardHolderParent.gameObject.SetActive(true);
+    }
+    // --- AKHIR LOGIKA BARU ---
 
     yield break;
 }

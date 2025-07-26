@@ -27,6 +27,8 @@ public class CameraController : MonoBehaviour
         Keuangan,
         Tambang
     }
+    public CameraPosition CurrentPosition { get; private set; }
+
 
     /// <summary>
     /// Memulai pergerakan kamera ke posisi yang ditentukan.
@@ -49,11 +51,11 @@ public class CameraController : MonoBehaviour
         }
 
         // Mulai pergerakan baru
-        _moveCoroutine = StartCoroutine(MoveAndRotateCoroutine(destination));
+        _moveCoroutine = StartCoroutine(MoveAndRotateCoroutine(destination, targetPosition));
         return _moveCoroutine;
     }
 
-    private IEnumerator MoveAndRotateCoroutine(Transform destination)
+    private IEnumerator MoveAndRotateCoroutine(Transform destination, CameraPosition newPosition)
     {
         float elapsedTime = 0f;
         Vector3 startingPos = transform.position;
@@ -72,6 +74,7 @@ public class CameraController : MonoBehaviour
         // Pastikan posisi dan rotasi tepat di tujuan pada akhir animasi
         transform.position = destination.position;
         transform.rotation = destination.rotation;
+        CurrentPosition = newPosition; 
         _moveCoroutine = null;
     }
 
