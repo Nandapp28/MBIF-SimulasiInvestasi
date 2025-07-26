@@ -10,6 +10,7 @@ public class ResolutionPhaseManager : MonoBehaviour
     public HelpCardPhaseManager helpCardPhaseManager;
   
     [Header("System References")]
+    
     public CameraController cameraController; // <-- TAMBAHKAN INI
 
 
@@ -181,7 +182,7 @@ public class ResolutionPhaseManager : MonoBehaviour
             if (data != null)
             {
                 // --- 2. Terapkan Efek Token Ramalan ---
-                ApplyRamalanEffect(data);
+               yield return StartCoroutine(ApplyRamalanEffect(data));
                 UpdateDividendVisuals(); // Perbarui posisi indikator dividen
                 yield return new WaitForSeconds(0.5f); // Jeda untuk melihat pergerakan marker
 
@@ -248,7 +249,7 @@ public class ResolutionPhaseManager : MonoBehaviour
 
         gameManager.ResetSemesterButton();
     }
-    private void ApplyRamalanEffect(DividendData data)
+    private IEnumerator ApplyRamalanEffect(DividendData data)
     {
         if (data.revealedTokenCount < data.ramalanTokens.Count)
         {
@@ -262,13 +263,13 @@ public class ResolutionPhaseManager : MonoBehaviour
             if (data.dividendIndex < -3)
             {
                 Debug.LogWarning($"[Dividen Crash] {data.color} terlalu rendah (index: {data.dividendIndex}). Mengurangi IPO index.");
-                ModifyIPOIndex(data.color, -1);
+                yield return StartCoroutine(ModifyIPOIndex(data.color, -1)); // <-- JADIKAN COROUTINE
                 data.dividendIndex = 0; // Reset dividend index
             }
             else if (data.dividendIndex > 3)
             {
                 Debug.LogWarning($"[Dividen Boom] {data.color} terlalu tinggi (index: {data.dividendIndex}). Menambah IPO index.");
-                ModifyIPOIndex(data.color, 1);
+                yield return StartCoroutine(ModifyIPOIndex(data.color, 1)); // <-- JADIKAN COROUTINE
                 data.dividendIndex = 0; // Reset dividend index
             }
             else
@@ -285,19 +286,20 @@ public class ResolutionPhaseManager : MonoBehaviour
             Debug.LogWarning($"[Ramalan - {data.color}] Semua token telah diterapkan efeknya.");
         }
     }
-    private void ModifyIPOIndex(string color, int delta)
+    private IEnumerator ModifyIPOIndex(string color, int delta)
     {
-        var ipo = sellingPhaseManager.ipoDataList.FirstOrDefault(i => i.color == color);
-        if (ipo != null)
+        // Panggil fungsi baru di SellingPhaseManager yang sudah menangani kamera
+        if (sellingPhaseManager != null)
         {
-            ipo.ipoIndex += delta;
-            Debug.Log($"[Modify IPO] {color} IPO index diubah menjadi {ipo.ipoIndex}");
+            // Tidak perlu lagi menggerakkan kamera secara manual di sini
+            yield return StartCoroutine(sellingPhaseManager.ModifyIPOIndexWithCamera(color, delta));
         }
         else
         {
-            Debug.LogWarning($"[Modify IPO] Tidak ditemukan IPOData untuk warna: {color}");
+            Debug.LogError("[Modify IPO] SellingPhaseManager tidak ditemukan!");
         }
     }
+
 
 
     private IEnumerator<WaitForSeconds> AnimateTokenFlip(GameObject token)
