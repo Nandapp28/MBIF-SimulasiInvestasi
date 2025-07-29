@@ -241,10 +241,10 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
             CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
             switch (selected.color)
             {
-                case "Konsumer":      targetPos = CameraController.CameraPosition.Konsumer; break;
-                case "Infrastruktur": targetPos = CameraController.CameraPosition.Infrastruktur; break;
-                case "Keuangan":      targetPos = CameraController.CameraPosition.Keuangan; break;
-                case "Tambang":       targetPos = CameraController.CameraPosition.Tambang; break;
+                case "Konsumer":      targetPos = CameraController.CameraPosition.KonsumerRumour; break;
+                case "Infrastruktur": targetPos = CameraController.CameraPosition.InfrastrukturRumour; break;
+                case "Keuangan":      targetPos = CameraController.CameraPosition.KeuanganRumour; break;
+                case "Tambang":       targetPos = CameraController.CameraPosition.TambangRumour; break;
             }
 
             // 1. GERAKKAN KAMERA KE KARTU
@@ -323,7 +323,6 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
         {
             renderer.material.mainTexture = frontTexture; // ⬅️ langsung set texture di awal
             StartCoroutine(FlipCard(card));
-            StartCoroutine(MoveObjectToTargetAndBack(card));
         }
     }
     
