@@ -474,6 +474,9 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
     // Hanya buat satu baris untuk warna yang relevan
     GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
     row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
+    int pricePerCard = GetFullCardPrice(color);
+    Text priceLabel = row.transform.Find("PriceLabel").GetComponent<Text>();
+    priceLabel.text = $"{pricePerCard}";
 
     Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
     Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
