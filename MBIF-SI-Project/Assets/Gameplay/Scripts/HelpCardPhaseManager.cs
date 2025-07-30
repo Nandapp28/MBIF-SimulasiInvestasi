@@ -188,310 +188,267 @@ public class HelpCardPhaseManager : MonoBehaviour
     }
 
     private IEnumerator ApplyEffect(PlayerProfile player, HelpCard card)
+{
+    Debug.Log($"{player.playerName} mengaktifkan '{card.cardName}'!");
+
+    string targetDescription = ""; // Dideklarasikan di atas untuk semua case
+
+    switch (card.effectType)
     {
-        Debug.Log($"{player.playerName} mengaktifkan '{card.cardName}'!");
-
-        // Kita tidak perlu lagi menebak tipe data di sini
-        string colorToSabotage = null;
-        string targetDescription = "";
-
-        switch (card.effectType)
-        {
-            case HelpCardEffect.AdministrativePenalties:
-                // Tambahkan kurung kurawal buka di sini untuk menciptakan scope baru
+        case HelpCardEffect.AdministrativePenalties:
+        case HelpCardEffect.NegativeEquity:
+            {
+                // --- Langkah 1: Persiapan & Penentuan Target ---
+                string colorToSabotage = null;
+                if (player.playerName.Contains("You"))
                 {
-                    if (player.playerName.Contains("You"))
-                    {
-                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToSabotage = selectedColor; }));
-                        Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
-                        targetDescription = $"Target: \n{colorToSabotage}";
-                    }
-                    else // Logika untuk Bot
-                    {
-                        Dictionary<string, int> colorCounts = player.GetCardColorCounts();
-                        int minCount = colorCounts.Values.Min();
-                        List<string> colorsWithMinCount = colorCounts
-                            .Where(pair => pair.Value == minCount)
-                            .Select(pair => pair.Key)
-                            .ToList();
-                        int randomIndex = UnityEngine.Random.Range(0, colorsWithMinCount.Count);
-                        colorToSabotage = colorsWithMinCount[randomIndex];
-                        Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
-                        targetDescription = $"Target: \n{colorToSabotage}";
-                    }
-
-                    // 'var' aman digunakan di dalam scope baru ini
-                    var targetIPO = sellingManager.ipoDataList.FirstOrDefault(i => i.color == colorToSabotage);
-                    if (targetIPO != null)
-                    {
-                        targetIPO.ipoIndex -= 2;
-                        sellingManager.UpdateIPOVisuals();
-                    }
-                } // Tambahkan kurung kurawal tutup di sini
-                break;
-
-            case HelpCardEffect.NegativeEquity:
-                // Tambahkan kurung kurawal buka di sini juga
+                    yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToSabotage = selectedColor; }));
+                }
+                else
                 {
-                    if (player.playerName.Contains("You"))
-                    {
-                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToSabotage = selectedColor; }));
-                        Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
-                        targetDescription = $"Target: \n{colorToSabotage}";
-                    }
-                    else // Logika untuk Bot
-                    {
-                        Dictionary<string, int> colorCounts = player.GetCardColorCounts();
-                        int minCount = colorCounts.Values.Min();
-                        List<string> colorsWithMinCount = colorCounts
-                            .Where(pair => pair.Value == minCount)
-                            .Select(pair => pair.Key)
-                            .ToList();
-                        int randomIndex = UnityEngine.Random.Range(0, colorsWithMinCount.Count);
-                        colorToSabotage = colorsWithMinCount[randomIndex];
-                        Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
-                        targetDescription = $"Target: \n{colorToSabotage}";
-                    }
+                    Dictionary<string, int> colorCounts = player.GetCardColorCounts();
+                    int minCount = colorCounts.Values.Min();
+                    List<string> colorsWithMinCount = colorCounts
+                        .Where(pair => pair.Value == minCount)
+                        .Select(pair => pair.Key)
+                        .ToList();
+                    colorToSabotage = colorsWithMinCount[UnityEngine.Random.Range(0, colorsWithMinCount.Count)];
+                }
+                Debug.Log($"{player.playerName} memilih untuk menyabotase IPO {colorToSabotage}.");
 
-
-                    // 'var' juga aman digunakan di sini karena scope-nya terpisah dari case sebelumnya
-                    var targetIPO = sellingManager.ipoDataList.FirstOrDefault(i => i.color == colorToSabotage);
-                    if (targetIPO != null)
-                    {
-                        targetIPO.ipoIndex -= 3;
-                        sellingManager.UpdateIPOVisuals();
-                    }
-                } // Tambahkan kurung kurawal tutup di sini
-                break;
-
-
-            case HelpCardEffect.TaxEvasion:
+                // --- Langkah 2: Tentukan Deskripsi & Tampilkan Hasil (untuk Bot) ---
+                targetDescription = $"Target: \n{colorToSabotage}";
+                if (!player.playerName.Contains("You"))
                 {
-                    Debug.Log($"{player.playerName} mengaktifkan Penghindaran Pajak. Semua pemain lain harus membayar pajak!");
-
-                    foreach (var p in turnOrder)
-                    {
-                        // Lewati pemain yang mengaktifkan kartu ini
-                        if (p == player)
-                        {
-                            continue; // Lanjut ke pemain berikutnya dalam perulangan
-                        }
-
-                        // Kode ini hanya akan berjalan untuk pemain lain
-                        int cardCount = p.cards.Count;
-                        int cost = cardCount * 2;
-                        p.DeductFinpoint(cost);
-                        Debug.Log($"{p.playerName} membayar {cost} Finpoint untuk {cardCount} kartu. Sisa: {p.finpoint}");
-                    }
-
-                    // Pindahkan ini ke luar loop agar lebih efisien
-                    targetDescription = "Target: \n Semua Pemain Lain";
-                    break;
+                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
                 }
 
-            case HelpCardEffect.MarketPrediction:
-            case HelpCardEffect.EyeOfTruth: // Menggabungkan case karena logikanya identik
+                // --- Langkah 3: Eksekusi Efek ---
+                int ipoChange = (card.effectType == HelpCardEffect.AdministrativePenalties) ? -2 : -3;
+                yield return StartCoroutine(sellingManager.ModifyIPOIndexWithCamera(colorToSabotage, ipoChange));
+            }
+            break;
+
+        case HelpCardEffect.TaxEvasion:
+            {
+                // --- Langkah 1 & 2: Tentukan Deskripsi & Tampilkan Hasil ---
+                Debug.Log($"{player.playerName} mengaktifkan Penghindaran Pajak. Semua pemain lain harus membayar pajak!");
+                targetDescription = "Target: \n Semua Pemain Lain";
+                if (!player.playerName.Contains("You"))
                 {
-                    string chosenColor = null;
-
-                    // ... (Logika pemilihan warna tidak berubah) ...
-                    if (player.playerName.Contains("You"))
-                    {
-                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { chosenColor = selectedColor; }));
-                    }
-                    else // Logika untuk Bot
-                    {
-                        int randomIndex = UnityEngine.Random.Range(0, sellingManager.ipoDataList.Count);
-                        chosenColor = sellingManager.ipoDataList[randomIndex].color;
-                    }
-                    Debug.Log($"{player.playerName} mencoba memprediksi pasar untuk warna {chosenColor}.");
-                    targetDescription = $"Target: \n{chosenColor}";
-
-                    // --- INI BAGIAN YANG DIPERBAIKI ---
-                    // Sekarang kita mencari rumor berdasarkan WARNA saja, tanpa mempedulikan jenis efeknya.
-                    RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == chosenColor);
-
-                    if (futureRumor != null)
-                    {
-                        // Bagian ini sekarang hanya akan berjalan jika kartu rumor yang ditemukan
-                        // KEBETULAN adalah tipe ModifyIPO, yang mana sudah benar.
-                        if (futureRumor.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO)
-                        {
-                            if (futureRumor.value > 0)
-                            {
-                                player.marketPredictions[chosenColor] = MarketPredictionType.Rise;
-                                Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan NAIK.");
-                            }
-                            else if (futureRumor.value < 0)
-                            {
-                                player.marketPredictions[chosenColor] = MarketPredictionType.Fall;
-                                Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan TURUN.");
-                            }
-                        }
-
-                        // Bagian ini akan SELALU berjalan selama ada kartu rumor untuk warna tersebut.
-                        if (player.playerName.Contains("You"))
-                        {
-                            Debug.Log($"Menampilkan bocoran kartu rumor untuk {player.playerName}: {futureRumor.cardName}");
-                            // Panggil coroutine yang sudah ada di RumorPhaseManager
-                            yield return rumorPhaseManager.StartCoroutine(rumorPhaseManager.DisplayAndHidePrediction(futureRumor));
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log($"Tidak ada kartu rumor yang ditemukan untuk {chosenColor} di dek rumor.");
-                    }
-                    break;
+                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
                 }
-            case HelpCardEffect.MarketStabilization:
-                {
-                    Debug.Log($"{player.playerName} menggunakan kartu 'Stabilisasi Pasar'. Mereset semua nilai IPO!");
-                    targetDescription = "Target: Semua Sektor";
 
-                    // Panggil fungsi reset yang ada di SellingPhaseManager
-                    rumorPhaseManager.ResetAllIPOIndexes();
-                    sellingManager.UpdateIPOVisuals();
-                    break;
+                // --- Langkah 3: Eksekusi Efek ---
+                foreach (var p in turnOrder)
+                {
+                    if (p == player) continue; 
+
+                    int cardCount = p.cards.Count;
+                    int cost = cardCount * 2;
+                    p.DeductFinpoint(cost);
+                    Debug.Log($"{p.playerName} membayar {cost} Finpoint untuk {cardCount} kartu. Sisa: {p.finpoint}");
                 }
-            case HelpCardEffect.CardSwap:
+            }
+            break;
+
+        case HelpCardEffect.MarketPrediction:
+        case HelpCardEffect.EyeOfTruth:
+            {
+                // --- Langkah 1: Persiapan & Penentuan Target ---
+                string chosenColor = null;
+                if (player.playerName.Contains("You"))
                 {
-                    // Cek kondisi aktivasi
-                    if (player.cards.Count == 0)
-                    {
-                        Debug.LogWarning($"[CardSwap] {player.playerName} tidak punya kartu, efek gagal.");
-                        player.helpCards.Add(card);
-                        yield break; // Keluar dari coroutine
-                    }
+                    yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { chosenColor = selectedColor; }));
+                }
+                else
+                {
+                    int randomIndex = UnityEngine.Random.Range(0, sellingManager.ipoDataList.Count);
+                    chosenColor = sellingManager.ipoDataList[randomIndex].color;
+                }
+                 Debug.Log($"{player.playerName} mencoba memprediksi pasar untuk warna {chosenColor}.");
 
-                    List<PlayerProfile> validTargets = turnOrder.Where(p => p != player && p.cards.Count > 0).ToList();
-                    if (validTargets.Count == 0)
-                    {
-                        Debug.LogWarning($"[CardSwap] Tidak ada target yang valid, efek gagal.");
-                        player.helpCards.Add(card);
-                        yield break;
-                    }
+                // --- Langkah 2: Tentukan Deskripsi & Tampilkan Hasil (untuk Bot) ---
+                targetDescription = $"Target: \n{chosenColor}";
+                 if (!player.playerName.Contains("You"))
+                {
+                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                }
 
-                    string colorFromPlayer = null;
-                    PlayerProfile targetPlayer = null;
-                    string colorFromTarget = null;
+                // --- Langkah 3: Eksekusi Efek ---
+                RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == chosenColor);
+
+                if (futureRumor != null)
+                {
+                    if (futureRumor.effectType == RumorPhaseManager.RumorEffect.EffectType.ModifyIPO)
+                    {
+                        if (futureRumor.value > 0)
+                        {
+                            player.marketPredictions[chosenColor] = MarketPredictionType.Rise;
+                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan NAIK.");
+                        }
+                        else if (futureRumor.value < 0)
+                        {
+                            player.marketPredictions[chosenColor] = MarketPredictionType.Fall;
+                            Debug.Log($"[Prediksi UNTUK {player.playerName}] Pasar {chosenColor} diprediksi akan TURUN.");
+                        }
+                    }
 
                     if (player.playerName.Contains("You"))
                     {
-                        // 1. Player memilih warna dari kartu miliknya
-                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorFromPlayer = selectedColor; }, player.cards.Select(c => c.color).Distinct().ToList()));
-
-                        // 2. Player memilih pemain target
-                        yield return StartCoroutine(ShowPlayerSelectionUI(validTargets, selectedPlayer => { targetPlayer = selectedPlayer; }));
-
-                        // 3. Player memilih warna dari kartu target
-                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorFromTarget = selectedColor; }, targetPlayer.cards.Select(c => c.color).Distinct().ToList()));
+                        Debug.Log($"Menampilkan bocoran kartu rumor untuk {player.playerName}: {futureRumor.cardName}");
+                        yield return rumorPhaseManager.StartCoroutine(rumorPhaseManager.DisplayAndHidePrediction(futureRumor));
                     }
-                    else // Logika untuk Bot
+                }
+                else
+                {
+                    Debug.Log($"Tidak ada kartu rumor yang ditemukan untuk {chosenColor} di dek rumor.");
+                }
+            }
+            break;
+
+        case HelpCardEffect.MarketStabilization:
+            {
+                // --- Langkah 1 & 2: Tentukan Deskripsi & Tampilkan Hasil ---
+                Debug.Log($"{player.playerName} menggunakan kartu 'Stabilisasi Pasar'. Mereset semua nilai IPO!");
+                targetDescription = "Target: Semua Sektor";
+                if (!player.playerName.Contains("You"))
+                {
+                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                }
+                
+                // --- Langkah 3: Eksekusi Efek ---
+                yield return StartCoroutine(sellingManager.ResetAllIPOIndexesWithCamera());
+            }
+            break;
+
+        case HelpCardEffect.CardSwap:
+            {
+                // --- Langkah 1: Persiapan & Penentuan Target ---
+                if (player.cards.Count == 0)
+                {
+                    Debug.LogWarning($"[CardSwap] {player.playerName} tidak punya kartu, efek gagal.");
+                    player.helpCards.Add(card); // Kembalikan kartu
+                    yield break;
+                }
+                List<PlayerProfile> validTargets = turnOrder.Where(p => p != player && p.cards.Count > 0).ToList();
+                if (validTargets.Count == 0)
+                {
+                    Debug.LogWarning($"[CardSwap] Tidak ada target yang valid, efek gagal.");
+                    player.helpCards.Add(card); // Kembalikan kartu
+                    yield break;
+                }
+
+                string colorFromPlayer = null;
+                PlayerProfile targetPlayer = null;
+                string colorFromTarget = null;
+
+                if (player.playerName.Contains("You"))
+                {
+                    yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorFromPlayer = selectedColor; }, player.cards.Select(c => c.color).Distinct().ToList()));
+                    yield return StartCoroutine(ShowPlayerSelectionUI(validTargets, selectedPlayer => { targetPlayer = selectedPlayer; }));
+                    yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorFromTarget = selectedColor; }, targetPlayer.cards.Select(c => c.color).Distinct().ToList()));
+                }
+                else // Logika untuk Bot
+                {
+                    colorFromPlayer = player.cards[UnityEngine.Random.Range(0, player.cards.Count)].color;
+                    targetPlayer = validTargets[UnityEngine.Random.Range(0, validTargets.Count)];
+                    colorFromTarget = targetPlayer.cards[UnityEngine.Random.Range(0, targetPlayer.cards.Count)].color;
+                }
+
+                // --- Langkah 2: Tentukan Deskripsi & Tampilkan Hasil (untuk Bot) ---
+                targetDescription = $"{targetPlayer.playerName} \n Menukar sektor {colorFromPlayer} dengan {colorFromTarget} milik target";
+                if (!player.playerName.Contains("You"))
+                {
+                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                }
+
+                // --- Langkah 3: Eksekusi Efek ---
+                Card cardFromPlayer = player.cards.FirstOrDefault(c => c.color == colorFromPlayer);
+                Card cardFromTarget = targetPlayer.cards.FirstOrDefault(c => c.color == colorFromTarget);
+
+                if (cardFromPlayer != null && cardFromTarget != null)
+                {
+                    player.cards.Remove(cardFromPlayer);
+                    targetPlayer.cards.Remove(cardFromTarget);
+                    player.AddCard(cardFromTarget);
+                    targetPlayer.AddCard(cardFromPlayer);
+                    Debug.Log($"[CardSwap] {player.playerName} menukar kartu {colorFromPlayer} miliknya dengan kartu {colorFromTarget} milik {targetPlayer.playerName}.");
+                    gameManager.UpdatePlayerUI();
+                }
+                else
+                {
+                    Debug.LogError("[CardSwap] Gagal menemukan kartu untuk ditukar.");
+                }
+            }
+            break;
+
+        case HelpCardEffect.ForcedPurchase:
+            {
+                // --- Langkah 1: Persiapan & Penentuan Target ---
+                List<PlayerProfile> validTargets = turnOrder.Where(p => p != player && p.cards.Count > 0).ToList();
+                if (validTargets.Count == 0)
+                {
+                    Debug.LogWarning($"[ForcedPurchase] Tidak ada target yang bisa dipilih, efek gagal diaktifkan.");
+                    player.helpCards.Add(card);
+                    yield break;
+                }
+
+                PlayerProfile targetPlayer = null;
+                string colorToPurchase = null;
+
+                if (player.playerName.Contains("You"))
+                {
+                    yield return StartCoroutine(ShowPlayerSelectionUI(validTargets, selectedPlayer => { targetPlayer = selectedPlayer; }));
+                    List<string> availableColors = targetPlayer.cards.Select(c => c.color).Distinct().ToList();
+                    yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToPurchase = selectedColor; }, availableColors));
+                }
+                else // Logika untuk Bot
+                {
+                    targetPlayer = validTargets[UnityEngine.Random.Range(0, validTargets.Count)];
+                    colorToPurchase = targetPlayer.cards[UnityEngine.Random.Range(0, targetPlayer.cards.Count)].color;
+                }
+                
+                // --- Langkah 2: Tentukan Deskripsi & Tampilkan Hasil (untuk Bot) ---
+                targetDescription = $"{targetPlayer.playerName} \n membeli paksa sektor 1 {colorToPurchase} milik target";
+                if (!player.playerName.Contains("You"))
+                {
+                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                }
+                
+                // --- Langkah 3: Eksekusi Efek ---
+                int fullPrice = sellingManager.GetFullCardPrice(colorToPurchase);
+                int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f);
+
+                Debug.Log($"[ForcedPurchase] Harga asli kartu {colorToPurchase} adalah {fullPrice}. Harga beli paksa: {purchasePrice}.");
+
+                if (player.CanAfford(purchasePrice))
+                {
+                    Card cardToMove = targetPlayer.cards.FirstOrDefault(c => c.color == colorToPurchase);
+                    if (cardToMove != null)
                     {
-                        // 1. Bot memilih warna secara acak dari kartunya
-                        colorFromPlayer = player.cards[UnityEngine.Random.Range(0, player.cards.Count)].color;
-
-                        // 2. Bot memilih target secara acak
-                        targetPlayer = validTargets[UnityEngine.Random.Range(0, validTargets.Count)];
-
-                        // 3. Bot memilih warna secara acak dari kartu target
-                        colorFromTarget = targetPlayer.cards[UnityEngine.Random.Range(0, targetPlayer.cards.Count)].color;
-                    }
-
-                    // Lakukan pertukaran kartu
-                    Card cardFromPlayer = player.cards.FirstOrDefault(c => c.color == colorFromPlayer);
-                    Card cardFromTarget = targetPlayer.cards.FirstOrDefault(c => c.color == colorFromTarget);
-
-                    if (cardFromPlayer != null && cardFromTarget != null)
-                    {
-                        player.cards.Remove(cardFromPlayer);
-                        targetPlayer.cards.Remove(cardFromTarget);
-
-                        player.AddCard(cardFromTarget);
-                        targetPlayer.AddCard(cardFromPlayer);
-
-                        Debug.Log($"[CardSwap] {player.playerName} menukar kartu {colorFromPlayer} miliknya dengan kartu {colorFromTarget} milik {targetPlayer.playerName}.");
-                        targetDescription = $"{targetPlayer.playerName} \n Menukar sektor {colorFromPlayer} dengan {colorFromTarget} milik target";
+                        player.DeductFinpoint(purchasePrice);
+                        targetPlayer.cards.Remove(cardToMove);
+                        player.AddCard(cardToMove);
+                        Debug.Log($"[ForcedPurchase] {player.playerName} berhasil membeli kartu {colorToPurchase} dari {targetPlayer.playerName} seharga {purchasePrice} Finpoint.");
                         gameManager.UpdatePlayerUI();
                     }
                     else
                     {
-                        Debug.LogError("[CardSwap] Gagal menemukan kartu untuk ditukar.");
+                        Debug.LogError($"[ForcedPurchase] Gagal menemukan kartu {colorToPurchase} milik {targetPlayer.playerName}.");
                     }
-                    break;
                 }
-            case HelpCardEffect.ForcedPurchase:
+                else
                 {
-                    // Cek kondisi aktivasi: Apakah ada target yang valid?
-                    List<PlayerProfile> validTargets = turnOrder.Where(p => p != player && p.cards.Count > 0).ToList();
-                    if (validTargets.Count == 0)
-                    {
-                        Debug.LogWarning($"[ForcedPurchase] Tidak ada target yang bisa dipilih, efek gagal diaktifkan.");
-                        player.helpCards.Add(card);
-                        yield break; // Keluar dari coroutine
-                    }
-
-                    PlayerProfile targetPlayer = null;
-                    string colorToPurchase = null;
-
-                    if (player.playerName.Contains("You"))
-                    {
-                        // 1. Pemain memilih target
-                        yield return StartCoroutine(ShowPlayerSelectionUI(validTargets, selectedPlayer => { targetPlayer = selectedPlayer; }));
-
-                        // 2. Pemain memilih warna dari kartu target
-                        List<string> availableColors = targetPlayer.cards.Select(c => c.color).Distinct().ToList();
-                        yield return StartCoroutine(ShowIPOSelectionUI(selectedColor => { colorToPurchase = selectedColor; }, availableColors));
-                    }
-                    else // Logika untuk Bot
-                    {
-                        // 1. Bot memilih target secara acak
-                        targetPlayer = validTargets[UnityEngine.Random.Range(0, validTargets.Count)];
-
-                        // 2. Bot memilih warna secara acak dari kartu target
-                        colorToPurchase = targetPlayer.cards[UnityEngine.Random.Range(0, targetPlayer.cards.Count)].color;
-                    }
-
-                    // 3. Hitung harga dan lakukan transaksi
-                    int fullPrice = sellingManager.GetFullCardPrice(colorToPurchase);
-                    int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f); // Setengah harga, dibulatkan ke atas
-
-                    Debug.Log($"[ForcedPurchase] Harga asli kartu {colorToPurchase} adalah {fullPrice}. Harga beli paksa: {purchasePrice}.");
-                    targetDescription = $"{targetPlayer.playerName} \n membeli paksa sektor 1 {colorToPurchase} milik target";
-
-                    if (player.CanAfford(purchasePrice))
-                    {
-                        Card cardToMove = targetPlayer.cards.FirstOrDefault(c => c.color == colorToPurchase);
-                        if (cardToMove != null)
-                        {
-                            // Lakukan transaksi
-                            player.DeductFinpoint(purchasePrice);
-                            targetPlayer.cards.Remove(cardToMove);
-                            player.AddCard(cardToMove);
-
-                            Debug.Log($"[ForcedPurchase] {player.playerName} berhasil membeli kartu {colorToPurchase} dari {targetPlayer.playerName} seharga {purchasePrice} Finpoint.");
-                            gameManager.UpdatePlayerUI();
-                        }
-                        else
-                        {
-                            Debug.LogError($"[ForcedPurchase] Gagal menemukan kartu {colorToPurchase} milik {targetPlayer.playerName} meskipun seharusnya ada.");
-                        }
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[ForcedPurchase] {player.playerName} tidak memiliki cukup Finpoint untuk membeli kartu (butuh {purchasePrice}). Efek dibatalkan.");
-                    }
-
-                    break;
+                    Debug.LogWarning($"[ForcedPurchase] {player.playerName} tidak memiliki cukup Finpoint (butuh {purchasePrice}). Efek dibatalkan.");
                 }
-        }
-
-        gameManager.UpdatePlayerUI();
-        if (!player.playerName.Contains("You"))
-        {
-            yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
-        }
+            }
+            break;
     }
+
+    gameManager.UpdatePlayerUI(); // Update UI di akhir untuk memastikan semua perubahan tercermin
+    // Panggilan ShowEffectResult yang lama di sini sudah dihapus.
+}
     private IEnumerator ShowIPOSelectionUI(Action<string> onColorSelected, List<string> availableColors = null)
     {
         ipoSelectionPanel.SetActive(true);

@@ -35,6 +35,9 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     [Header("Posisi Spesial")]
     public Transform predictionCardStage;
 
+    [Header("System References")]
+    public CameraController cameraController;
+
     [Header("Kartu Rumor per Sektor")]
     public GameObject cardRed;
     public GameObject cardBlue;
@@ -120,22 +123,47 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
     private IEnumerator RunRumorSequence()
     {
-        Debug.Log("MasterClient memulai urutan rumor...");
+        Debug.Log("MasterClient memulai urutan rumor dengan pergerakan kamera...");
         yield return new WaitForSeconds(2f);
 
         foreach (int index in shuffledRumorDeckIndices)
         {
-            // Beri tahu semua pemain untuk menampilkan kartu ini
+            RumorEffectData effectData = allRumorEffects[index];
+
+            // 1. Tentukan posisi kamera tujuan berdasarkan warna kartu
+            CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
+            switch (effectData.color)
+            {
+                case Sektor.Konsumer:      targetPos = CameraController.CameraPosition.Konsumer; break;
+                case Sektor.Infrastruktur: targetPos = CameraController.CameraPosition.Infrastruktur; break;
+                case Sektor.Keuangan:      targetPos = CameraController.CameraPosition.Keuangan; break;
+                case Sektor.Tambang:       targetPos = CameraController.CameraPosition.Tambang; break;
+                // Untuk Netral, kamera bisa tetap di Normal atau pindah ke tengah (Center)
+                case Sektor.Netral:        targetPos = CameraController.CameraPosition.Center; break;
+            }
+
+            // 2. Perintahkan SEMUA client untuk menggerakkan kamera mereka ke target
+            photonView.RPC("Rpc_MoveCamera", RpcTarget.All, targetPos);
+            // Tunggu animasi kamera selesai sebelum melanjutkan
+            float waitDuration = (cameraController != null) ? cameraController.moveDuration : 0.8f;
+            yield return new WaitForSeconds(waitDuration);
+
+            // 3. Tampilkan kartu rumor di perangkat semua pemain
             photonView.RPC("Rpc_ShowRumorCard", RpcTarget.All, index);
             yield return new WaitForSeconds(3f); // Waktu untuk pemain membaca kartu
 
-            // MasterClient menjalankan efeknya
-            ApplyRumorEffect(allRumorEffects[index]);
-            yield return new WaitForSeconds(2f); // Jeda setelah efek
+            // 4. MasterClient menerapkan efek dari rumor
+            ApplyRumorEffect(effectData);
+            yield return new WaitForSeconds(2f); // Jeda setelah efek diterapkan
 
-            // Beri tahu semua pemain untuk menyembunyikan kartu
+            // 5. Sembunyikan kartu rumor di perangkat semua pemain
             photonView.RPC("Rpc_HideRumorCards", RpcTarget.All);
-            yield return new WaitForSeconds(1.5f);
+            yield return new WaitForSeconds(1.0f);
+
+            // 6. Perintahkan SEMUA client untuk mengembalikan kamera ke posisi Normal
+            photonView.RPC("Rpc_MoveCamera", RpcTarget.All, CameraController.CameraPosition.Normal);
+            // Tunggu animasi kamera kembali selesai
+            yield return new WaitForSeconds(waitDuration);
         }
 
         Debug.Log("✅ Fase Rumor Selesai. Memulai fase berikutnya...");
@@ -146,23 +174,102 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     }
 
     #region Visuals & Animation
-    // --- MENGGUNAKAN FlipCard UNTUK OBJEK 3D ---
+    [PunRPC]
+    private void Rpc_MoveCamera(CameraController.CameraPosition targetPosition)
+    {
+        if (cameraController != null)
+        {
+            // Setiap client akan menggerakkan kamera lokalnya masing-masing
+            cameraController.MoveTo(targetPosition);
+        }
+        else
+        {
+            Debug.LogWarning("Referensi CameraController tidak ditemukan, kamera tidak akan bergerak.");
+        }
+    }
     private IEnumerator FlipCard(GameObject cardObject)
     {
         cardObject.SetActive(true);
+
+        // Mulai dari kondisi terbalik
         cardObject.transform.rotation = Quaternion.Euler(0, -180, 180);
+
         float duration = 0.5f;
         float elapsed = 0f;
+
         Quaternion startRot = cardObject.transform.rotation;
-        Quaternion endRot = Quaternion.Euler(20, -180, 0);
-        yield return new WaitForSeconds(0.5f);
+        // Rotasi akhir diubah dari (20, -180, 0) menjadi (0, -180, 0) agar lurus
+        Quaternion endRot = Quaternion.Euler(0, -180, 0);
+
+        yield return new WaitForSeconds(0.5f); // Jeda sejenak sebelum animasi
+
         while (elapsed < duration)
         {
             cardObject.transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed / duration);
             elapsed += Time.deltaTime;
             yield return null;
         }
+
         cardObject.transform.rotation = endRot;
+    }
+
+    // [BARU] Menambahkan coroutine untuk gerak maju-mundur, disalin dari RumorPhaseManager.cs
+    public IEnumerator MoveObjectToTargetAndBack(GameObject objectToMove)
+    {
+        if (objectToMove == null)
+        {
+            yield break;
+        }
+
+        // [BARU] Simpan posisi dan SKALA awal kartu
+        Vector3 originalPosition = objectToMove.transform.position;
+        Vector3 originalScale = objectToMove.transform.localScale;
+
+        // [BARU] Definisikan posisi dan SKALA target saat kartu di depan kamera
+        Vector3 targetPosition = originalPosition + new Vector3(-1.96f, 2.72f, 0f);
+        // Kartu akan menjadi 70% dari ukuran aslinya. Anda bisa mengubah nilai 0.7f ini.
+        // Contoh: 0.5f untuk setengah ukuran, 1.0f untuk ukuran asli.
+        Vector3 targetScale = originalScale * 0.7f;
+
+        float moveDuration = 1f;    // Durasi pergerakan
+        float waitDuration = 3f;    // Durasi kartu diam di depan kamera
+        float elapsedTime = 0f;
+
+        // --- Pergerakan ke Posisi Target (Posisi & Skala) ---
+        while (elapsedTime < moveDuration)
+        {
+            // Animasikan posisi
+            objectToMove.transform.position = Vector3.Lerp(originalPosition, targetPosition, elapsedTime / moveDuration);
+
+            // [BARU] Animasikan skala secara bersamaan
+            objectToMove.transform.localScale = Vector3.Lerp(originalScale, targetScale, elapsedTime / moveDuration);
+
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        // Pastikan posisi dan skala tepat di tujuan
+        objectToMove.transform.position = targetPosition;
+        objectToMove.transform.localScale = targetScale;
+
+        // --- Tunggu ---
+        yield return new WaitForSeconds(waitDuration);
+
+        // --- Pergerakan Kembali ke Posisi Awal (Posisi & Skala) ---
+        elapsedTime = 0f;
+        while (elapsedTime < moveDuration)
+        {
+            // Animasikan posisi kembali
+            objectToMove.transform.position = Vector3.Lerp(targetPosition, originalPosition, elapsedTime / moveDuration);
+
+            // [BARU] Animasikan skala kembali ke ukuran aslinya
+            objectToMove.transform.localScale = Vector3.Lerp(targetScale, originalScale, elapsedTime / moveDuration);
+
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        // Pastikan kartu kembali tepat ke posisi dan skala semula
+        objectToMove.transform.position = originalPosition;
+        objectToMove.transform.localScale = originalScale;
     }
 
     [PunRPC]
@@ -200,8 +307,8 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             if (cardRenderer != null)
             {
                 cardRenderer.material.mainTexture = frontTexture;
-                cardToDisplay.SetActive(true);
                 StartCoroutine(FlipCard(cardToDisplay));
+                StartCoroutine(MoveObjectToTargetAndBack(cardToDisplay));
             }
         }
     }
@@ -291,10 +398,11 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                         if (cardCount > 0)
                         {
                             int penalty = cardCount * effect.value;
-                            int currentFP = (int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY];
-                            Hashtable playerProp = new Hashtable { { PlayerProfileMultiplayer.FINPOINT_KEY, currentFP - penalty } };
+                            // --- PERBAIKAN NAMA VARIABEL & LOG ---
+                            int currentInvestpoint = (int)p.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+                            Hashtable playerProp = new Hashtable { { PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint - penalty } };
                             p.SetCustomProperties(playerProp);
-                            Debug.Log($"{p.NickName} membayar penalti {penalty} FP.");
+                            Debug.Log($"{p.NickName} membayar penalti {penalty} InvestPoin.");
                         }
                     }
                 }
@@ -305,10 +413,11 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 {
                     int turnOrder = (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY];
                     int penalty = turnOrder * effect.value;
-                    int currentFP = (int)p.CustomProperties[PlayerProfileMultiplayer.FINPOINT_KEY];
-                    Hashtable playerProp = new Hashtable { { PlayerProfileMultiplayer.FINPOINT_KEY, currentFP - penalty } };
+                    // --- PERBAIKAN NAMA VARIABEL & LOG ---
+                    int currentInvestpoint = (int)p.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+                    Hashtable playerProp = new Hashtable { { PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint - penalty } };
                     p.SetCustomProperties(playerProp);
-                    Debug.Log($"{p.NickName} membayar pajak jalan {penalty} FP.");
+                    Debug.Log($"{p.NickName} membayar pajak jalan {penalty} InvestPoin.");
                 }
                 break;
         }
