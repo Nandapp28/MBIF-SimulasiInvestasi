@@ -62,7 +62,8 @@ public class HistoryManager : MonoBehaviour
             Destroy(child.gameObject);
         }
 
-        var snapshot = await dbReference.Child("playerMatchHistories").Child(currentUserId).GetValueAsync();
+        // Mengambil HANYA 10 entri terakhir dari Firebase
+        var snapshot = await dbReference.Child("playerMatchHistories").Child(currentUserId).LimitToLast(10).GetValueAsync();
         if (!snapshot.Exists)
         {
             Debug.Log("Tidak ada riwayat pertandingan.");
