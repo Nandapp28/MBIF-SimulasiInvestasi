@@ -139,7 +139,7 @@ public class HistoryManager : MonoBehaviour
         {
             string rank = playerEntry.Child("rank").Value.ToString();
             string userName = playerEntry.Child("userName").Value.ToString();
-            string invesPoin = playerEntry.Child("invesPoin").Value.ToString();
+            string investPoin = playerEntry.Child("investPoin").Value.ToString();
 
             GameObject detailEntryGO = Instantiate(detailEntryPrefab, detailListContainer);
             // --- PERBAIKAN DI SINI JUGA ---
@@ -147,7 +147,7 @@ public class HistoryManager : MonoBehaviour
             TextMeshProUGUI[] texts = detailEntryGO.GetComponentsInChildren<TextMeshProUGUI>();
             texts[0].text = rank;
             texts[1].text = userName;
-            texts[2].text = $"{invesPoin} IP";
+            texts[2].text = $"{investPoin} IP";
         }
     }
     
