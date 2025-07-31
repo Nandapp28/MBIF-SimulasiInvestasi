@@ -237,6 +237,7 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
 
         foreach (var selected in shuffledRumorDeck)
         {
+            
             // Tentukan posisi kamera berdasarkan warna kartu
             CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
             switch (selected.color)
