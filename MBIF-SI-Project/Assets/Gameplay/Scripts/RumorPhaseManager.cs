@@ -237,14 +237,15 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
 
         foreach (var selected in shuffledRumorDeck)
         {
+            
             // Tentukan posisi kamera berdasarkan warna kartu
             CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
             switch (selected.color)
             {
-                case "Konsumer":      targetPos = CameraController.CameraPosition.Konsumer; break;
-                case "Infrastruktur": targetPos = CameraController.CameraPosition.Infrastruktur; break;
-                case "Keuangan":      targetPos = CameraController.CameraPosition.Keuangan; break;
-                case "Tambang":       targetPos = CameraController.CameraPosition.Tambang; break;
+                case "Konsumer":      targetPos = CameraController.CameraPosition.KonsumerRumour; break;
+                case "Infrastruktur": targetPos = CameraController.CameraPosition.InfrastrukturRumour; break;
+                case "Keuangan":      targetPos = CameraController.CameraPosition.KeuanganRumour; break;
+                case "Tambang":       targetPos = CameraController.CameraPosition.TambangRumour; break;
             }
 
             // 1. GERAKKAN KAMERA KE KARTU
@@ -256,19 +257,24 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
             ShowCardByColorAndName(selected.color, selected.cardName);
             Debug.Log($"[Rumor] Warna {selected.color}: {selected.description}");
 
-            yield return new WaitForSeconds(1.5f);
-
-            // Terapkan efek
-            ApplyRumorEffect(selected);
-            gameManager.UpdatePlayerUI();
-            sellingPhaseManager.UpdateIPOVisuals();
             
-            yield return new WaitForSeconds(2.0f); // Tunggu sebelum sembunyikan kartu & reset kamera
+            yield return new WaitForSeconds(3f); // Tunggu sebelum sembunyikan kartu & reset kamera
 
             HideAllCardObjects();
 
+
+            // Terapkan efek
+            yield return StartCoroutine(ApplyRumorEffect(selected));
+            gameManager.UpdatePlayerUI();
+            sellingPhaseManager.UpdateIPOVisuals();
+
+
+
             // 2. KEMBALIKAN KAMERA KE POSISI NORMAL
-            if (cameraController) yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+            if (cameraController && cameraController.CurrentPosition != CameraController.CameraPosition.Normal)
+            {
+                yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+            }
             
             yield return new WaitForSeconds(1.0f); // Jeda sebelum kartu berikutnya
         }
@@ -318,7 +324,6 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
         {
             renderer.material.mainTexture = frontTexture; // ⬅️ langsung set texture di awal
             StartCoroutine(FlipCard(card));
-            StartCoroutine(MoveObjectToTargetAndBack(card));
         }
     }
     
@@ -466,53 +471,44 @@ public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
 
 
 
-    private void ApplyRumorEffect(RumorEffect effect)
+      private IEnumerator ApplyRumorEffect(RumorEffect effect)
     {
-        // Jalankan efek ModifyIPO langsung karena tidak tergantung pemain
         if (effect.effectType == RumorEffect.EffectType.ModifyIPO)
         {
-            ModifyIPOIndex(effect.color, effect.value);
-            return; // Langsung keluar karena tidak butuh loop
+            yield return StartCoroutine(sellingPhaseManager.ModifyIPOIndexWithCamera(effect.color, effect.value));
+            yield break;
         }
         if (effect.effectType == RumorEffect.EffectType.ResetAllIPO)
         {
-            ResetAllIPOIndexes();
-            return;
+            yield return StartCoroutine(sellingPhaseManager.ResetAllIPOIndexesWithCamera());
+            yield break;
         }
         if (effect.effectType == RumorEffect.EffectType.StockDilution)
-{
-    // 1. Simpan pemain yang memiliki kartu dengan warna effect.color
-    List<PlayerProfile> affectedPlayers = new List<PlayerProfile>();
-    foreach (var p in players)
-    {
-        if (p.cards.Any(c => c.color == effect.color))
         {
-            affectedPlayers.Add(p);
+            List<PlayerProfile> affectedPlayers = new List<PlayerProfile>();
+            foreach (var p in players)
+            {
+                if (p.cards.Any(c => c.color == effect.color))
+                {
+                    affectedPlayers.Add(p);
+                }
+            }
+            
+            yield return StartCoroutine(sellingPhaseManager.ModifyIPOIndexWithCamera(effect.color, effect.value));
+
+            foreach (var p in affectedPlayers)
+            {
+                var newCard = new Card($"{effect.color}_Extra", $"Kartu tambahan warna {effect.color}", 0, effect.color);
+                p.AddCard(newCard);
+                Debug.Log($"{p.playerName} menerima 1 kartu tambahan warna {effect.color}");
+            }
+            yield break;
         }
-    }
 
-    // 2. Modify IPO index
-    ModifyIPOIndex(effect.color, effect.value);
-
-    // 3. Tambahkan kartu tambahan ke pemain yang disimpan
-    foreach (var p in affectedPlayers)
-    {
-        var newCard = new Card($"{effect.color}_Extra", $"Kartu tambahan warna {effect.color}", 0, effect.color);
-        p.AddCard(newCard);
-        Debug.Log($"{p.playerName} menerima 1 kartu tambahan warna {effect.color}");
-    }
-
-    return;
-}
-
-
-
-
-        // Untuk efek yang tergantung pemain, baru gunakan loop
+        // Efek lain yang tidak memengaruhi IPO
         foreach (var player in players)
         {
             bool playerHasColor = player.cards.Any(c => c.color == effect.color);
-
             if (!effect.affectAllPlayers && !player.isBot) continue;
 
             switch (effect.effectType)
@@ -524,41 +520,32 @@ public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
                         Debug.Log($"{player.playerName} mendapat bonus {effect.value} finpoint karena memegang kartu {effect.color}");
                     }
                     break;
-
                 case RumorEffect.EffectType.PenaltyFinpoint:
-                    int cardCount = player.cards.Count(c => c.color == effect.color);
-                    if (cardCount > 0)
-                    {
-                        int penalty = cardCount * effect.value;
-                        player.finpoint = player.finpoint - penalty;
-                        Debug.Log($"{player.playerName} membayar {penalty} finpoint karena memiliki {cardCount} kartu {effect.color}");
-                    }
-                    break;
+                    { // <-- KURUNG KURAWAL DITAMBAHKAN
+                        int cardCount = player.cards.Count(c => c.color == effect.color);
+                        if (cardCount > 0)
+                        {
+                            int penalty = cardCount * effect.value;
+                            player.finpoint -= penalty;
+                            Debug.Log($"{player.playerName} membayar {penalty} finpoint karena memiliki {cardCount} kartu {effect.color}");
+                        }
+                        break;
+                    } // <-- KURUNG KURAWAL DITAMBAHKAN
                 case RumorEffect.EffectType.TaxByTurnOrder:
-                    {
+                    { // <-- KURUNG KURAWAL DITAMBAHKAN
                         int penalty = player.ticketNumber * effect.value;
-                        player.finpoint = player.finpoint - penalty;
+                        player.finpoint -= penalty;
                         Debug.Log($"{player.playerName} membayar pajak jalan sebesar {penalty} finpoint (turnOrder: {player.ticketNumber})");
-                    }
-                    break;
-
-
-
+                        break;
+                    } 
             }
         }
     }
 
-    public void ResetAllIPOIndexes()
+     public void ResetAllIPOIndexes()
     {
-        foreach (var data in sellingPhaseManager.ipoDataList)
-        {
-            data.ipoIndex = 0;
-            data.currentState = IPOState.Normal;
-             data.salesBonus = 0;
-            Debug.Log($"[IPO] IPO {data.color} di-reset ke 0");
-            sellingPhaseManager.UpdateIPOState(data);
-        }
-
+        // Fungsi ini sekarang didelegasikan ke SellingPhaseManager
+        StartCoroutine(sellingPhaseManager.ResetAllIPOIndexesWithCamera());
     }
 
     public IEnumerator DisplayAndHidePrediction(RumorEffect predictionCard)
@@ -580,20 +567,7 @@ public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
 
     private void ModifyIPOIndex(string color, int delta)
     {
-        var data = sellingPhaseManager.ipoDataList.FirstOrDefault(i => i.color == color);
-        if (data != null)
-        {
-            data.ipoIndex += delta;
-
-            string log = delta switch
-            {
-                >= 2 => $"IPO {color} melonjak +{delta}",
-                1 => $"IPO {color} naik +1",
-                -1 => $"IPO {color} turun -1",
-                <= -2 => $"IPO {color} anjlok {delta}",
-                _ => $"IPO {color} tetap"
-            };
-            Debug.Log($"[IPO] {log}");
-        }
+        // Fungsi ini sekarang didelegasikan ke SellingPhaseManager
+        StartCoroutine(sellingPhaseManager.ModifyIPOIndexWithCamera(color, delta));
     }
 }

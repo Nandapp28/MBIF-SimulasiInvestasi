@@ -7,10 +7,14 @@ public class CameraController : MonoBehaviour
     [Header("Camera Positions")]
     public Transform normalView;
     public Transform centerCardView;
-    public Transform konsumerCardView;      // Posisi untuk kartu Merah
-    public Transform infrastrukturCardView;  // Posisi untuk kartu Biru
-    public Transform keuanganCardView;        // Posisi untuk kartu Hijau
-    public Transform tambangCardView;         // Posisi untuk kartu Oranye
+    public Transform konsumerView;      // Posisi untuk sektor Konsumer
+    public Transform infrastrukturView;  
+    public Transform keuanganView;        
+    public Transform tambangView;  
+    public Transform konsumerRumourView;      // Posisi untuk kartu Konsumer
+    public Transform infrastrukturRumourView;  // Posisi untuk kartu Infra
+    public Transform keuanganRumourView;        // Posisi untuk kartu Keuangan
+    public Transform tambangRumourView;        
 
     [Header("Movement Settings")]
     public float moveDuration = 0.8f; // Durasi pergerakan kamera dalam detik
@@ -25,8 +29,14 @@ public class CameraController : MonoBehaviour
         Konsumer,
         Infrastruktur,
         Keuangan,
-        Tambang
+        Tambang,
+        KonsumerRumour,
+        InfrastrukturRumour,
+        KeuanganRumour,
+        TambangRumour
     }
+    public CameraPosition CurrentPosition { get; private set; }
+
 
     /// <summary>
     /// Memulai pergerakan kamera ke posisi yang ditentukan.
@@ -49,11 +59,11 @@ public class CameraController : MonoBehaviour
         }
 
         // Mulai pergerakan baru
-        _moveCoroutine = StartCoroutine(MoveAndRotateCoroutine(destination));
+        _moveCoroutine = StartCoroutine(MoveAndRotateCoroutine(destination, targetPosition));
         return _moveCoroutine;
     }
 
-    private IEnumerator MoveAndRotateCoroutine(Transform destination)
+    private IEnumerator MoveAndRotateCoroutine(Transform destination, CameraPosition newPosition)
     {
         float elapsedTime = 0f;
         Vector3 startingPos = transform.position;
@@ -72,6 +82,7 @@ public class CameraController : MonoBehaviour
         // Pastikan posisi dan rotasi tepat di tujuan pada akhir animasi
         transform.position = destination.position;
         transform.rotation = destination.rotation;
+        CurrentPosition = newPosition; 
         _moveCoroutine = null;
     }
 
@@ -84,10 +95,14 @@ public class CameraController : MonoBehaviour
         {
             case CameraPosition.Normal: return normalView;
             case CameraPosition.Center: return centerCardView;
-            case CameraPosition.Konsumer: return konsumerCardView;
-            case CameraPosition.Infrastruktur: return infrastrukturCardView;
-            case CameraPosition.Keuangan: return keuanganCardView;
-            case CameraPosition.Tambang: return tambangCardView;
+            case CameraPosition.Konsumer: return konsumerView;
+            case CameraPosition.Infrastruktur: return infrastrukturView;
+            case CameraPosition.Keuangan: return keuanganView;
+            case CameraPosition.Tambang: return tambangView;
+            case CameraPosition.KonsumerRumour: return konsumerRumourView;
+            case CameraPosition.InfrastrukturRumour: return infrastrukturRumourView;
+            case CameraPosition.KeuanganRumour: return keuanganRumourView;
+            case CameraPosition.TambangRumour: return tambangRumourView;
             default: return null;
         }
     }
