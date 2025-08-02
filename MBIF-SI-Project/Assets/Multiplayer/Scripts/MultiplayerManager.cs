@@ -5,8 +5,9 @@ using UnityEngine.UI;
 using Photon.Pun;
 using Photon.Realtime;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq; // Diperlukan untuk sorting (OrderBy)
-using ExitGames.Client.Photon;
+using Hashtable = ExitGames.Client.Photon.Hashtable;
 using UnityEngine.SceneManagement;
 using Firebase;
 using Firebase.Database;
@@ -25,6 +26,13 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     [Header("Layout Management")]
     public List<Transform> playerPositions;
     public const string POSITION_KEY = "posIndex";
+
+    [Header("Transisi UI")] // <-- TAMBAHKAN HEADER INI
+    public CanvasGroup biddingTransitionCG;
+    public CanvasGroup actionTransitionCG;
+    public CanvasGroup sellingTransitionCG;
+    public CanvasGroup rumorTransitionCG;
+    public CanvasGroup resolutionTransitionCG;
 
     [Header("End Game UI")]
     public GameObject leaderboardPanel;
@@ -94,18 +102,52 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
 
             if (ResolutionPhaseManagerMultiplayer.Instance != null)
             {
+                // Panggil fungsi yang sudah ada ini
                 ResolutionPhaseManagerMultiplayer.Instance.CreateInitialTokens();
+
+                // Tambahkan blok ini untuk menginisialisasi properti bonus
+                Hashtable bonusProps = new Hashtable();
+                string[] colors = { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
+                foreach (string color in colors)
+                {
+                    bonusProps["ipo_bonus_" + color] = 0;
+                }
+                PhotonNetwork.CurrentRoom.SetCustomProperties(bonusProps);
+
+                StartCoroutine(InitialTokenReveal());
             }
 
             if (ticketManager != null)
             {
                 Debug.Log("MasterClient memulai fase bidding dari MultiplayerManager.Start()...");
-                ticketManager.InitializeBidding();
             }
             else
             {
                 Debug.LogError("Referensi TicketManager tidak ditemukan di MultiplayerManager!");
             }
+        }
+    }
+
+    private IEnumerator InitialTokenReveal()
+    {
+        // Beri jeda singkat agar properti pembuatan token tersinkronisasi
+        yield return new WaitForSeconds(1.0f);
+
+        // 1. Mulai animasi flip token seperti biasa
+        if (ResolutionPhaseManagerMultiplayer.Instance != null)
+        {
+            // Kirim '1' karena ini adalah semester pertama
+            ResolutionPhaseManagerMultiplayer.Instance.RevealTokensForCurrentSemester(1);
+        }
+        // 2. Beri jeda yang cukup agar animasi selesai (sama seperti di StartNewSemester)
+        yield return new WaitForSeconds(2.5f);
+
+        // 3. BARULAH mulai fase bidding setelah jeda
+        if (PhotonNetwork.IsMasterClient && ticketManager != null)
+        {
+            yield return StartCoroutine(FadeTransition(biddingTransitionCG, 0.5f, 1f, 0.5f)); 
+            Debug.Log("MasterClient memulai fase bidding SETELAH animasi token awal selesai.");
+            ticketManager.InitializeBidding();
         }
     }
 
@@ -124,10 +166,18 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
                 PhotonNetwork.CurrentRoom.SetCustomProperties(props);
 
                 Debug.LogWarning(">>> [SEMESTER BARU] Harga pasar (IPO) TIDAK direset dan akan melanjutkan dari posisi terakhir.");
+
+                if (ResolutionPhaseManagerMultiplayer.Instance != null)
+                {
+                    // Kirim nilai semester BERIKUTNYA secara langsung
+                    ResolutionPhaseManagerMultiplayer.Instance.RevealTokensForCurrentSemester(currentSemester + 1);
+                }
+
                 // 2. Mulai lagi dari Fase Bidding
                 if (ticketManager != null)
                 {
-                    ticketManager.InitializeBidding();
+                    // Beri jeda agar animasi flip token selesai
+                    StartCoroutine(StartBiddingWithTransition(2.5f));
                 }
             }
             else
@@ -137,6 +187,59 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
                 EndGame();
             }
         }
+    }
+
+    private IEnumerator StartBiddingWithTransition(float delay)
+    {
+        // Jeda untuk animasi flip token
+        yield return new WaitForSeconds(delay);
+
+        // TAMBAHKAN TRANSISI DI SINI
+        yield return StartCoroutine(FadeTransition(biddingTransitionCG, 0.5f, 1f, 0.5f));
+
+        // Mulai bidding setelah transisi
+        ticketManager.InitializeBidding();
+    }
+
+    public IEnumerator FadeTransition(CanvasGroup cg, float fadeInTime, float holdTime, float fadeOutTime)
+    {
+        // Pastikan objek aktif sebelum memulai
+        cg.gameObject.SetActive(true);
+        cg.alpha = 0;
+
+        // --- FADE IN ---
+        float timer = 0f;
+        while (timer < fadeInTime)
+        {
+            cg.alpha = Mathf.Lerp(0, 1, timer / fadeInTime);
+            timer += Time.deltaTime;
+            yield return null;
+        }
+        cg.alpha = 1;
+
+        // --- HOLD ---
+        yield return new WaitForSeconds(holdTime);
+
+        // --- FADE OUT ---
+        timer = 0f;
+        while (timer < fadeOutTime)
+        {
+            cg.alpha = Mathf.Lerp(1, 0, timer / fadeOutTime);
+            timer += Time.deltaTime;
+            yield return null;
+        }
+        cg.alpha = 0;
+
+        // Nonaktifkan kembali objek setelah selesai
+        cg.gameObject.SetActive(false);
+    }
+
+    private IEnumerator StartBiddingAfterDelay(float delay)
+    {
+        // Jeda ini memberi waktu bagi semua client untuk melihat animasi flip token
+        // sebelum UI bidding muncul.
+        yield return new WaitForSeconds(delay);
+        ticketManager.InitializeBidding();
     }
 
     public void UpdatePlayerLayout()
@@ -164,33 +267,95 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         // Hanya MasterClient yang boleh menjalankan ini untuk menghindari konflik
         if (PhotonNetwork.IsMasterClient)
         {
-            UpdatePlayerLayoutBasedOnTurnOrder();
+            // Tetap panggil RPC untuk mengatur UI di semua klien
+            photonView.RPC("Rpc_ArrangePlayerUIs", RpcTarget.All);
+
+            // TAMBAHKAN INI: MasterClient memulai coroutine untuk transisi
+            StartCoroutine(TransitionToActionPhase());
         }
     }
 
-    // LOGIKA BARU: Mengatur posisi berdasarkan nomor urut, bukan daftar pemain default.
-    private void UpdatePlayerLayoutBasedOnTurnOrder()
+    // BUAT COROUTINE BARU INI
+    private IEnumerator TransitionToActionPhase()
     {
-        Player[] players = PhotonNetwork.PlayerList;
+        // Beri jeda sangat singkat agar RPC sempat diterima dan UI mulai diatur oleh klien lain
+        yield return new WaitForSeconds(0.5f);
 
-        List<Player> sortedPlayers = players.OrderBy(p =>
+        // Jalankan transisi fade in/out seperti yang Anda inginkan
+        yield return StartCoroutine(FadeTransition(actionTransitionCG, 0.5f, 1.5f, 0.5f));
+
+        // Setelah transisi selesai, BARULAH mulai fase aksi
+        if (ActionPhaseManager.Instance != null)
+        {
+            // ---> TAMBAHKAN BARIS INI <---
+            // Sebelum Fase Aksi dimulai, perintahkan MasterClient untuk menyiapkan dek rumor berikutnya.
+            if (RumorPhaseManagerMultiplayer.Instance != null)
+            {
+                RumorPhaseManagerMultiplayer.Instance.PrepareNextRumorDeck();
+            }
+
+            ActionPhaseManager.Instance.StartActionPhase();
+        }
+    }
+
+    [PunRPC]
+    private void Rpc_ArrangePlayerUIs()
+    {
+        // 1. Ambil semua pemain dan urutkan berdasarkan giliran (TURN_ORDER_KEY)
+        // Ini penting agar urutan pemain lain konsisten di setiap layar
+        List<Player> sortedPlayers = PhotonNetwork.PlayerList.OrderBy(p =>
             (p.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY)) ?
             (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY] :
             int.MaxValue
         ).ToList();
 
-        for (int i = 0; i < sortedPlayers.Count; i++)
-        {
-            Hashtable props = new Hashtable { { POSITION_KEY, i } };
-            sortedPlayers[i].SetCustomProperties(props);
-        }
+        // 2. Temukan semua objek profil pemain yang ada di scene
+        PlayerProfileMultiplayer[] allPlayerProfiles = FindObjectsOfType<PlayerProfileMultiplayer>();
 
-        // --- TAMBAHKAN LOGIKA INI DI AKHIR FUNGSI ---
-        // Setelah semua posisi pemain diatur, panggil fase aksi
-        if (PhotonNetwork.IsMasterClient)
+        // 3. Tentukan slot mana untuk pemain lokal (Posisi 5 -> indeks 4)
+        int localPlayerSlotIndex = 4; // Asumsi list 'playerPositions' dimulai dari indeks 0
+
+        // 4. Siapkan indeks untuk pemain lain
+        int otherPlayerSlotIndex = 0;
+
+        // 5. Loop melalui pemain yang sudah diurutkan dan tempatkan mereka
+        foreach (Player player in sortedPlayers)
         {
-            Debug.Log("Layout pemain selesai. Memulai Fase Aksi...");
-            ActionPhaseManager.Instance.StartActionPhase();
+            // Cari prefab profile yang sesuai (kode ini tidak berubah)
+            PlayerProfileMultiplayer profileToPlace = null;
+            foreach (var profile in allPlayerProfiles)
+            {
+                if (profile.photonView.Owner == player)
+                {
+                    profileToPlace = profile;
+                    break;
+                }
+            }
+
+            if (profileToPlace == null) continue;
+
+            if (player == PhotonNetwork.LocalPlayer)
+            {
+                profileToPlace.transform.SetParent(playerContainer, false);
+                profileToPlace.transform.position = playerPositions[localPlayerSlotIndex].position;
+                profileToPlace.transform.localScale = Vector3.one; // <-- TAMBAHKAN BARIS INI
+            }
+            else
+            {
+                if (otherPlayerSlotIndex == localPlayerSlotIndex)
+                {
+                    otherPlayerSlotIndex++;
+                }
+
+                if (otherPlayerSlotIndex < playerPositions.Count)
+                {
+                    profileToPlace.transform.SetParent(playerContainer, false);
+                    profileToPlace.transform.position = playerPositions[otherPlayerSlotIndex].position;
+                    profileToPlace.transform.localScale = Vector3.one; // <-- TAMBAHKAN BARIS INI JUGA
+                    otherPlayerSlotIndex++;
+                }
+            }
+            profileToPlace.gameObject.SetActive(true);
         }
     }
 
