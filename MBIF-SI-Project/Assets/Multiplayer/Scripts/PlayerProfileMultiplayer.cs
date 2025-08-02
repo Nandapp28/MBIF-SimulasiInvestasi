@@ -57,14 +57,6 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
         if (targetPlayer != null && targetPlayer == photonView.Owner)
         {
             UpdateAllUI(targetPlayer);
-
-            // LOGIKA BARU: Jika mendapat properti posisi, tampilkan diri dan pindah.
-            if (changedProps.ContainsKey(MultiplayerManager.POSITION_KEY))
-            {
-                // Tampilkan kembali prefabnya
-                gameObject.SetActive(true);
-                UpdatePosition(targetPlayer);
-            }
         }
     }
 
@@ -77,26 +69,8 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     {
         base.OnEnable();
         UpdateAllUI(photonView.Owner);
-        UpdatePosition(photonView.Owner);
     }
-
-    // Fungsi baru untuk memindahkan prefab
-    private void UpdatePosition(Player player)
-    {
-        if (player.CustomProperties.ContainsKey(MultiplayerManager.POSITION_KEY))
-        {
-            int positionIndex = (int)player.CustomProperties[MultiplayerManager.POSITION_KEY];
-
-            if (MultiplayerManager.Instance != null && positionIndex < MultiplayerManager.Instance.playerPositions.Count)
-            {
-                // Jadikan anak dari kontainer dan pindah ke posisi slot
-                transform.SetParent(MultiplayerManager.Instance.playerContainer, false);
-                transform.position = MultiplayerManager.Instance.playerPositions[positionIndex].position;
-                transform.localScale = Vector3.one; // Pastikan skala benar
-            }
-        }
-    }
-
+    
     // Fungsi untuk memperbarui semua teks di UI
     private void UpdateAllUI(Player player)
     {

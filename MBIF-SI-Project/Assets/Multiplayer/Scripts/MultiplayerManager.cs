@@ -177,7 +177,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
                 if (ticketManager != null)
                 {
                     // Beri jeda agar animasi flip token selesai
-                    StartCoroutine(StartBiddingAfterDelay(2.5f));
+                    StartCoroutine(StartBiddingWithTransition(2.5f));
                 }
             }
             else
@@ -187,6 +187,18 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
                 EndGame();
             }
         }
+    }
+
+    private IEnumerator StartBiddingWithTransition(float delay)
+    {
+        // Jeda untuk animasi flip token
+        yield return new WaitForSeconds(delay);
+
+        // TAMBAHKAN TRANSISI DI SINI
+        yield return StartCoroutine(FadeTransition(biddingTransitionCG, 0.5f, 1f, 0.5f));
+
+        // Mulai bidding setelah transisi
+        ticketManager.InitializeBidding();
     }
 
     public IEnumerator FadeTransition(CanvasGroup cg, float fadeInTime, float holdTime, float fadeOutTime)
@@ -255,39 +267,95 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         // Hanya MasterClient yang boleh menjalankan ini untuk menghindari konflik
         if (PhotonNetwork.IsMasterClient)
         {
-            StartCoroutine(UpdatePlayerLayoutBasedOnTurnOrder());
+            // Tetap panggil RPC untuk mengatur UI di semua klien
+            photonView.RPC("Rpc_ArrangePlayerUIs", RpcTarget.All);
+
+            // TAMBAHKAN INI: MasterClient memulai coroutine untuk transisi
+            StartCoroutine(TransitionToActionPhase());
         }
     }
 
-    private IEnumerator UpdatePlayerLayoutBasedOnTurnOrder()
+    // BUAT COROUTINE BARU INI
+    private IEnumerator TransitionToActionPhase()
     {
-        Player[] players = PhotonNetwork.PlayerList;
+        // Beri jeda sangat singkat agar RPC sempat diterima dan UI mulai diatur oleh klien lain
+        yield return new WaitForSeconds(0.5f);
 
-        List<Player> sortedPlayers = players.OrderBy(p =>
-            (p.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY)) ?
-            (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY] :
-            int.MaxValue
-        ).ToList();
+        // Jalankan transisi fade in/out seperti yang Anda inginkan
+        yield return StartCoroutine(FadeTransition(actionTransitionCG, 0.5f, 1.5f, 0.5f));
 
-        for (int i = 0; i < sortedPlayers.Count; i++)
+        // Setelah transisi selesai, BARULAH mulai fase aksi
+        if (ActionPhaseManager.Instance != null)
         {
-            Hashtable props = new Hashtable { { POSITION_KEY, i } };
-            sortedPlayers[i].SetCustomProperties(props);
-        }
-
-        // --- MODIFIKASI DI SINI ---
-        if (PhotonNetwork.IsMasterClient)
-        {
-            // BARU: Panggil transisi sebelum fase aksi
-            yield return StartCoroutine(FadeTransition(actionTransitionCG, 0.5f, 1.5f, 0.5f));
-
+            // ---> TAMBAHKAN BARIS INI <---
+            // Sebelum Fase Aksi dimulai, perintahkan MasterClient untuk menyiapkan dek rumor berikutnya.
             if (RumorPhaseManagerMultiplayer.Instance != null)
             {
                 RumorPhaseManagerMultiplayer.Instance.PrepareNextRumorDeck();
             }
 
-            Debug.Log("Layout pemain selesai. Memulai Fase Aksi...");
             ActionPhaseManager.Instance.StartActionPhase();
+        }
+    }
+
+    [PunRPC]
+    private void Rpc_ArrangePlayerUIs()
+    {
+        // 1. Ambil semua pemain dan urutkan berdasarkan giliran (TURN_ORDER_KEY)
+        // Ini penting agar urutan pemain lain konsisten di setiap layar
+        List<Player> sortedPlayers = PhotonNetwork.PlayerList.OrderBy(p =>
+            (p.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY)) ?
+            (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY] :
+            int.MaxValue
+        ).ToList();
+
+        // 2. Temukan semua objek profil pemain yang ada di scene
+        PlayerProfileMultiplayer[] allPlayerProfiles = FindObjectsOfType<PlayerProfileMultiplayer>();
+
+        // 3. Tentukan slot mana untuk pemain lokal (Posisi 5 -> indeks 4)
+        int localPlayerSlotIndex = 4; // Asumsi list 'playerPositions' dimulai dari indeks 0
+
+        // 4. Siapkan indeks untuk pemain lain
+        int otherPlayerSlotIndex = 0;
+
+        // 5. Loop melalui pemain yang sudah diurutkan dan tempatkan mereka
+        foreach (Player player in sortedPlayers)
+        {
+            // Cari prefab profile yang sesuai (kode ini tidak berubah)
+            PlayerProfileMultiplayer profileToPlace = null;
+            foreach (var profile in allPlayerProfiles)
+            {
+                if (profile.photonView.Owner == player)
+                {
+                    profileToPlace = profile;
+                    break;
+                }
+            }
+
+            if (profileToPlace == null) continue;
+
+            if (player == PhotonNetwork.LocalPlayer)
+            {
+                profileToPlace.transform.SetParent(playerContainer, false);
+                profileToPlace.transform.position = playerPositions[localPlayerSlotIndex].position;
+                profileToPlace.transform.localScale = Vector3.one; // <-- TAMBAHKAN BARIS INI
+            }
+            else
+            {
+                if (otherPlayerSlotIndex == localPlayerSlotIndex)
+                {
+                    otherPlayerSlotIndex++;
+                }
+
+                if (otherPlayerSlotIndex < playerPositions.Count)
+                {
+                    profileToPlace.transform.SetParent(playerContainer, false);
+                    profileToPlace.transform.position = playerPositions[otherPlayerSlotIndex].position;
+                    profileToPlace.transform.localScale = Vector3.one; // <-- TAMBAHKAN BARIS INI JUGA
+                    otherPlayerSlotIndex++;
+                }
+            }
+            profileToPlace.gameObject.SetActive(true);
         }
     }
 
