@@ -10,6 +10,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 
 public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 {
+    private HashSet<GameObject> flippedTokens = new HashSet<GameObject>();
     public static ResolutionPhaseManagerMultiplayer Instance;
 
     [Header("3D Object References")]
@@ -22,7 +23,7 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     [System.Serializable]
     public class TokenMaterial { public int value; public Material material; }
     public List<TokenMaterial> tokenMaterials;
-    
+
     [System.Serializable]
     public class DividendIndicatorMapping
     {
@@ -34,7 +35,6 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     // Kunci untuk Room Custom Properties
     private const string RES_TOKENS_PREFIX = "res_tokens_";
     private const string DIVIDEND_INDEX_PREFIX = "div_index_";
-    private const string X2_BONUS_PREFIX = "x2_bonus_";
 
     private string[] resolutionOrder = { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
@@ -53,7 +53,7 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     #endregion
 
     #region Phase Logic
-    
+
     // Fungsi ini dipanggil dari MultiplayerManager di awal permainan
     public void CreateInitialTokens()
     {
@@ -61,12 +61,11 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         {
             Debug.LogWarning(">>> [GAME START] Membuat semua 16 token resolusi untuk 4 semester.");
             Hashtable roomProps = new Hashtable();
-            int[] possibleTokens = { -2, -1, 1, 2, 0 }; // 0 adalah x2
+            int[] possibleTokens = { -2, -1, 1, 2 };
 
             foreach (string color in resolutionOrder)
             {
                 roomProps[DIVIDEND_INDEX_PREFIX + color] = 0;
-                roomProps[X2_BONUS_PREFIX + color] = false;
 
                 List<int> tokens = new List<int>();
                 for (int i = 0; i < 4; i++)
@@ -82,68 +81,53 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     // Fungsi ini dipanggil setiap awal Fase Resolusi
     public void StartResolutionPhase()
     {
+        // --- TAMBAHKAN BLOK INI ---
+        if (GameStatusUI.Instance != null)
+        {
+            GameStatusUI.Instance.photonView.RPC("UpdateStatusText", RpcTarget.All, "Fase Resolusi: Efek token dan dividen diproses...");
+        }
+
         if (PhotonNetwork.IsMasterClient)
         {
             Debug.Log("MasterClient memulai Fase Resolusi...");
-            StartCoroutine(RevealOneTokenPerSemester());
+            StartCoroutine(ProcessRevealedTokens());
         }
     }
 
-    private IEnumerator RevealOneTokenPerSemester()
+    private IEnumerator ProcessRevealedTokens()
     {
         if (!PhotonNetwork.IsMasterClient) yield break;
 
-        int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties["currentSemester"]; // Menggunakan key dari MultiplayerManager
-        int tokenIndexToReveal = currentSemester - 1;
+        int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties["currentSemester"];
+        int tokenIndexToProcess = currentSemester - 1; // Menggunakan nama variabel yg lebih jelas
 
-        Debug.Log($"Memulai urutan resolusi untuk SEMESTER {currentSemester}. Mengungkap token di indeks {tokenIndexToReveal}.");
+        Debug.Log($"Memulai urutan proses resolusi untuk SEMESTER {currentSemester}. Memproses token di indeks {tokenIndexToProcess}.");
         yield return new WaitForSeconds(2f);
 
         foreach (string color in resolutionOrder)
         {
-            photonView.RPC("Rpc_RevealSpecificToken", RpcTarget.All, color, tokenIndexToReveal);
-            yield return new WaitForSeconds(2.5f);
+            // =========================================================================
+            // --- INTI PERUBAHAN ---
+            // HAPUS atau KOMENTARI baris RPC ini. Animasi sudah dilakukan di awal.
+            // photonView.RPC("Rpc_RevealSpecificToken", RpcTarget.All, color, tokenIndexToReveal);
+            // -------------------------------------------------------------------------
 
-            ApplyTokenEffect(color, tokenIndexToReveal);
+            // Sekarang kita hanya perlu memberi jeda agar pemain fokus pada token yang efeknya akan diaktifkan.
+            Debug.Log($"[MasterClient] Memproses efek untuk token {color}...");
+            yield return new WaitForSeconds(2.5f); // Jeda tetap penting untuk flow permainan
+
+            // Logika untuk menerapkan efek tetap berjalan seperti biasa.
+            ApplyTokenEffect(color, tokenIndexToProcess);
             yield return new WaitForSeconds(1.5f);
         }
 
-        Debug.Log("Semua token untuk semester ini telah terungkap. Memproses pembayaran dividen...");
+        Debug.Log("Semua efek token untuk semester ini telah diterapkan. Memproses pembayaran dividen...");
         ProcessDividendPayouts();
     }
-    
+
     #endregion
 
     #region Visuals & RPCs
-
-    [PunRPC]
-    private void Rpc_RevealSpecificToken(string color, int tokenIndex)
-    {
-        Debug.Log($"[SEMUA PEMAIN] Mengungkap token ke-{tokenIndex + 1} untuk {color}...");
-        Hashtable roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
-
-        int[] tokens = (int[])roomProps[RES_TOKENS_PREFIX + color];
-        if (tokenIndex < 0 || tokenIndex >= tokens.Length) return; // Pengaman
-        int tokenValue = tokens[tokenIndex];
-
-        List<GameObject> tokenList = null;
-        if (color == "Konsumer") tokenList = tokenObjectsKonsumer;
-        else if (color == "Infrastruktur") tokenList = tokenObjectsInfrastruktur;
-        else if (color == "Keuangan") tokenList = tokenObjectsKeuangan;
-        else if (color == "Tambang") tokenList = tokenObjectsTambang;
-
-        if (tokenList != null && tokenIndex < tokenList.Count)
-        {
-            // Perbaikan: Gunakan tokenIndex, bukan revealedCount
-            GameObject tokenToFlip = tokenList[tokenIndex];
-            Material targetMaterial = tokenMaterials.FirstOrDefault(m => m.value == tokenValue)?.material;
-
-            if (tokenToFlip != null && targetMaterial != null)
-            {
-                StartCoroutine(FlipToken(tokenToFlip, targetMaterial));
-            }
-        }
-    }
 
     private IEnumerator FlipToken(GameObject token, Material frontMaterial)
     {
@@ -166,6 +150,74 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         token.transform.rotation = endRot;
     }
 
+    public void RevealTokensForCurrentSemester(int semesterToReveal)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        // Gunakan parameter langsung, bukan membaca dari properti yang mungkin usang
+        int tokenIndexToReveal = semesterToReveal - 1;
+
+        Debug.Log($"[MasterClient] Memerintahkan semua pemain untuk membuka token semester {semesterToReveal} (index: {tokenIndexToReveal}).");
+
+        photonView.RPC("Rpc_AnimateAllSemesterTokens", RpcTarget.All, tokenIndexToReveal);
+    }
+
+    [PunRPC]
+    private void Rpc_AnimateAllSemesterTokens(int tokenIndex)
+    {
+        Debug.Log($"[SEMUA PEMAIN] Memulai animasi flip untuk semua token di indeks {tokenIndex}.");
+        // Jalankan coroutine agar token terbuka satu per satu, bukan serentak.
+        StartCoroutine(FlipAllTokensSequentially(tokenIndex));
+    }
+
+    // --- COROUTINE BARU UNTUK MENGATUR URUTAN ANIMASI ---
+    private IEnumerator FlipAllTokensSequentially(int tokenIndex)
+    {
+        // Jeda awal sebelum animasi pertama
+        yield return new WaitForSeconds(0.5f);
+
+        foreach (string color in resolutionOrder)
+        {
+            // Panggil logika untuk membuka satu token
+            RevealSingleTokenVisual(color, tokenIndex);
+            // Beri jeda antar token agar animasinya terlihat bagus
+            yield return new WaitForSeconds(0.4f);
+        }
+    }
+
+    private void RevealSingleTokenVisual(string color, int tokenIndex)
+    {
+        Hashtable roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
+        int[] tokens = (int[])roomProps[RES_TOKENS_PREFIX + color];
+        if (tokenIndex < 0 || tokenIndex >= tokens.Length) return;
+        int tokenValue = tokens[tokenIndex];
+
+        List<GameObject> tokenList = null;
+        if (color == "Konsumer") tokenList = tokenObjectsKonsumer;
+        else if (color == "Infrastruktur") tokenList = tokenObjectsInfrastruktur;
+        else if (color == "Keuangan") tokenList = tokenObjectsKeuangan;
+        else if (color == "Tambang") tokenList = tokenObjectsTambang;
+
+        if (tokenList != null && tokenIndex < tokenList.Count)
+        {
+            GameObject tokenToFlip = tokenList[tokenIndex];
+            Material targetMaterial = tokenMaterials.FirstOrDefault(m => m.value == tokenValue)?.material;
+
+            if (tokenToFlip != null && targetMaterial != null)
+            {
+                // 1. Ganti pengecekan nama dengan pengecekan apakah token SUDAH ADA di dalam daftar 'flippedTokens'
+                if (!flippedTokens.Contains(tokenToFlip))
+                {
+                    // 2. Jika belum ada (belum di-flip), jalankan animasi
+                    StartCoroutine(FlipToken(tokenToFlip, targetMaterial));
+
+                    // 3. Setelah animasi dimulai, langsung tambahkan token ke daftar agar tidak di-flip lagi
+                    flippedTokens.Add(tokenToFlip);
+                }
+            }
+        }
+    }
+
     // Fungsi ini dipanggil dari RPC lama, bisa kita hapus atau biarkan kosong.
     // Sebaiknya kita biarkan agar OnRoomPropertiesUpdate tidak error jika masih ada.
     public override void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)
@@ -183,9 +235,9 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     }
 
     #endregion
-    
+
     #region Core Logic
-    
+
     // Perbaikan: Fungsi ini sekarang menerima tokenIndex
     private void ApplyTokenEffect(string color, int tokenIndex)
     {
@@ -194,48 +246,32 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         Hashtable roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
         string divKey = DIVIDEND_INDEX_PREFIX + color;
         string tokKey = RES_TOKENS_PREFIX + color;
-        string x2Key = X2_BONUS_PREFIX + color;
 
         int[] tokens = (int[])roomProps[tokKey];
         int dividendIndex = (int)roomProps[divKey];
-        int tokenEffect = tokens[tokenIndex]; // Perbaikan: Ambil efek dari indeks yang benar
+        int tokenEffect = tokens[tokenIndex];
 
-        Hashtable propsToSet = new Hashtable();
+        dividendIndex += tokenEffect;
 
-        if (tokenEffect == 0) // Jika token adalah 'x2'
+        // Logika overflow sekarang memanggil fungsi terpusat
+        if (dividendIndex > 3)
         {
-            Debug.Log($"[Token x2] Bonus pengganda untuk {color} diaktifkan!");
-            propsToSet[x2Key] = true;
-        }
-        else // Jika token adalah penambahan/pengurangan biasa
-        {
-            dividendIndex += tokenEffect;
-        }
-
-        if (dividendIndex > 3) 
-        {
-            ModifyIPOIndex(color, 1);
-            dividendIndex = 0;
+            // Panggil fungsi terpusat di SellingPhaseManager untuk menaikkan IPO
+            SellingPhaseManagerMultiplayer.Instance.ModifyIPOIndex(color, 1);
+            dividendIndex = 0; // Reset dividend index setelah overflow
         }
         else if (dividendIndex < -3)
         {
-            ModifyIPOIndex(color, -1);
-            dividendIndex = 0;
+            // Panggil fungsi terpusat di SellingPhaseManager untuk menurunkan IPO (ini bisa memicu CRASH)
+            SellingPhaseManagerMultiplayer.Instance.ModifyIPOIndex(color, -1);
+            dividendIndex = 0; // Reset dividend index setelah overflow
         }
-        
-        propsToSet[divKey] = dividendIndex;
+
+        // Set properti untuk dividendIndex saja
+        Hashtable propsToSet = new Hashtable { { divKey, dividendIndex } };
         PhotonNetwork.CurrentRoom.SetCustomProperties(propsToSet);
     }
 
-    private void ModifyIPOIndex(string color, int delta)
-    {
-        string ipoIndexKey = "ipo_index_" + color;
-        int currentIndex = PhotonNetwork.CurrentRoom.CustomProperties.ContainsKey(ipoIndexKey) ? (int)PhotonNetwork.CurrentRoom.CustomProperties[ipoIndexKey] : 0;
-        Hashtable ipoProp = new Hashtable { { ipoIndexKey, currentIndex + delta } };
-        PhotonNetwork.CurrentRoom.SetCustomProperties(ipoProp);
-        Debug.Log($"[Modify IPO by Resolution] {color} IPO index diubah sebesar {delta}.");
-    }
-    
     private void UpdateAllDividendVisuals()
     {
         Hashtable roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
@@ -263,7 +299,7 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             }
         }
     }
-    
+
     private void ProcessDividendPayouts()
     {
         if (!PhotonNetwork.IsMasterClient) return;
@@ -286,13 +322,6 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                     int rewardPerCard = dividendRewards.ContainsKey(dividendIndex) ? dividendRewards[dividendIndex] : 0;
                     int earningsForThisColor = cardCount * rewardPerCard;
 
-                    string x2Key = X2_BONUS_PREFIX + color;
-                    bool isX2Active = roomProps.ContainsKey(x2Key) ? (bool)roomProps[x2Key] : false;
-                    if (isX2Active)
-                    {
-                        earningsForThisColor *= 2;
-                        Debug.Log($"Bonus x2 diterapkan untuk {player.NickName} di sektor {color}!");
-                    }
                     totalDividendEarnings += earningsForThisColor;
                 }
             }
@@ -308,10 +337,22 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         }
 
         Debug.Log("✅ Pembayaran dividen selesai. Fase Resolusi berakhir.");
-        if (MultiplayerManager.Instance != null)
+
+        // --- AWAL PERUBAHAN ---
+        int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerManager.SEMESTER_KEY];
+
+        // Jika ini adalah akhir semester 1, mulai Fase Testing
+        if (currentSemester == 1 && TestingCardManagerMultiplayer.Instance != null)
+        {
+            Debug.Log("[GAME FLOW] Akhir Semester 1, memulai Fase Testing...");
+            TestingCardManagerMultiplayer.Instance.StartTestingPhase();
+        }
+        // Jika tidak, lanjutkan ke alur normal (mulai semester baru)
+        else if (MultiplayerManager.Instance != null)
         {
             MultiplayerManager.Instance.StartNewSemester();
         }
+        // --- AKHIR PERUBAHAN ---
     }
     #endregion
 }

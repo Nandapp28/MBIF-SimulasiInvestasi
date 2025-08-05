@@ -22,8 +22,6 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     public GameObject actionCardPrefab;
     public Transform cardContainer;
     public GameObject actionButtonsPanel;
-    public GameObject insiderTradePanel;
-    public Text insiderTradeText;
 
     [Header("Action Buttons References")]
     public Button primaryActionButton;
@@ -33,11 +31,6 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     [Header("Layout")]
     public List<Transform> cardPositions;
-
-    [Header("Tender Offer UI")]
-    public GameObject tenderOfferPanel;
-    public Transform targetButtonContainer;
-    public GameObject targetButtonPrefab;
 
     [Header("Trade Fee UI")]
     public GameObject tradeFeePanel;
@@ -53,6 +46,12 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     private List<int> flashbuySelectedCardIds = new List<int>(); // Kartu yang dipilih di sesi Flashbuy
     private Coroutine flashbuyTimerCoroutine; // Untuk manajemen timer (opsional tapi disarankan)
 
+    [Header("Tender Offer UI")]
+    public GameObject tenderOfferClickButtonPrefab; // Prefab tombol "klik" Anda
+
+    // Tambahkan variabel ini untuk melacak tombol yang aktif
+    private List<GameObject> activeTenderOfferButtons = new List<GameObject>();
+    private string tenderOfferCardColor; // Kita masih butuh ini
 
     // Variabel State
     private List<Player> turnOrder;
@@ -165,133 +164,63 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     }
     #endregion
 
-    #region Insider Trade Logic
-    [PunRPC]
-    private void Rpc_ShowInsiderTrade(string rumorDescription)
-    {
-        // Fungsi ini hanya akan berjalan di komputer pemain yang dituju
-        Debug.Log($"[INSIDER TRADE] Anda menerima bocoran: {rumorDescription}");
-        StartCoroutine(ShowInsiderTradePanel(rumorDescription));
-    }
-
-    private IEnumerator ShowInsiderTradePanel(string description)
-    {
-        if (insiderTradePanel != null && insiderTradeText != null)
-        {
-            insiderTradeText.text = description;
-            insiderTradePanel.SetActive(true);
-
-            // Tampilkan panel selama 5 detik, lalu sembunyikan lagi
-            yield return new WaitForSeconds(5f);
-
-            insiderTradePanel.SetActive(false);
-        }
-    }
-
-    [PunRPC]
-    private void Rpc_ShowInsiderTradePrediction(string cardName, string colorName)
-    {
-        // Fungsi ini berjalan di klien pemain yang mengaktifkan kartu
-        Debug.Log($"[INSIDER TRADE] Anda menerima bocoran visual untuk kartu: {cardName} [{colorName}]");
-        StartCoroutine(AnimateInsiderTradePrediction(cardName, colorName));
-    }
-
-    private IEnumerator AnimateInsiderTradePrediction(string cardName, string colorName)
-    {
-        // Coroutine ini menjalankan seluruh sekuens animasi secara lokal
-        if (RumorPhaseManagerMultiplayer.Instance == null) // Periksa instance langsung
-        {
-            Debug.LogError("Instance RumorPhaseManagerMultiplayer tidak ditemukan di scene!");
-            // Jika animasi tidak bisa diputar, kita tetap HARUS lapor ke MasterClient agar game tidak macet.
-            photonView.RPC("Rpc_ConfirmInsiderTradeComplete", RpcTarget.MasterClient);
-            yield break;
-        }
-
-        // Ganti semua 'rumorManager' dengan 'RumorPhaseManagerMultiplayer.Instance'
-        GameObject cardObject = RumorPhaseManagerMultiplayer.Instance.GetCardObjectByColor(colorName);
-        Texture cardTexture = RumorPhaseManagerMultiplayer.Instance.GetCardTextureByName(cardName);
-
-        if (cardObject == null || cardTexture == null)
-        {
-            Debug.LogError($"Tidak dapat menemukan objek kartu atau tekstur untuk {cardName} [{colorName}]");
-            photonView.RPC("Rpc_ConfirmInsiderTradeComplete", RpcTarget.MasterClient);
-            yield break;
-        }
-        
-        Renderer cardRenderer = cardObject.GetComponentInChildren<Renderer>();
-        
-        // Simpan state asli kartu
-        Vector3 originalPosition = cardObject.transform.position;
-        Quaternion originalRotation = cardObject.transform.rotation;
-        
-        // Pindahkan kartu ke panggung prediksi
-        cardObject.transform.position = RumorPhaseManagerMultiplayer.Instance.predictionCardStage.position;
-        cardObject.transform.rotation = RumorPhaseManagerMultiplayer.Instance.predictionCardStage.rotation;
-        cardRenderer.material.mainTexture = cardTexture;
-        
-        // JALANKAN ANIMASI FLIP (DURASI 0.5 DETIK)
-        float flipDuration = 0.5f;
-        yield return StartCoroutine(RumorPhaseManagerMultiplayer.Instance.FlipCard(cardObject, flipDuration));
-        
-        // Tunggu sejenak agar pemain bisa melihat kartu
-        yield return new WaitForSeconds(3.5f); // Total jeda = 0.5s (animasi) + 3.5s (tunggu) = 4 detik
-        
-        // Sembunyikan dan kembalikan kartu ke posisi semula
-        cardObject.SetActive(false); // Sembunyikan agar tidak terlihat saat kembali
-        cardObject.transform.position = originalPosition;
-        cardObject.transform.rotation = originalRotation;
-        
-        Debug.Log("[Insider Trade] Animasi selesai. Mengirim konfirmasi ke MasterClient.");
-
-        // KIRIM KONFIRMASI KEMBALI KE MASTERCLIENT
-        photonView.RPC("Rpc_ConfirmInsiderTradeComplete", RpcTarget.MasterClient);
-    }
-
-    [PunRPC]
-    private void Rpc_ConfirmInsiderTradeComplete(PhotonMessageInfo info)
-    {
-        // Fungsi ini HANYA berjalan di MasterClient
-        if (!PhotonNetwork.IsMasterClient) return;
-
-        Debug.Log($"[MasterClient] Konfirmasi Insider Trade dari {info.Sender.NickName} diterima. Melanjutkan giliran.");
-        ForceNextTurn(); // Lanjutkan ke giliran berikutnya
-    }
-
-    #endregion
-
     #region Tender Offer Logic
-    // Fungsi ini dipanggil dari Tombol Target yang kita klik
-    public void OnTenderOfferTargetSelected(int targetActorNumber, string cardColor)
-    {
-        Debug.Log($"Anda memilih target #{targetActorNumber} untuk kartu {cardColor}. Mengirim pilihan ke MasterClient...");
-        // Kirim pilihan final ke MasterClient, sekarang dengan data warna
-        photonView.RPC("Rpc_SubmitTenderOfferTarget", RpcTarget.MasterClient, targetActorNumber, cardColor);
 
-        tenderOfferPanel.SetActive(false);
-    }
-
-    // RPC ini berjalan di pemain yang mengaktifkan kartu, untuk menampilkan pilihan
     [PunRPC]
     private void Rpc_RequestTenderOfferTarget(int[] validTargetActorNumbers, string cardColorStr)
     {
-        tenderOfferPanel.SetActive(true);
-        foreach (Transform child in targetButtonContainer)
+        // Hanya pemain pengaktif yang memunculkan tombol
+        if (PhotonNetwork.LocalPlayer.ActorNumber != this.currentPlayerActorNumber) return;
+
+        tenderOfferCardColor = cardColorStr;
+        CleanupTenderOfferButtons(); // Bersihkan tombol lama jika ada
+
+        // Cari semua profil pemain yang ada di scene
+        PlayerProfileMultiplayer[] allPlayerProfiles = FindObjectsOfType<PlayerProfileMultiplayer>();
+        List<int> validTargetsList = new List<int>(validTargetActorNumbers);
+
+        foreach (PlayerProfileMultiplayer profile in allPlayerProfiles)
         {
-            Destroy(child.gameObject);
+            // Cek apakah pemilik profil ini adalah target yang valid
+            if (profile.photonView.Owner != null && validTargetsList.Contains(profile.photonView.Owner.ActorNumber))
+            {
+                // Dapatkan posisi dari UI profil pemain target
+                Transform targetTransform = profile.transform;
+
+                // Buat tombol "klik" sebagai child dari transform target agar posisinya mengikuti
+                GameObject buttonObj = Instantiate(tenderOfferClickButtonPrefab, targetTransform);
+                buttonObj.transform.localPosition = Vector3.zero; // Atur posisi relatif ke tengah
+
+                Button clickButton = buttonObj.GetComponentInChildren<Button>();
+                if (clickButton != null)
+                {
+                    Player targetPlayer = profile.photonView.Owner;
+                    clickButton.onClick.AddListener(() => OnTenderOfferTargetClicked(targetPlayer));
+                }
+
+                activeTenderOfferButtons.Add(buttonObj);
+            }
         }
 
-        foreach (int actorNumber in validTargetActorNumbers)
+        // Tampilkan tombol Skip untuk jaga-jaga
+        if (skipButton != null)
         {
-            Player targetPlayer = PhotonNetwork.CurrentRoom.GetPlayer(actorNumber);
-            if (targetPlayer != null)
-            {
-                GameObject buttonObj = Instantiate(targetButtonPrefab, targetButtonContainer);
-                // Panggil Setup dengan parameter warna yang baru
-                buttonObj.GetComponent<TargetPlayerButton>().Setup(targetPlayer.NickName, targetPlayer.ActorNumber, cardColorStr, this);
-            }
+            actionButtonsPanel.SetActive(true);
+            primaryActionButton.gameObject.SetActive(false);
+            activateButton.gameObject.SetActive(false);
+            skipButton.gameObject.SetActive(true);
         }
     }
 
+    private void OnTenderOfferTargetClicked(Player targetPlayer)
+    {
+        // Kirim pilihan ke server
+        photonView.RPC("Rpc_SubmitTenderOfferTarget", RpcTarget.MasterClient, targetPlayer.ActorNumber, tenderOfferCardColor);
+
+        // Setelah memilih, bersihkan semua tombol "klik" dan tombol skip
+        CleanupTenderOfferButtons();
+    }
+    
     // RPC ini berjalan di MasterClient, menerima pilihan final dari pemain
     [PunRPC]
     private void Rpc_SubmitTenderOfferTarget(int targetActorNumber, string cardColor, PhotonMessageInfo info)
@@ -345,6 +274,23 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             Debug.LogWarning($"[Tender Offer] Transaksi dibatalkan oleh server, Investpoint {activator.NickName} tidak cukup.");
         }
         AdvanceToNextTurn();
+    }
+
+    private void CleanupTenderOfferButtons()
+    {
+        // Hancurkan semua tombol "klik" yang aktif
+        foreach (GameObject btn in activeTenderOfferButtons)
+        {
+            if (btn != null) Destroy(btn);
+        }
+        activeTenderOfferButtons.Clear();
+
+        // Sembunyikan kembali panel tombol aksi (yang berisi tombol skip)
+        actionButtonsPanel.SetActive(false);
+        // Kembalikan visibilitas tombol normal
+        primaryActionButton.gameObject.SetActive(true);
+        activateButton.gameObject.SetActive(true);
+        skipButton.gameObject.SetActive(false);
     }
     #endregion
 
@@ -449,13 +395,17 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             flashbuySelectedCardIds.Clear();
 
             Debug.Log($"[Flashbuy] Anda mengaktifkan Flashbuy! Pilih 2 kartu GRATIS.");
-            if(actionButtonsPanel != null) actionButtonsPanel.SetActive(true);
-            if(primaryActionButtonText != null) primaryActionButtonText.text = "Confirm Selection";
-            if(activateButton != null) activateButton.gameObject.SetActive(false);
-            if(skipButton != null) skipButton.gameObject.SetActive(true);
-        } else {
+            if (actionButtonsPanel != null) actionButtonsPanel.SetActive(true);
+            if (primaryActionButtonText != null) primaryActionButtonText.text = "Confirm Selection";
+            if (activateButton != null) activateButton.gameObject.SetActive(false);
+            if (skipButton != null) skipButton.gameObject.SetActive(true);
+            UpdateFlashbuyAffordability();
+        }
+        else
+        {
             Player activatorPlayer = PhotonNetwork.CurrentRoom.GetPlayer(activatorActorNumber);
-            if (activatorPlayer != null && GameStatusUI.Instance != null) {
+            if (activatorPlayer != null && GameStatusUI.Instance != null)
+            {
                 GameStatusUI.Instance.photonView.RPC("UpdateStatusText", RpcTarget.All, $"{activatorPlayer.NickName} mengaktifkan Flashbuy! Dia akan memilih kartu.");
             }
         }
@@ -492,15 +442,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (currentInvestpoint >= totalCost)
         {
             Debug.Log($"[Flashbuy] MasterClient memproses pilihan {chosenCardIds.Length} kartu dari {activator.NickName} seharga {totalCost} InvestPoin.");
-
-            // GUNAKAN Hashtable yang sudah ada. JANGAN BUAT YANG BARU.
             Hashtable playerPropsToUpdate = new Hashtable();
-            foreach (DictionaryEntry entry in activator.CustomProperties)
-            {
-                playerPropsToUpdate.Add(entry.Key, entry.Value);
-            }
-
-            // Langsung kurangi InvestPoin di sini
             playerPropsToUpdate[PlayerProfileMultiplayer.INVESTPOINT_KEY] = currentInvestpoint - totalCost;
 
             foreach (int cardId in chosenCardIds)
@@ -511,26 +453,107 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
                     string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardData.color.ToString());
                     if (!string.IsNullOrEmpty(cardKey))
                     {
-                        int currentCards = playerPropsToUpdate.ContainsKey(cardKey) ? (int)playerPropsToUpdate[cardKey] : 0;
+                        // SOLUSI: Cek dulu di data sementara (playerPropsToUpdate), baru ke data asli.
+                        int currentCards = 0;
+                        if (playerPropsToUpdate.ContainsKey(cardKey))
+                        {
+                            // Jika sudah ada di transaksi ini, gunakan nilai itu.
+                            currentCards = (int)playerPropsToUpdate[cardKey];
+                        }
+                        else if (activator.CustomProperties.ContainsKey(cardKey))
+                        {
+                            // Jika tidak, baru ambil dari data asli pemain.
+                            currentCards = (int)activator.CustomProperties[cardKey];
+                        }
+
+                        // Tambahkan 1 ke nilai yang benar.
                         playerPropsToUpdate[cardKey] = currentCards + 1;
                     }
                     photonView.RPC("Rpc_RemoveCardFromTable", RpcTarget.All, cardId);
                     cardsTaken++;
                 }
             }
-            
+
             // Update properti pemain SATU KALI dengan semua perubahan
             activator.SetCustomProperties(playerPropsToUpdate);
+
+            // Reset state dan lanjutkan giliran HANYA JIKA SUKSES
+            this.isInFlashbuyMode = false;
+            this.flashbuyActivatorActorNumber = -1;
+            AdvanceToNextTurn(); // <-- TAMBAHKAN KEMBALI BARIS INI
         }
         else
         {
-            Debug.LogWarning($"[Flashbuy] {activator.NickName} tidak mampu membayar {totalCost} InvestPoin. Pembelian dibatalkan.");
+            // Jika gagal, kirim notifikasi dan jangan lanjutkan giliran (ini sudah benar)
+            Debug.LogWarning($"[Flashbuy] {activator.NickName} tidak mampu membayar...");
+            photonView.RPC("Rpc_FlashbuyFailed", activator);
+        }
+    }
+
+    [PunRPC]
+    private void Rpc_FlashbuyFailed()
+    {
+        // Pastikan ini hanya berjalan untuk pemain yang mengaktifkan Flashbuy
+        if (!isInFlashbuyMode || PhotonNetwork.LocalPlayer.ActorNumber != flashbuyActivatorActorNumber) return;
+
+        Debug.LogError("Pembelian Flashbuy GAGAL: InvestPoin tidak cukup. Silakan pilih lagi.");
+
+        // Tampilkan notifikasi kepada pemain.
+        // Anda bisa menggunakan sistem notifikasi UI yang sudah ada, atau buat yang simpel.
+        if (GameStatusUI.Instance != null)
+        {
+            GameStatusUI.Instance.ShowTemporaryNotification("Pembelian Gagal! Poin tidak cukup.", 3.0f);
         }
 
-        // Reset state dan lanjutkan giliran (ini sudah benar)
-        this.isInFlashbuyMode = false;
-        this.flashbuyActivatorActorNumber = -1;
-        AdvanceToNextTurn();
+        // Beri pemain kesempatan memilih lagi dengan mengosongkan pilihan sebelumnya
+        // dan memperbarui tampilan tombol.
+        foreach (int cardId in flashbuySelectedCardIds)
+        {
+            GameObject cardObject = instantiatedCards.ElementAtOrDefault(cardId);
+            if (cardObject != null)
+            {
+                cardObject.transform.localScale = defaultCardScale;
+            }
+        }
+        flashbuySelectedCardIds.Clear();
+        UpdateFlashbuyAffordability(); // Perbarui status tombol 'Confirm'
+    }
+
+    private void UpdateFlashbuyAffordability()
+    {
+        // Pastikan kita berada dalam mode Flashbuy dan ini adalah giliran kita
+        if (!isInFlashbuyMode || PhotonNetwork.LocalPlayer.ActorNumber != flashbuyActivatorActorNumber)
+        {
+            return;
+        }
+
+        // Hitung total biaya dari kartu yang dipilih
+        int totalCost = 0;
+        foreach (int cardId in flashbuySelectedCardIds)
+        {
+            CardMultiplayer cardData = GetCardFromTable(cardId);
+            if (cardData != null)
+            {
+                // Ambil harga pasar saat ini
+                int marketPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardData.color.ToString());
+                totalCost += cardData.baseValue + marketPrice;
+            }
+        }
+
+        // Ambil InvestPoin pemain saat ini
+        int currentInvestPoin = (int)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+
+        // Bandingkan dan atur status tombol
+        if (currentInvestPoin >= totalCost)
+        {
+            primaryActionButton.interactable = true;
+            Debug.Log($"[Flashbuy Check] Biaya: {totalCost}, Uang: {currentInvestPoin}. Cukup untuk membeli.");
+        }
+        else
+        {
+            primaryActionButton.interactable = false;
+            Debug.LogWarning($"[Flashbuy Check] Biaya: {totalCost}, Uang: {currentInvestPoin}. TIDAK cukup untuk membeli!");
+        }
     }
 
     private void ExitFlashbuyMode()
@@ -539,10 +562,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         flashbuyActivatorActorNumber = -1; // Reset pengaktif
         flashbuySelectedCardIds.Clear(); // Kosongkan daftar pilihan
 
-        if(primaryActionButtonText != null) primaryActionButtonText.text = "Save";
-        if(activateButton != null) activateButton.gameObject.SetActive(true);
-        if(skipButton != null) skipButton.gameObject.SetActive(false);
-        if(actionButtonsPanel != null) actionButtonsPanel.SetActive(false);
+        if (primaryActionButtonText != null) primaryActionButtonText.text = "Save";
+        if (activateButton != null) activateButton.gameObject.SetActive(true);
+        if (skipButton != null) skipButton.gameObject.SetActive(false);
+        if (actionButtonsPanel != null) actionButtonsPanel.SetActive(false);
 
         foreach (GameObject cardObject in instantiatedCards)
         {
@@ -558,8 +581,14 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     public void OnSkipTurnClicked()
     {
+        if (activeTenderOfferButtons.Count > 0)
+        {
+            Debug.Log("[Tender Offer] Pemain memilih untuk skip.");
+            CleanupTenderOfferButtons(); // Bersihkan UI
+            photonView.RPC("Rpc_RequestSkipTurn", RpcTarget.MasterClient); // Tetap kirim skip normal
+        }
         // Jika dalam mode Flashbuy dan ini pemain pengaktif
-        if (isInFlashbuyMode && PhotonNetwork.LocalPlayer.ActorNumber == flashbuyActivatorActorNumber)
+        else if (isInFlashbuyMode && PhotonNetwork.LocalPlayer.ActorNumber == flashbuyActivatorActorNumber)
         {
             Debug.Log("[Flashbuy] Pemain mengklik Skip di mode Flashbuy.");
             // Kirim pilihan kosong ke MasterClient (Artinya tidak memilih kartu)
@@ -589,37 +618,76 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     }
     #endregion
 
+    #region Insider Trade Logic
+    // RPC BARU: Untuk menyembunyikan atau menampilkan UI fase aksi untuk semua pemain.
+    [PunRPC]
+    private void Rpc_SetActionPhaseUIVisibility(bool isVisible)
+    {
+        if (cardContainer != null)
+        {
+            cardContainer.gameObject.SetActive(isVisible);
+        }
+
+        // Jika UI disembunyikan, pastikan panel tombol juga ikut tersembunyi.
+        if (!isVisible && actionButtonsPanel != null)
+        {
+            actionButtonsPanel.SetActive(false);
+        }
+    }
+
+    // RPC BARU: Menerima sinyal dari pemain bahwa animasi Insider Trade telah selesai.
+    [PunRPC]
+    private void Rpc_SignalInsiderTradeAnimationComplete(PhotonMessageInfo info)
+    {
+        // Hanya MasterClient yang perlu menanggapi sinyal ini.
+        if (PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log($"[MasterClient] Menerima sinyal dari {info.Sender.NickName} bahwa animasi Insider Trade telah selesai.");
+
+            // 1. Tampilkan kembali UI fase aksi untuk semua pemain.
+            photonView.RPC("Rpc_SetActionPhaseUIVisibility", RpcTarget.All, true);
+
+            // 2. Lanjutkan permainan ke giliran berikutnya.
+            AdvanceToNextTurn();
+        }
+    }
+
+    #endregion
+
 
     #region Player Actions
     public void OnCardSelected(int cardId)
-{
-    // Hanya pemain pengaktif Flashbuy yang bisa memilih kartu dalam mode ini
-    if (isInFlashbuyMode)
     {
-        if (PhotonNetwork.LocalPlayer.ActorNumber != flashbuyActivatorActorNumber) return; // Bukan giliran Anda
-        
-        GameObject cardObject = instantiatedCards.ElementAtOrDefault(cardId);
-        // Penting: Pastikan kartu valid dan belum 'nullified' secara visual atau data
-        if (cardObject == null || !cardsOnTable.ContainsKey(cardId)) return; 
+        // Hanya pemain pengaktif Flashbuy yang bisa memilih kartu dalam mode ini
+        if (isInFlashbuyMode)
+        {
+            if (PhotonNetwork.LocalPlayer.ActorNumber != flashbuyActivatorActorNumber) return; // Bukan giliran Anda
 
-        if (flashbuySelectedCardIds.Contains(cardId))
-        {
-            // Deselect kartu
-            flashbuySelectedCardIds.Remove(cardId);
-            cardObject.transform.localScale = defaultCardScale;
-        }
-        else
-        {
-            // Pilih kartu baru jika belum mencapai batas 2 kartu
-            if (flashbuySelectedCardIds.Count < 2)
+            GameObject cardObject = instantiatedCards.ElementAtOrDefault(cardId);
+            // Penting: Pastikan kartu valid dan belum 'nullified' secara visual atau data
+            if (cardObject == null || !cardsOnTable.ContainsKey(cardId)) return;
+
+            if (flashbuySelectedCardIds.Contains(cardId))
             {
-                flashbuySelectedCardIds.Add(cardId);
-                cardObject.transform.localScale = defaultCardScale * 1.1f;
-            } else {
-                Debug.LogWarning("Anda hanya bisa memilih maksimal 2 kartu untuk Flashbuy.");
+                // Deselect kartu
+                flashbuySelectedCardIds.Remove(cardId);
+                cardObject.transform.localScale = defaultCardScale;
             }
-        }
-        return;
+            else
+            {
+                // Pilih kartu baru jika belum mencapai batas 2 kartu
+                if (flashbuySelectedCardIds.Count < 2)
+                {
+                    flashbuySelectedCardIds.Add(cardId);
+                    cardObject.transform.localScale = defaultCardScale * 1.1f;
+                }
+                else
+                {
+                    Debug.LogWarning("Anda hanya bisa memilih maksimal 2 kartu untuk Flashbuy.");
+                }
+            }
+            UpdateFlashbuyAffordability();
+            return;
         }
 
         // Pastikan ini adalah giliran pemain lokal
@@ -628,7 +696,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             GameObject clickedCardObject = instantiatedCards.ElementAtOrDefault(cardId);
             // Hentikan jika kartu tidak valid atau jika mengklik kartu yang sama lagi
             if (clickedCardObject == null || currentlySelectedCardObject == clickedCardObject) return;
-            
+
             // Jika ada kartu lain yang sedang dipilih, kembalikan ukurannya
             if (currentlySelectedCardObject != null)
             {
@@ -640,7 +708,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             // Perbesar ukurannya
             clickedCardObject.transform.localScale = defaultCardScale * 1.1f;
             this.selectedCardId = cardId;
-            
+
             // Tampilkan panel tombol aksi
             actionButtonsPanel.SetActive(true);
         }
@@ -679,9 +747,20 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     public void OnActivateButtonClicked()
     {
-        if (selectedCardId != -1) // Tambahkan pemeriksaan sederhana
+        if (selectedCardId == -1) return;
+
+        // Ambil data kartu yang dipilih untuk memeriksa namanya
+        CardMultiplayer cardData = GetCardFromTable(selectedCardId);
+        if (cardData == null) return;
+
+        // Kirim permintaan aktivasi ke server
+        photonView.RPC("RequestActivateCard", RpcTarget.MasterClient, selectedCardId, PhotonNetwork.LocalPlayer);
+
+        // Cek nama kartu. Hanya sembunyikan panel untuk kartu yang efeknya instan.
+        string cardName = cardData.cardName;
+        if (cardName == "StockSplit" || cardName == "InsiderTrade" || cardName == "TenderOffer" || cardName == "TradeFee")
         {
-            photonView.RPC("RequestActivateCard", RpcTarget.MasterClient, selectedCardId, PhotonNetwork.LocalPlayer);
+            HideAndResetSelection();
         }
     }
 
@@ -831,7 +910,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             case "TenderOffer": return 0;
             case "TradeFee":
             case "StockSplit": return 1;
-            case "InsiderTrade": return 2;
+            case "InsiderTrade": return 2; // <-- TAMBAHKAN KEMBALI BARIS INI
             case "Flashbuy": return 3;
             default: return 0;
         }
@@ -844,10 +923,21 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     private IEnumerator TransitionToSellingPhase()
     {
-        // Beri jeda 1.5 detik agar semua properti pemain tersinkronisasi
-        yield return new WaitForSeconds(1.5f);
+        // 1. Panggil RPC untuk memulai transisi di SEMUA klien
+        if (MultiplayerManager.Instance != null)
+        {
+            MultiplayerManager.Instance.photonView.RPC(
+                "Rpc_StartFadeTransition",
+                RpcTarget.All,
+                MultiplayerManager.TransitionType.Selling // Kirim tipe transisi yang benar
+            );
+        }
 
-        // Setelah jeda, baru mulai fase penjualan
+        // 2. Tunggu selama total durasi transisi agar tidak tumpang tindih
+        // Durasi = fadeIn + hold + fadeOut = 0.5 + 1 + 0.5 = 2.0 detik
+        yield return new WaitForSeconds(2.0f);
+
+        // 3. Setelah transisi selesai, baru mulai fase penjualan
         if (SellingPhaseManagerMultiplayer.Instance != null)
         {
             SellingPhaseManagerMultiplayer.Instance.StartSellingPhase(this.turnOrder);
@@ -860,25 +950,6 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         List<int> possibleIndices = Enumerable.Range(0, allCardsPool.Count).ToList();
         System.Random rnd = new System.Random();
         return possibleIndices.OrderBy(x => rnd.Next()).Take(count).ToList();
-    }
-
-    // RPC untuk menerima kartu dari Flashbuy
-    [PunRPC]
-    private void Rpc_AddCardsToPlayer(int[] cardIndices)
-    {
-        Debug.Log($"[Flashbuy] Anda menerima {cardIndices.Length} kartu baru!");
-        Hashtable propsToSet = new Hashtable();
-        foreach (int index in cardIndices)
-        {
-            CardPoolEntry cardData = allCardsPool[index];
-            string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardData.color.ToString());
-            if (!string.IsNullOrEmpty(cardKey))
-            {
-                int currentCards = PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(cardKey) ? (int)PhotonNetwork.LocalPlayer.CustomProperties[cardKey] : 0;
-                propsToSet[cardKey] = currentCards + 1;
-            }
-        }
-        PhotonNetwork.LocalPlayer.SetCustomProperties(propsToSet);
     }
     #endregion
 }
