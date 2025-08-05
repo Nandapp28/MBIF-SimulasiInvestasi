@@ -26,7 +26,8 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         Action,
         Selling,
         Rumor,
-        Resolution
+        Resolution,
+        Testing
     }
 
     [Header("Player Management")]
@@ -43,6 +44,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     public CanvasGroup sellingTransitionCG;
     public CanvasGroup rumorTransitionCG;
     public CanvasGroup resolutionTransitionCG;
+    public CanvasGroup testingTransitionCG;
 
     [Header("End Game UI")]
     public GameObject leaderboardPanel;
@@ -228,6 +230,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             case TransitionType.Selling: targetCG = sellingTransitionCG; break;
             case TransitionType.Rumor: targetCG = rumorTransitionCG; break;
             case TransitionType.Resolution: targetCG = resolutionTransitionCG; break;
+            case TransitionType.Testing: targetCG = testingTransitionCG; break;
         }
 
         // --- TAMBAHKAN DEBUG.LOG KEDUA INI ---

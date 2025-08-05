@@ -288,12 +288,19 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             yield return new WaitForSeconds(waitDuration);
         }
 
+        // 1. Panggil RPC untuk memulai transisi di SEMUA klien
         if (MultiplayerManager.Instance != null)
         {
-            yield return StartCoroutine(MultiplayerManager.Instance.FadeTransition(
-               MultiplayerManager.Instance.resolutionTransitionCG, 0.5f, 1f, 0.5f
-           ));
+            MultiplayerManager.Instance.photonView.RPC(
+                "Rpc_StartFadeTransition",
+                RpcTarget.All,
+                MultiplayerManager.TransitionType.Resolution // Kirim tipe transisi yang benar
+            );
         }
+
+        // 2. Tunggu selama total durasi transisi agar tidak tumpang tindih
+        // Durasi = fadeIn + hold + fadeOut = 0.5s + 1s + 0.5s = 2.0s
+        yield return new WaitForSeconds(2.0f);
 
         Debug.Log("✅ Fase Rumor Selesai. Memulai fase berikutnya...");
 

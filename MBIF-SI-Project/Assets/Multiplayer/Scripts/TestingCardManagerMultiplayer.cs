@@ -10,10 +10,10 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
 
     [Header("Game Data References")]
     // --- PERUBAHAN 1: Menggunakan List dari TestingCardData, BUKAN CardPoolEntry ---
-    public List<TestingCardData> testingCardsPool; 
+    public List<TestingCardData> testingCardsPool;
 
     [Header("UI Setup")]
-    public GameObject testingCardPrefab; 
+    public GameObject testingCardPrefab;
     public Transform cardDisplayContainer;
     public CanvasGroup containerCanvasGroup;
 
@@ -49,7 +49,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
 
         // --- PERUBAHAN 2: Mengambil data dari testingCardsPool ---
         TestingCardData cardData = testingCardsPool[cardIndex];
-        
+
         instantiatedCard = Instantiate(testingCardPrefab, cardDisplayContainer);
         instantiatedCard.transform.localPosition = Vector3.zero;
 
@@ -94,15 +94,27 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         containerCanvasGroup.alpha = 0;
 
         if (instantiatedCard != null) Destroy(instantiatedCard);
-
-        // Logika untuk melanjutkan permainan setelah fase ini selesai (tidak berubah)
+    }
+    
+    public IEnumerator ShowCardAndWait()
+    {
+        // MasterClient memilih kartu dan mengirimkannya ke semua pemain
         if (PhotonNetwork.IsMasterClient)
         {
-            yield return new WaitForSeconds(1.0f);
-            if (MultiplayerManager.Instance != null)
+            if (testingCardsPool == null || testingCardsPool.Count == 0)
             {
-                MultiplayerManager.Instance.StartNewSemester();
+                Debug.LogError("'Testing Cards Pool' belum di-assign atau kosong!");
+                yield break; // Hentikan jika tidak ada kartu
             }
+            int randomIndex = Random.Range(0, testingCardsPool.Count);
+            photonView.RPC("Rpc_ShowTestingCard", RpcTarget.All, randomIndex);
         }
+
+        // Tentukan total durasi animasi untuk menunggu
+        // (fade in + hold + fade out + jeda tambahan)
+        float totalWaitTime = 0.7f + 3.0f + 0.7f + 1.0f;
+        yield return new WaitForSeconds(totalWaitTime);
+        
+        Debug.Log("[TestingCardManager] Animasi kartu selesai.");
     }
 }
