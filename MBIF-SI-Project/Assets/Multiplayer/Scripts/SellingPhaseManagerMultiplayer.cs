@@ -333,17 +333,17 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         return finalPrice;
     }
 
-    
-    
+
+
     private IEnumerator ProcessAllSales()
     {
         if (!PhotonNetwork.IsMasterClient) yield break;
         Debug.Log("Memulai proses kalkulasi penjualan untuk semua pemain...");
-        
+
         foreach (Player player in PhotonNetwork.PlayerList)
         {
             if (!allPlayerSellDecisions.ContainsKey(player.ActorNumber)) continue;
-            
+
             Hashtable playerDecision = allPlayerSellDecisions[player.ActorNumber];
             Hashtable playerProps = player.CustomProperties;
             int totalEarnings = 0;
@@ -354,9 +354,9 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 string colorName = (string)decisionEntry.Key;
                 int quantityToSell = (int)decisionEntry.Value;
                 if (quantityToSell <= 0) continue;
-                
+
                 totalEarnings += quantityToSell * GetFullCardPrice(colorName);
-                
+
                 string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(colorName);
                 if (!string.IsNullOrEmpty(cardKey))
                 {
@@ -364,24 +364,28 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                     propsToSet[cardKey] = currentCards - quantityToSell;
                 }
             }
-            
+
             int currentInvestpoint = playerProps.ContainsKey(PlayerProfileMultiplayer.INVESTPOINT_KEY) ? (int)playerProps[PlayerProfileMultiplayer.INVESTPOINT_KEY] : 0;
             propsToSet[PlayerProfileMultiplayer.INVESTPOINT_KEY] = currentInvestpoint + totalEarnings;
-            
+
             player.SetCustomProperties(propsToSet);
             Debug.Log($"[Penjualan] {player.NickName} mendapatkan {totalEarnings} InvestPoint.");
         }
 
+        // 1. Panggil RPC untuk memulai transisi di SEMUA klien
         if (MultiplayerManager.Instance != null)
         {
-            yield return StartCoroutine(MultiplayerManager.Instance.FadeTransition(
-                MultiplayerManager.Instance.rumorTransitionCG, 0.5f, 1.5f, 0.5f
-            ));
+            MultiplayerManager.Instance.photonView.RPC(
+                "Rpc_StartFadeTransition",
+                RpcTarget.All,
+                MultiplayerManager.TransitionType.Rumor
+            );
         }
 
-        // PANGGIL FASE BERIKUTNYA SETELAH SEMUA PEMAIN DIPROSES
-        Debug.Log("Semua penjualan diproses. Memulai Fase Rumor...");
+        // 2. Tunggu selama total durasi transisi
+        yield return new WaitForSeconds(2.0f);
 
+        Debug.Log("Semua penjualan diproses. Memulai Fase Rumor...");
         if (RumorPhaseManagerMultiplayer.Instance != null)
         {
             RumorPhaseManagerMultiplayer.Instance.StartRumorPhase(PhotonNetwork.PlayerList.ToList());

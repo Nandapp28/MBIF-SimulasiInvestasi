@@ -271,7 +271,7 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         Hashtable propsToSet = new Hashtable { { divKey, dividendIndex } };
         PhotonNetwork.CurrentRoom.SetCustomProperties(propsToSet);
     }
-    
+
     private void UpdateAllDividendVisuals()
     {
         Hashtable roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
@@ -299,7 +299,7 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             }
         }
     }
-    
+
     private void ProcessDividendPayouts()
     {
         if (!PhotonNetwork.IsMasterClient) return;
@@ -337,10 +337,22 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         }
 
         Debug.Log("✅ Pembayaran dividen selesai. Fase Resolusi berakhir.");
-        if (MultiplayerManager.Instance != null)
+
+        // --- AWAL PERUBAHAN ---
+        int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerManager.SEMESTER_KEY];
+
+        // Jika ini adalah akhir semester 1, mulai Fase Testing
+        if (currentSemester == 1 && TestingCardManagerMultiplayer.Instance != null)
+        {
+            Debug.Log("[GAME FLOW] Akhir Semester 1, memulai Fase Testing...");
+            TestingCardManagerMultiplayer.Instance.StartTestingPhase();
+        }
+        // Jika tidak, lanjutkan ke alur normal (mulai semester baru)
+        else if (MultiplayerManager.Instance != null)
         {
             MultiplayerManager.Instance.StartNewSemester();
         }
+        // --- AKHIR PERUBAHAN ---
     }
     #endregion
 }

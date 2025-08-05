@@ -453,26 +453,70 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
                     string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardData.color.ToString());
                     if (!string.IsNullOrEmpty(cardKey))
                     {
-                        int currentCards = activator.CustomProperties.ContainsKey(cardKey) ? (int)activator.CustomProperties[cardKey] : 0;
+                        // SOLUSI: Cek dulu di data sementara (playerPropsToUpdate), baru ke data asli.
+                        int currentCards = 0;
+                        if (playerPropsToUpdate.ContainsKey(cardKey))
+                        {
+                            // Jika sudah ada di transaksi ini, gunakan nilai itu.
+                            currentCards = (int)playerPropsToUpdate[cardKey];
+                        }
+                        else if (activator.CustomProperties.ContainsKey(cardKey))
+                        {
+                            // Jika tidak, baru ambil dari data asli pemain.
+                            currentCards = (int)activator.CustomProperties[cardKey];
+                        }
+
+                        // Tambahkan 1 ke nilai yang benar.
                         playerPropsToUpdate[cardKey] = currentCards + 1;
                     }
                     photonView.RPC("Rpc_RemoveCardFromTable", RpcTarget.All, cardId);
                     cardsTaken++;
                 }
             }
-            
+
             // Update properti pemain SATU KALI dengan semua perubahan
             activator.SetCustomProperties(playerPropsToUpdate);
+
+            // Reset state dan lanjutkan giliran HANYA JIKA SUKSES
+            this.isInFlashbuyMode = false;
+            this.flashbuyActivatorActorNumber = -1;
+            AdvanceToNextTurn(); // <-- TAMBAHKAN KEMBALI BARIS INI
         }
         else
         {
-            Debug.LogWarning($"[Flashbuy] {activator.NickName} tidak mampu membayar {totalCost} InvestPoin. Pembelian dibatalkan.");
+            // Jika gagal, kirim notifikasi dan jangan lanjutkan giliran (ini sudah benar)
+            Debug.LogWarning($"[Flashbuy] {activator.NickName} tidak mampu membayar...");
+            photonView.RPC("Rpc_FlashbuyFailed", activator);
+        }
+    }
+
+    [PunRPC]
+    private void Rpc_FlashbuyFailed()
+    {
+        // Pastikan ini hanya berjalan untuk pemain yang mengaktifkan Flashbuy
+        if (!isInFlashbuyMode || PhotonNetwork.LocalPlayer.ActorNumber != flashbuyActivatorActorNumber) return;
+
+        Debug.LogError("Pembelian Flashbuy GAGAL: InvestPoin tidak cukup. Silakan pilih lagi.");
+
+        // Tampilkan notifikasi kepada pemain.
+        // Anda bisa menggunakan sistem notifikasi UI yang sudah ada, atau buat yang simpel.
+        if (GameStatusUI.Instance != null)
+        {
+            GameStatusUI.Instance.ShowTemporaryNotification("Pembelian Gagal! Poin tidak cukup.", 3.0f);
         }
 
-        // Reset state dan lanjutkan giliran (ini sudah benar)
-        this.isInFlashbuyMode = false;
-        this.flashbuyActivatorActorNumber = -1;
-        AdvanceToNextTurn();
+        // Beri pemain kesempatan memilih lagi dengan mengosongkan pilihan sebelumnya
+        // dan memperbarui tampilan tombol.
+        foreach (int cardId in flashbuySelectedCardIds)
+        {
+            GameObject cardObject = instantiatedCards.ElementAtOrDefault(cardId);
+            if (cardObject != null)
+            {
+                cardObject.transform.localScale = defaultCardScale;
+            }
+        }
+        flashbuySelectedCardIds.Clear();
+        UpdateFlashbuyAffordability(); // Perbarui status tombol 'Confirm'
     }
 
     private void UpdateFlashbuyAffordability()
@@ -879,17 +923,21 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     private IEnumerator TransitionToSellingPhase()
     {
+        // 1. Panggil RPC untuk memulai transisi di SEMUA klien
         if (MultiplayerManager.Instance != null)
         {
-            yield return StartCoroutine(MultiplayerManager.Instance.FadeTransition(
-                MultiplayerManager.Instance.sellingTransitionCG, 0.5f, 1f, 0.5f
-            ));
+            MultiplayerManager.Instance.photonView.RPC(
+                "Rpc_StartFadeTransition",
+                RpcTarget.All,
+                MultiplayerManager.TransitionType.Selling // Kirim tipe transisi yang benar
+            );
         }
 
-        yield return new WaitForSeconds(0.2f);
+        // 2. Tunggu selama total durasi transisi agar tidak tumpang tindih
+        // Durasi = fadeIn + hold + fadeOut = 0.5 + 1 + 0.5 = 2.0 detik
+        yield return new WaitForSeconds(2.0f);
 
-
-        // Setelah jeda, baru mulai fase penjualan
+        // 3. Setelah transisi selesai, baru mulai fase penjualan
         if (SellingPhaseManagerMultiplayer.Instance != null)
         {
             SellingPhaseManagerMultiplayer.Instance.StartSellingPhase(this.turnOrder);

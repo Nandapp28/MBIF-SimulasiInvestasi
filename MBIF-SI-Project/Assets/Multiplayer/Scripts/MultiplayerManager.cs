@@ -13,11 +13,21 @@ using Firebase;
 using Firebase.Database;
 using Firebase.Auth;
 
+[RequireComponent(typeof(PhotonView))]
 public class MultiplayerManager : MonoBehaviourPunCallbacks
 {
     public static MultiplayerManager Instance;
     private TicketManagerMultiplayer ticketManager;
     private PhotonView gameStatusView;
+
+    public enum TransitionType
+    {
+        Bidding,
+        Action,
+        Selling,
+        Rumor,
+        Resolution
+    }
 
     [Header("Player Management")]
     public GameObject playerPrefab;
@@ -142,11 +152,15 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         // 2. Beri jeda yang cukup agar animasi selesai (sama seperti di StartNewSemester)
         yield return new WaitForSeconds(2.5f);
 
-        // 3. BARULAH mulai fase bidding setelah jeda
         if (PhotonNetwork.IsMasterClient && ticketManager != null)
         {
-            yield return StartCoroutine(FadeTransition(biddingTransitionCG, 0.5f, 1f, 0.5f)); 
-            Debug.Log("MasterClient memulai fase bidding SETELAH animasi token awal selesai.");
+            // BENAR: Mengirim perintah ke semua pemain
+            photonView.RPC("Rpc_StartFadeTransition", RpcTarget.All, TransitionType.Bidding);
+
+            // Menunggu transisi selesai sebelum lanjut
+            yield return new WaitForSeconds(2.0f);
+
+            Debug.Log("MasterClient memulai fase bidding SETELAH transisi selesai.");
             ticketManager.InitializeBidding();
         }
     }
@@ -191,14 +205,40 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
 
     private IEnumerator StartBiddingWithTransition(float delay)
     {
-        // Jeda untuk animasi flip token
         yield return new WaitForSeconds(delay);
 
-        // TAMBAHKAN TRANSISI DI SINI
-        yield return StartCoroutine(FadeTransition(biddingTransitionCG, 0.5f, 1f, 0.5f));
+        // PANGGIL RPC DI SINI
+        photonView.RPC("Rpc_StartFadeTransition", RpcTarget.All, TransitionType.Bidding);
+        yield return new WaitForSeconds(2.0f); // Tunggu transisi selesai
 
-        // Mulai bidding setelah transisi
         ticketManager.InitializeBidding();
+    }
+
+    [PunRPC]
+    private void Rpc_StartFadeTransition(TransitionType type)
+    {
+        // --- TAMBAHKAN DEBUG.LOG INI ---
+        Debug.Log($"[{PhotonNetwork.LocalPlayer.NickName}] Menerima RPC untuk transisi tipe: {type}. Mencari CanvasGroup...");
+
+        CanvasGroup targetCG = null;
+        switch (type)
+        {
+            case TransitionType.Bidding: targetCG = biddingTransitionCG; break;
+            case TransitionType.Action: targetCG = actionTransitionCG; break;
+            case TransitionType.Selling: targetCG = sellingTransitionCG; break;
+            case TransitionType.Rumor: targetCG = rumorTransitionCG; break;
+            case TransitionType.Resolution: targetCG = resolutionTransitionCG; break;
+        }
+
+        // --- TAMBAHKAN DEBUG.LOG KEDUA INI ---
+        if (targetCG == null)
+        {
+            Debug.LogError($"[{PhotonNetwork.LocalPlayer.NickName}] GAGAL! CanvasGroup untuk tipe '{type}' adalah NULL/KOSONG. Periksa Inspector!");
+            return; // Hentikan eksekusi jika referensi kosong
+        }
+
+        Debug.Log($"[{PhotonNetwork.LocalPlayer.NickName}] CanvasGroup ditemukan. Memulai animasi fade...");
+        StartCoroutine(FadeTransition(targetCG, 0.5f, 1f, 0.5f));
     }
 
     public IEnumerator FadeTransition(CanvasGroup cg, float fadeInTime, float holdTime, float fadeOutTime)
@@ -278,22 +318,21 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     // BUAT COROUTINE BARU INI
     private IEnumerator TransitionToActionPhase()
     {
-        // Beri jeda sangat singkat agar RPC sempat diterima dan UI mulai diatur oleh klien lain
         yield return new WaitForSeconds(0.5f);
 
-        // Jalankan transisi fade in/out seperti yang Anda inginkan
-        yield return StartCoroutine(FadeTransition(actionTransitionCG, 0.5f, 1.5f, 0.5f));
+        // 1. Kirim perintah ke semua pemain untuk memulai transisi
+        photonView.RPC("Rpc_StartFadeTransition", RpcTarget.All, TransitionType.Action);
 
-        // Setelah transisi selesai, BARULAH mulai fase aksi
+        // 2. Tunggu transisi selesai (sesuaikan durasi: 0.5s fadein + 1.5s hold + 0.5s fadeout = 2.5s)
+        yield return new WaitForSeconds(2.0f);
+
+        // 3. Setelah transisi selesai, baru mulai fase aksi
         if (ActionPhaseManager.Instance != null)
         {
-            // ---> TAMBAHKAN BARIS INI <---
-            // Sebelum Fase Aksi dimulai, perintahkan MasterClient untuk menyiapkan dek rumor berikutnya.
             if (RumorPhaseManagerMultiplayer.Instance != null)
             {
                 RumorPhaseManagerMultiplayer.Instance.PrepareNextRumorDeck();
             }
-
             ActionPhaseManager.Instance.StartActionPhase();
         }
     }
