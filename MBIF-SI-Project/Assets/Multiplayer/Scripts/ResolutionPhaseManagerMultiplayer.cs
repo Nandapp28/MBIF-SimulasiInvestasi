@@ -12,6 +12,7 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 {
     private HashSet<GameObject> flippedTokens = new HashSet<GameObject>();
     public static ResolutionPhaseManagerMultiplayer Instance;
+    private bool isInitialSetupComplete = false;
 
     [Header("3D Object References")]
     public List<DividendIndicatorMapping> dividendIndicatorMappings;
@@ -19,6 +20,10 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public List<GameObject> tokenObjectsInfrastruktur;
     public List<GameObject> tokenObjectsKeuangan;
     public List<GameObject> tokenObjectsTambang;
+
+    [Header("Audio Materials")]
+    public AudioSource audioSource;
+    public AudioClip dividendMoveSFX;
 
     [System.Serializable]
     public class TokenMaterial { public int value; public Material material; }
@@ -51,6 +56,11 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         else Instance = this;
     }
     #endregion
+
+    public void MarkInitialSetupAsComplete()
+    {
+        isInitialSetupComplete = true;
+    }
 
     #region Phase Logic
 
@@ -294,6 +304,10 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                         // Pindahkan objek indikator ke posisi slot yang benar
                         mapping.indicatorObject.transform.position = targetSlot.position;
                         mapping.indicatorObject.SetActive(true);
+                        if (isInitialSetupComplete && audioSource != null && dividendMoveSFX != null)
+                        {
+                            audioSource.PlayOneShot(dividendMoveSFX);
+                        }
                     }
                 }
             }

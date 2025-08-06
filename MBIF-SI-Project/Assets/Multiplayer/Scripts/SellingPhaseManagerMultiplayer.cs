@@ -19,6 +19,8 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public Button confirmSellButton;
     public Transform colorSellRowContainer;
     public GameObject colorSellRowPrefab;
+    public AudioClip buttonClickSellSfx; // <-- BARIS INI ADA
+    private AudioSource audioSource;
 
     [System.Serializable]
     public class IPOIndicatorMapping
@@ -28,13 +30,13 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         public GameObject indicatorObject; // Objek indikator untuk warna ini
         public Transform risePositionSlot;    // Slot untuk posisi saat kondisi Rise
         public List<GameObject> riseBonusPrefabs; // Akan berisi prefab +1, +2, +3, ...
+        public GameObject riseIndicatorPrefab;
     }
 
     [Header("IPO Visuals")]
     public List<IPOIndicatorMapping> ipoIndicatorMappings; // Ganti 'ipoIndicators' dengan ini
     public float ipoIndicatorOffset = 0.5f;
     private Dictionary<string, Vector3> initialIpoPositions = new Dictionary<string, Vector3>();
-
     private Dictionary<string, int> minIpoIndexMap = new Dictionary<string, int>
     {
         { "Konsumer", -3 },      // Harga terendah 1
@@ -72,6 +74,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     private const string IPO_INDEX_PREFIX = "ipo_index_";
     private const string IPO_BONUS_PREFIX = "ipo_bonus_";
     private Dictionary<string, GameObject> instantiatedBonusObjects = new Dictionary<string, GameObject>();
+    private Dictionary<string, GameObject> instantiatedRiseIndicators = new Dictionary<string, GameObject>();
     private List<Player> playersToWaitFor;
     private Dictionary<int, Hashtable> allPlayerSellDecisions = new Dictionary<int, Hashtable>();
     private Dictionary<string, int> localSellInputs = new Dictionary<string, int>();
@@ -149,11 +152,17 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         Hashtable roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
         foreach (var mapping in ipoIndicatorMappings)
         {
-            string ipoKey = IPO_INDEX_PREFIX + mapping.color;
-            string bonusKey = IPO_BONUS_PREFIX + mapping.color;
-
-            // --- BAGIAN PEMBERSIHAN ---
-            // Sebelum melakukan apa pun, hancurkan objek bonus lama jika ada
+            // --- BAGIAN PEMBERSIHAN (SEKARANG MEMBERSIHKAN KEDUANYA) ---
+            // Hancurkan duplikat indikator RISE lama jika ada
+            if (instantiatedRiseIndicators.ContainsKey(mapping.color))
+            {
+                if (instantiatedRiseIndicators[mapping.color] != null)
+                {
+                    Destroy(instantiatedRiseIndicators[mapping.color]);
+                }
+                instantiatedRiseIndicators.Remove(mapping.color);
+            }
+            // Hancurkan objek bonus lama jika ada
             if (instantiatedBonusObjects.ContainsKey(mapping.color))
             {
                 if (instantiatedBonusObjects[mapping.color] != null)
@@ -163,36 +172,50 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 instantiatedBonusObjects.Remove(mapping.color);
             }
 
+            string ipoKey = IPO_INDEX_PREFIX + mapping.color;
+            string bonusKey = IPO_BONUS_PREFIX + mapping.color;
+
             if (roomProps.ContainsKey(ipoKey))
             {
                 int ipoIndex = (int)roomProps[ipoKey];
                 int ipoBonus = roomProps.ContainsKey(bonusKey) ? (int)roomProps[bonusKey] : 0;
 
-                if (ipoBonus > 0) // Kondisi RISE
+                // --- LOGIKA BARU UNTUK KONDISI RISE ---
+                if (ipoBonus > 0)
                 {
-                    // 1. Pindahkan indikator utama ke posisi Rise
-                    if (mapping.indicatorObject != null && mapping.risePositionSlot != null)
+                    // 1. INDIKATOR UTAMA TETAP DI POSISI MAKSIMUM
+                    int maxNormalIndex;
+                    if (mapping.color == "Tambang") { maxNormalIndex = Mathf.Clamp(maxIpoIndexMap[mapping.color], -2, 2) + 2; }
+                    else { maxNormalIndex = Mathf.Clamp(maxIpoIndexMap[mapping.color], -3, 3) + 3; }
+                    
+                    if (mapping.indicatorObject != null && maxNormalIndex < mapping.positionSlots.Count)
                     {
-                        mapping.indicatorObject.transform.position = mapping.risePositionSlot.position;
+                        mapping.indicatorObject.transform.position = mapping.positionSlots[maxNormalIndex].position;
                         mapping.indicatorObject.SetActive(true);
                     }
 
-                    // 2. Buat (Instantiate) prefab bonus yang sesuai dari Project
+                    // 2. BUAT DUPLIKAT INDIKATOR DI SLOT RISE
+                    if (mapping.riseIndicatorPrefab != null && mapping.risePositionSlot != null)
+                    {
+                        GameObject newRiseIndicator = Instantiate(mapping.riseIndicatorPrefab, mapping.risePositionSlot.position, mapping.risePositionSlot.rotation);
+                        instantiatedRiseIndicators[mapping.color] = newRiseIndicator; // Simpan referensinya
+                    }
+                    
+                    // 3. TAMPILKAN PREFAB BONUS (+1, +2, dst.) DI SLOT RISE
                     int bonusPrefabIndex = ipoBonus - 1;
                     if (bonusPrefabIndex >= 0 && bonusPrefabIndex < mapping.riseBonusPrefabs.Count)
                     {
                         GameObject prefabToInstantiate = mapping.riseBonusPrefabs[bonusPrefabIndex];
                         if (prefabToInstantiate != null && mapping.risePositionSlot != null)
                         {
-                            // Buat prefab di posisi Rise dan simpan referensinya
                             GameObject newBonusObject = Instantiate(prefabToInstantiate, mapping.risePositionSlot.position, mapping.risePositionSlot.rotation);
                             instantiatedBonusObjects[mapping.color] = newBonusObject;
                         }
                     }
                 }
-                else // Kondisi NORMAL
+                // --- LOGIKA LAMA UNTUK KONDISI NORMAL (TIDAK BERUBAH) ---
+                else
                 {
-                    // Logika lama untuk memindahkan indikator di jalur normal (tidak berubah)
                     int positionIndex;
                     if (mapping.color == "Tambang") { positionIndex = Mathf.Clamp(ipoIndex, -2, 2) + 2; }
                     else { positionIndex = Mathf.Clamp(ipoIndex, -3, 3) + 3; }
@@ -298,6 +321,14 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
     public void OnConfirmSellButtonClicked()
     {
+        // --- TAMBAHKAN BLOK KODE INI ---
+        // Panggil SFX melalui instance singleton dari SfxManager
+        if (SfxManager.Instance != null)
+        {
+            SfxManager.Instance.PlayButtonClick();
+        }
+        // --------------------------------
+
         Hashtable sellDecision = new Hashtable();
         foreach (var entry in localSellInputs)
         {

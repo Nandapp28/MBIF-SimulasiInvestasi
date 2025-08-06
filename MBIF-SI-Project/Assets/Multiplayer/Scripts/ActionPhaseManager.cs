@@ -134,7 +134,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
             // --- PERBAIKAN: HANYA PANGGIL COROUTINE ---
             // Panggil coroutine untuk transisi yang mulus dan HENTIKAN eksekusi.
-            StartCoroutine(TransitionToSellingPhase());
+            StartCoroutine(EndActionPhaseSequence());
             return;
             // Baris `return` ini penting untuk memastikan tidak ada kode lain yang berjalan.
         }
@@ -921,23 +921,54 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         return cardsOnTable.ContainsKey(cardId) ? cardsOnTable[cardId] : null;
     }
 
-    private IEnumerator TransitionToSellingPhase()
+    private IEnumerator EndActionPhaseSequence()
     {
-        // 1. Panggil RPC untuk memulai transisi di SEMUA klien
-        if (MultiplayerManager.Instance != null)
-        {
-            MultiplayerManager.Instance.photonView.RPC(
-                "Rpc_StartFadeTransition",
-                RpcTarget.All,
-                MultiplayerManager.TransitionType.Selling // Kirim tipe transisi yang benar
-            );
-        }
+        int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerManager.SEMESTER_KEY];
 
-        // 2. Tunggu selama total durasi transisi agar tidak tumpang tindih
-        // Durasi = fadeIn + hold + fadeOut = 0.5 + 1 + 0.5 = 2.0 detik
+        if (currentSemester > 1)
+        {
+            // LANGKAH 1: Transisi ke Fase Testing
+            MultiplayerManager.Instance.photonView.RPC("Rpc_StartFadeTransition", RpcTarget.All, MultiplayerManager.TransitionType.Testing);
+            yield return new WaitForSeconds(2.0f);
+
+            // LANGKAH 2: Mulai Fase Testing dan serahkan kendali.
+            if (TestingCardManagerMultiplayer.Instance != null)
+            {
+                Debug.Log($"[GAME FLOW] Menyerahkan kendali ke TestingCardManager untuk Semester {currentSemester}...");
+                TestingCardManagerMultiplayer.Instance.BeginTestingPhase();
+            }
+            // COROUTINE BERHENTI DI SINI. Tidak ada lagi logika menunggu.
+        }
+        else
+        {
+            // Alur untuk semester 1 tidak berubah, langsung ke penjualan.
+            MultiplayerManager.Instance.photonView.RPC("Rpc_StartFadeTransition", RpcTarget.All, MultiplayerManager.TransitionType.Selling);
+            yield return new WaitForSeconds(2.0f);
+            if (SellingPhaseManagerMultiplayer.Instance != null)
+            {
+                SellingPhaseManagerMultiplayer.Instance.StartSellingPhase(this.turnOrder);
+            }
+        }
+    }
+
+    public void ProceedToSellingPhaseAfterTesting()
+    {
+        // Pastikan hanya MasterClient yang bisa menjalankan ini.
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        Debug.Log("[ActionPhaseManager] Menerima callback dari TestingCardManager. Memulai transisi ke Fase Penjualan.");
+        StartCoroutine(TransitionToSellingSequence());
+    }
+
+    // --- COROUTINE BARU ---
+    // Coroutine ini berisi logika yang sebelumnya ada di akhir EndActionPhaseSequence.
+    private IEnumerator TransitionToSellingSequence()
+    {
+        // Transisi ke Fase Penjualan
+        MultiplayerManager.Instance.photonView.RPC("Rpc_StartFadeTransition", RpcTarget.All, MultiplayerManager.TransitionType.Selling);
         yield return new WaitForSeconds(2.0f);
 
-        // 3. Setelah transisi selesai, baru mulai fase penjualan
+        // Mulai Fase Penjualan
         if (SellingPhaseManagerMultiplayer.Instance != null)
         {
             SellingPhaseManagerMultiplayer.Instance.StartSellingPhase(this.turnOrder);
