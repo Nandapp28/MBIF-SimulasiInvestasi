@@ -156,6 +156,12 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
 
         if (PhotonNetwork.IsMasterClient && ticketManager != null)
         {
+            // Tandai bahwa setup visual awal (termasuk dividen) telah selesai.
+            if (ResolutionPhaseManagerMultiplayer.Instance != null)
+            {
+                ResolutionPhaseManagerMultiplayer.Instance.MarkInitialSetupAsComplete(); // <-- TAMBAHKAN BLOK INI
+            }
+
             // BENAR: Mengirim perintah ke semua pemain
             photonView.RPC("Rpc_StartFadeTransition", RpcTarget.All, TransitionType.Bidding);
 

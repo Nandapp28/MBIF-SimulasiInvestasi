@@ -25,6 +25,8 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     public const string INFRASTRUKTUR_CARDS_KEY = "infrastruktur_cards";
     public const string KEUANGAN_CARDS_KEY = "keuangan_cards";
     public const string TAMBANG_CARDS_KEY = "tambang_cards";
+    public const string TESTING_CARD_USED_KEY = "testing_card_used";
+    public const string TESTING_CARD_INDEX_KEY = "testing_card_index";
 
     private MultiplayerManager multiplayerManager;
     void Awake()
@@ -43,7 +45,9 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
                 { KONSUMER_CARDS_KEY, 0 },
                 { INFRASTRUKTUR_CARDS_KEY, 0 },
                 { KEUANGAN_CARDS_KEY, 0 },
-                { TAMBANG_CARDS_KEY, 0 }
+                { TAMBANG_CARDS_KEY, 0 },
+                { TESTING_CARD_USED_KEY, false },
+                { TESTING_CARD_INDEX_KEY, -1 } // Indeks awal untuk Testing Card
             };
             PhotonNetwork.LocalPlayer.SetCustomProperties(initialProps);
         }
