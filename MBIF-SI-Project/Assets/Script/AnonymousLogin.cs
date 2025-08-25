@@ -86,6 +86,7 @@ public class AnonymousLogin : MonoBehaviour
             PlayerPrefs.SetString(GuestUserIdKey, firebaseUid);
             PlayerPrefs.SetString(GuestPlayerIdKey, playerId);
             PlayerPrefs.SetString(GuestUserNameKey, username);
+            PlayerPrefs.SetString("hasCompletedTutorial", "no");
             PlayerPrefs.Save();
 
             // Simpan data pengguna ke Firebase Realtime Database

@@ -12,6 +12,7 @@ public class GameModeSelector : MonoBehaviour
 
     // Variabel statis untuk menyimpan scene sebelumnya
     private static string previousSceneName;
+    
 
     // Fungsi ini akan dipanggil ketika tombol Singleplayer ditekan
     public void OnSingleplayerButtonPress()
@@ -22,7 +23,21 @@ public class GameModeSelector : MonoBehaviour
         }
 
         SaveCurrentScene();
-        SceneManager.LoadScene("Gameplay");
+
+        // Cek status tutorial HANYA dari penyimpanan lokal (PlayerPrefs)
+        // Jika key belum ada, default-nya adalah "no"
+        string tutorialStatus = PlayerPrefs.GetString("hasCompletedTutorial", "no");
+
+        if (tutorialStatus == "no")
+        {
+            // Jika belum menyelesaikan tutorial, arahkan ke scene tutorial
+            SceneManager.LoadScene("TutorialScene");
+        }
+        else
+        {
+            // Jika sudah, langsung ke gameplay
+            SceneManager.LoadScene("Gameplay");
+        }
     }
 
     // Fungsi ini akan dipanggil ketika tombol Multiplayer ditekan
@@ -68,6 +83,8 @@ public class GameModeSelector : MonoBehaviour
 
         // Memuat scene berdasarkan indeks
         SceneManager.LoadScene("Options");
+        PlayerPrefs.SetString("hasCompletedTutorial", "no");
+        PlayerPrefs.Save();
     }
 
     public void OnShopPress()
