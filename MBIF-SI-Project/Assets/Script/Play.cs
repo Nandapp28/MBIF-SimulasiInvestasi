@@ -119,10 +119,6 @@ public class GameModeSelector : MonoBehaviour
 
         // Memuat scene berdasarkan indeks
         SceneManager.LoadScene("Options");
-        PlayerPrefs.SetString("hasCompletedTutorial", "no");
-        PlayerPrefs.Save();
-        PlayerPrefs.SetString("hasWarning", "no");
-        PlayerPrefs.Save();
     }
 
     public void OnShopPress()
