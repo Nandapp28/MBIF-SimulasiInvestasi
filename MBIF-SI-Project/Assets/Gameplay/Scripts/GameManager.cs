@@ -1270,6 +1270,32 @@ public class GameManager : MonoBehaviour
             blueCardText.text = $"{(colorCounts.ContainsKey("Keuangan") ? colorCounts["Keuangan"] : 0)}";
         if (greenCardText != null)
             greenCardText.text = $"{(colorCounts.ContainsKey("Tambang") ? colorCounts["Tambang"] : 0)}";
+
+       int totalAssetValue = 0;
+        foreach (var colorCount in colorCounts)
+        {
+            string color = colorCount.Key;
+            int count = colorCount.Value;
+            if (count > 0)
+            {
+                // Dapatkan harga penuh saat ini untuk warna tersebut dari SellingPhaseManager
+                int pricePerCard = sellingManager.GetFullCardPrice(color);
+                totalAssetValue += count * pricePerCard;
+            }
+        }
+
+        // 2. Temukan komponen Text 'AssetValueText'
+        Text assetValueText = entry.transform.Find("AssetValueText")?.GetComponent<Text>();
+        if (assetValueText != null)
+        {
+            // 3. Tampilkan nilainya di UI
+            assetValueText.text = $"{totalAssetValue}";
+        }
+        else
+        {
+            // Pesan ini akan muncul jika Anda lupa menambahkan Text 'AssetValueText' di prefab
+            Debug.LogWarning($"Text 'AssetValueText' tidak ditemukan di prefab player entry. Pastikan nama objeknya sudah benar.");
+        }
     }
      public void StartPlayerTargeting(List<PlayerProfile> validTargets, Action<PlayerProfile> onSelected)
     {
