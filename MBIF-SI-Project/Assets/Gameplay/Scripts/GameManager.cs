@@ -86,14 +86,14 @@ public class GameManager : MonoBehaviour
 
     private void Awake()
     {
+        Time.timeScale = 1f;
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
         }
         else
         {
-            Destroy(gameObject);
+
         }
     }
 
@@ -176,6 +176,7 @@ public class GameManager : MonoBehaviour
         {
             botSelectionPanel.SetActive(false); // Hide panel
         }
+        Debug.Log("Update harga");
     }
 
     private void SetBotCount(int count)
@@ -277,13 +278,14 @@ public class GameManager : MonoBehaviour
     }
 
 
-    private IEnumerator AssignTicketsToBotsAfterDelay()
+    public IEnumerator AssignTicketsToBotsAfterDelay()
     {
         yield return new WaitForSeconds(3f); // ⏳ Tunggu 3 detik
 
         foreach (var bot in bots)
         {
             bot.ticketNumber = ticketManager.GetRandomTicketForBot();
+            Debug.Log("bagaimana ini");
         }
 
         ClearTicketButtons();

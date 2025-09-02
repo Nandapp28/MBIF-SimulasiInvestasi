@@ -7,13 +7,13 @@ using UnityEngine.UI;
 public class GameModeSelector : MonoBehaviour
 {
     // Indeks scene untuk Singleplayer dan Multiplayer (jika ingin pakai index)
-    public GameObject multiplayerWarningPopup; 
+    public GameObject multiplayerWarningPopup;
     public int singleplayerSceneIndex;
     public int multiplayerSceneIndex;
 
     // Variabel statis untuk menyimpan scene sebelumnya
     private static string previousSceneName;
-    
+
 
     // Fungsi ini akan dipanggil ketika tombol Singleplayer ditekan
     public void OnSingleplayerButtonPress()
@@ -68,7 +68,7 @@ public class GameModeSelector : MonoBehaviour
             SceneManager.LoadScene("Lobby");
         }
     }
-     public void ConfirmWarningAndProceedToLobby()
+    public void ConfirmWarningAndProceedToLobby()
     {
         if (SfxManager.Instance != null)
         {
@@ -198,7 +198,7 @@ public class GameModeSelector : MonoBehaviour
     {
         previousSceneName = SceneManager.GetActiveScene().name;
     }
-    
+
     public void OnHelpButtonPress()
     {
         if (SfxManager.Instance != null)
@@ -209,4 +209,5 @@ public class GameModeSelector : MonoBehaviour
         SaveCurrentScene();
         SceneManager.LoadScene("TutorialScene");
     }
+    
 }
