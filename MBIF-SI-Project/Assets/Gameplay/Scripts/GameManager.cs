@@ -68,7 +68,7 @@ public class GameManager : MonoBehaviour
     private HashSet<GameObject> takenCards = new HashSet<GameObject>();
     private List<GameObject> ticketButtons = new List<GameObject>();
     private bool ticketChosen = false;
-
+private bool isBotCountSelected = false;
     private int totalCards = 2;
     GameObject currentlySelectedCard = null;
     GameObject activateBtnInstance = null;
@@ -159,7 +159,7 @@ public class GameManager : MonoBehaviour
             resetSemesterButton.SetActive(false); // ganti dengan nama canvas kamu
         skipButton.SetActive(false);
 
-
+isBotCountSelected = false;
 
         bot2Button.onClick.AddListener(() => SetBotCount(2));
         bot3Button.onClick.AddListener(() => SetBotCount(3));
@@ -170,17 +170,27 @@ public class GameManager : MonoBehaviour
     }
 
 
-    private void OnPlayButtonClicked()
+     private void OnPlayButtonClicked()
     {
+        // --- PERUBAHAN BARU ---
+        
+        if (!isBotCountSelected)
+        {
+            Debug.LogWarning("Harap pilih jumlah bot terlebih dahulu sebelum memulai!");
+            return; // Hentikan eksekusi fungsi jika belum ada bot yang dipilih
+        }
+        
+
         if (botSelectionPanel != null)
         {
-            botSelectionPanel.SetActive(false); // Hide panel
+            botSelectionPanel.SetActive(false); // Sembunyikan panel pemilihan
         }
-        Debug.Log("Update harga");
     }
+
 
     private void SetBotCount(int count)
 {
+     isBotCountSelected = true;
     bots.Clear();
     for (int i = 0; i < count; i++)
     {
