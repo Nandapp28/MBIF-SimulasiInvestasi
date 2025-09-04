@@ -30,6 +30,7 @@ public class GameManager : MonoBehaviour
     public Transform botListContainer;
     public GameObject cardPrefab;
     public Transform cardHolderParent;
+    public Button toggleCardsButton;
     public GameObject ticketButtonPrefab;
     public Transform ticketListContainer;
     public GameObject activateButtonPrefab;
@@ -158,6 +159,10 @@ private bool isBotCountSelected = false;
         if (resetSemesterButton != null)
             resetSemesterButton.SetActive(false); // ganti dengan nama canvas kamu
         skipButton.SetActive(false);
+        if (toggleCardsButton != null)
+    {
+        toggleCardsButton.gameObject.SetActive(false);
+    }
 
 isBotCountSelected = false;
 
@@ -303,6 +308,10 @@ isBotCountSelected = false;
         yield return new WaitForSeconds(1.5f);
         UITransitionAnimator.Instance.StartTransition("Action Phase");
         yield return new WaitForSeconds(4f);
+        if (toggleCardsButton != null)
+    {
+        toggleCardsButton.gameObject.SetActive(true);
+    }
         ResetAll();
     }
 
@@ -501,6 +510,16 @@ isBotCountSelected = false;
         }
     }
 
+public void ToggleCardHolderPanel()
+{
+    if (cardHolderParent != null)
+    {
+        // Mengubah status aktif/non-aktif dari GameObject panel
+        bool isActive = cardHolderParent.gameObject.activeSelf;
+        cardHolderParent.gameObject.SetActive(!isActive);
+        Debug.Log($"Panel list kartu di-toggle menjadi {(cardHolderParent.gameObject.activeSelf ? "Aktif" : "Tidak Aktif")}");
+    }
+}
 
     private IEnumerator NextTurn()
     {
@@ -513,6 +532,11 @@ isBotCountSelected = false;
             ClearHiddenCards();
             currentCardIndex = totalCardsToGive; // anggap sudah selesai
             skipCount = 0;
+            if (toggleCardsButton != null)
+        {
+            toggleCardsButton.gameObject.SetActive(false);
+        }
+
 
             yield return new WaitForSeconds(2f);
 
@@ -526,6 +550,11 @@ isBotCountSelected = false;
         if (currentCardIndex >= totalCardsToGive || currentCardIndex >= cardObjects.Count)
         {
             Debug.Log("✅ Semua kartu sudah dibagikan.");
+            if (toggleCardsButton != null)
+        {
+            toggleCardsButton.gameObject.SetActive(false);
+        }
+
 
             yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
             ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
@@ -749,6 +778,8 @@ isBotCountSelected = false;
         switch (cardName)
         {
             case "TradeFee":
+                // Syarat: Pengaktif harus punya minimal 1 kartu (warna apa saja).
+                return activator.cards.Count > 0;
             case "StockSplit":
                 // Syarat: Pengaktif harus punya minimal 1 kartu tersimpan dengan warna yang sama.
                 return activator.GetCardColorCounts()[cardColor] >= 1;
@@ -994,6 +1025,19 @@ isBotCountSelected = false;
         // Kurangi finpoint sesuai nilai kartu
         //#currentPlayer.finpoint -= cardValue;
         if (cardObj == null || takenCards.Contains(cardObj)) yield break;
+        int cardIndex = cardObjects.IndexOf(cardObj);
+    if (cardIndex == -1 || cardIndex >= deck.Count)
+    {
+        Debug.LogError("Tidak dapat menemukan data kartu yang sesuai untuk diaktifkan!");
+        yield break;
+    }
+    
+    Card cardData = deck[cardIndex];
+    int effectCost = cardData.baseValue; // Ambil biaya efek murni (baseValue)
+
+    // 2. Kurangi finpoint pemain hanya sebesar biaya efek
+    Debug.Log($"{currentPlayer.playerName} membayar {effectCost} FP untuk efek kartu '{cardData.cardName}'.");
+    currentPlayer.finpoint -= effectCost;
 
 
         Text cardNameText = cardObj.transform.Find("CardText")?.GetComponent<Text>();
