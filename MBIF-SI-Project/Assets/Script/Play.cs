@@ -7,11 +7,13 @@ using UnityEngine.UI;
 public class GameModeSelector : MonoBehaviour
 {
     // Indeks scene untuk Singleplayer dan Multiplayer (jika ingin pakai index)
+    public GameObject multiplayerWarningPopup;
     public int singleplayerSceneIndex;
     public int multiplayerSceneIndex;
 
     // Variabel statis untuk menyimpan scene sebelumnya
     private static string previousSceneName;
+
 
     // Fungsi ini akan dipanggil ketika tombol Singleplayer ditekan
     public void OnSingleplayerButtonPress()
@@ -22,7 +24,21 @@ public class GameModeSelector : MonoBehaviour
         }
 
         SaveCurrentScene();
-        SceneManager.LoadScene("Gameplay");
+
+        // Cek status tutorial HANYA dari penyimpanan lokal (PlayerPrefs)
+        // Jika key belum ada, default-nya adalah "no"
+        string tutorialStatus = PlayerPrefs.GetString("hasCompletedTutorial", "no");
+
+        if (tutorialStatus == "no")
+        {
+            // Jika belum menyelesaikan tutorial, arahkan ke scene tutorial
+            SceneManager.LoadScene("TutorialScene");
+        }
+        else
+        {
+            // Jika sudah, langsung ke gameplay
+            SceneManager.LoadScene("Gameplay");
+        }
     }
 
     // Fungsi ini akan dipanggil ketika tombol Multiplayer ditekan
@@ -33,10 +49,45 @@ public class GameModeSelector : MonoBehaviour
             SfxManager.Instance.PlayButtonClick();
         }
 
-        SaveCurrentScene();
-        SceneManager.LoadScene("Lobby");
-    }
+        string tutorialStatus = PlayerPrefs.GetString("hasCompletedTutorial", "no");
+        string warningStatus = PlayerPrefs.GetString("hasWarning", "no");
 
+        // Cek jika tutorial BELUM selesai DAN warning BELUM pernah ditampilkan
+        if (tutorialStatus == "no" && warningStatus == "no")
+        {
+            // Tampilkan popup warning
+            if (multiplayerWarningPopup != null)
+            {
+                multiplayerWarningPopup.SetActive(true);
+            }
+        }
+        else
+        {
+            // Jika tidak, langsung masuk ke lobi
+            SaveCurrentScene();
+            SceneManager.LoadScene("Lobby");
+        }
+    }
+    public void ConfirmWarningAndProceedToLobby()
+    {
+        if (SfxManager.Instance != null)
+        {
+            SfxManager.Instance.PlayButtonClick();
+        }
+
+        // 1. Set status warning menjadi "yes" agar tidak muncul lagi
+        PlayerPrefs.SetString("hasWarning", "yes");
+        PlayerPrefs.Save();
+
+
+        // 3. Sembunyikan popup
+        if (multiplayerWarningPopup != null)
+        {
+            multiplayerWarningPopup.SetActive(false);
+        }
+
+        // 4. Lanjutkan ke lobi
+    }
     public void OnMainMenuButtonPress()
     {
         if (SfxManager.Instance != null)
@@ -147,7 +198,7 @@ public class GameModeSelector : MonoBehaviour
     {
         previousSceneName = SceneManager.GetActiveScene().name;
     }
-    
+
     public void OnHelpButtonPress()
     {
         if (SfxManager.Instance != null)
@@ -158,4 +209,5 @@ public class GameModeSelector : MonoBehaviour
         SaveCurrentScene();
         SceneManager.LoadScene("TutorialScene");
     }
+    
 }

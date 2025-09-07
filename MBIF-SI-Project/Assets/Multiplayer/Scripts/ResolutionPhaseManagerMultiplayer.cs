@@ -352,21 +352,30 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
         Debug.Log("✅ Pembayaran dividen selesai. Fase Resolusi berakhir.");
 
-        // --- AWAL PERUBAHAN ---
+        StartCoroutine(EndResolutionPhaseSequence());
+    }
+
+    private IEnumerator EndResolutionPhaseSequence()
+    {
+        if (!PhotonNetwork.IsMasterClient) yield break;
+
+        yield return new WaitForSeconds(1.0f); // Jeda singkat setelah dividen
+
         int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerManager.SEMESTER_KEY];
 
         // Jika ini adalah akhir semester 1, mulai Fase Testing
         if (currentSemester == 1 && TestingCardManagerMultiplayer.Instance != null)
         {
             Debug.Log("[GAME FLOW] Akhir Semester 1, memulai Fase Testing...");
-            TestingCardManagerMultiplayer.Instance.StartTestingPhase();
+            // Panggil dan tunggu coroutine baru
+            yield return StartCoroutine(TestingCardManagerMultiplayer.Instance.ShowCardAndWait());
         }
-        // Jika tidak, lanjutkan ke alur normal (mulai semester baru)
-        else if (MultiplayerManager.Instance != null)
+        
+        // Setelah testing (jika ada) atau langsung, mulai semester baru
+        if (MultiplayerManager.Instance != null)
         {
             MultiplayerManager.Instance.StartNewSemester();
         }
-        // --- AKHIR PERUBAHAN ---
     }
     #endregion
 }
