@@ -21,6 +21,7 @@ public class GameManager : MonoBehaviour
 
     private CardEffectManager cardEffect;
     private PlayerProfile player;
+    public PlayerInfoPanel playerInfoPanel;
 
 
     [Header("UI References")]
@@ -377,7 +378,7 @@ isBotCountSelected = false;
         deck.Add(new Card("TenderOffer", "Recover 3 HP", 0, GetRandomColor(colors)));
         deck.Add(new Card("StockSplit", "Block next attack", 0, GetRandomColor(colors)));
         deck.Add(new Card("InsiderTrade", "Take 1 card", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Flashbuy", "Take 2 more cards", 0, GetRandomColor(colors)));
+        deck.Add(new Card("Flashbuy", "Take 2 more cards", 3, GetRandomColor(colors)));
 
         ShuffleDeck();
 
@@ -486,6 +487,27 @@ isBotCountSelected = false;
             // Ambil Text untuk nilai kartu
             Text cardValueText = cardObj.transform.Find("CardValue")?.GetComponent<Text>();
             if (cardValueText != null) cardValueText.text = card.value.ToString();
+             Text effectValueText = cardObj.transform.Find("EffectValueText")?.GetComponent<Text>();
+        if (effectValueText != null)
+        {
+            // Hanya tampilkan teks jika baseValue > 0
+            if (card.baseValue > 0)
+            {
+                effectValueText.text = $"(+{card.baseValue})";
+            }
+            else
+            {
+                effectValueText.text = ""; // Kosongkan teks jika nilainya 0
+            }
+        }
+        // --- AKHIR PERUBAHAN ---
+
+        Text colorValueText = cardObj.transform.Find("ColorValueText")?.GetComponent<Text>();
+        if (colorValueText != null)
+        {
+            int colorPrice = card.value - card.baseValue;
+            colorValueText.text = colorPrice.ToString();
+        }
 
             cardObjects.Add(cardObj);
         }
@@ -507,17 +529,43 @@ isBotCountSelected = false;
             {
                 cardValueText.text = card.value.ToString();
             }
+             Text effectValueText = cardObj.transform.Find("EffectValueText")?.GetComponent<Text>();
+        if (effectValueText != null)
+        {
+            // Hanya tampilkan teks jika baseValue > 0
+            if (card.baseValue > 0)
+            {
+                effectValueText.text = $"(+{card.baseValue})";
+            }
+            else
+            {
+                effectValueText.text = ""; // Kosongkan teks jika nilainya 0
+            }
+        }
+        // --- AKHIR PERUBAHAN ---
+
+        Text colorValueText = cardObj.transform.Find("ColorValueText")?.GetComponent<Text>();
+        if (colorValueText != null)
+        {
+            int colorPrice = card.value - card.baseValue;
+            colorValueText.text = colorPrice.ToString();
+        }
         }
     }
 
 public void ToggleCardHolderPanel()
 {
-    if (cardHolderParent != null)
-    {
-        // Mengubah status aktif/non-aktif dari GameObject panel
-        bool isActive = cardHolderParent.gameObject.activeSelf;
-        cardHolderParent.gameObject.SetActive(!isActive);
-        Debug.Log($"Panel list kartu di-toggle menjadi {(cardHolderParent.gameObject.activeSelf ? "Aktif" : "Tidak Aktif")}");
+        if (cardHolderParent != null)
+        {
+            // Mengubah status aktif/non-aktif dari GameObject panel
+            bool isActive = cardHolderParent.gameObject.activeSelf;
+            cardHolderParent.gameObject.SetActive(!isActive);
+            Debug.Log($"Panel list kartu di-toggle menjadi {(cardHolderParent.gameObject.activeSelf ? "Aktif" : "Tidak Aktif")}");
+         if (isActive)
+        {
+            // Reset semua status pilihan kartu (menghilangkan highlight dan tombol activate/save)
+            ResetCardSelection(); 
+        }
     }
 }
 
@@ -1242,6 +1290,26 @@ public void ToggleCardHolderPanel()
         // Instantiate the prefab into the correct container (PlayerUIPosition or BotListContainer)
         GameObject entry = Instantiate(playerEntryPrefab, parentContainer);
         playerEntries.Add(entry); // Keep tracking the entry for cleanup
+        Button entryButton = entry.GetComponent<Button>();
+    if (entryButton == null)
+    {
+        entryButton = entry.AddComponent<Button>();
+    }
+
+    // 2. Bersihkan listener lama dan tambahkan yang baru
+    entryButton.onClick.RemoveAllListeners();
+    entryButton.onClick.AddListener(() => 
+    {
+        // Panggil fungsi di panel untuk menampilkan info pemain ini
+        if (playerInfoPanel != null)
+        {
+            playerInfoPanel.ShowPanelForPlayer(playerProfile);
+        }
+        else
+        {
+            Debug.LogError("Referensi 'playerInfoPanel' belum di-assign di GameManager!");
+        }
+    });
 
 
         if (!playerUIEntries.ContainsKey(playerProfile))
