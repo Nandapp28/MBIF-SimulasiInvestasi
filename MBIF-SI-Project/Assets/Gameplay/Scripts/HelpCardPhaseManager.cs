@@ -525,7 +525,7 @@ public class HelpCardPhaseManager : MonoBehaviour
         effectDisplayPanel.SetActive(false);
     }
 
-    public bool isTesting = true;
+    public bool isTesting = false;
     private HelpCard GetRandomHelpCard()
     {
         HelpCardEffect randomEffect;
