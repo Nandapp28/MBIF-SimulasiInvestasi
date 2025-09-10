@@ -378,7 +378,7 @@ isBotCountSelected = false;
         deck.Add(new Card("TenderOffer", "Recover 3 HP", 0, GetRandomColor(colors)));
         deck.Add(new Card("StockSplit", "Block next attack", 0, GetRandomColor(colors)));
         deck.Add(new Card("InsiderTrade", "Take 1 card", 0, GetRandomColor(colors)));
-        deck.Add(new Card("Flashbuy", "Take 2 more cards", 3, GetRandomColor(colors)));
+        deck.Add(new Card("Flashbuy", "Take 2 more cards", 0, GetRandomColor(colors)));
 
         ShuffleDeck();
 
