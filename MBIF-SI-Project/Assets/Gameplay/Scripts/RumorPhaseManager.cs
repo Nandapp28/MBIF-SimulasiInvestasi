@@ -12,6 +12,8 @@ public class RumorPhaseManager : MonoBehaviour
     public ResolutionPhaseManager resolutionPhaseManager;
     [Header("Posisi Spesial")] // <-- TAMBAHKAN HEADER BARU
     public Transform predictionCardStage;
+    public GameObject predictionCardObject; // <-- TAMBAHKAN BARIS INI
+    public Renderer predictionCardRenderer;
     [Header("System References")]
     public CameraController cameraController;
     [System.Serializable]
@@ -38,13 +40,15 @@ public class RumorPhaseManager : MonoBehaviour
     }
 
     public List<RumorEffect> rumorEffects = new List<RumorEffect>();
-    // SOLUSI: Menggunakan backing field
-[Header("Debug - Urutan Kartu Rumor TKonsumerilih")]
-[SerializeField] // <-- Tambahkan ini agar field private bisa dilihat di Inspector
-private List<RumorEffect> _shuffledRumorDeck = new List<RumorEffect>();
 
-// Property publik untuk dibaca oleh skrip lain (misal: HelpCardPhaseManager)
-public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private bool rumorRunning = false;
+    private Dictionary<string, GameObject> faceUpRumorCards = new Dictionary<string, GameObject>();
+    // SOLUSI: Menggunakan backing field
+    [Header("Debug - Urutan Kartu Rumor TKonsumerilih")]
+    [SerializeField] // <-- Tambahkan ini agar field private bisa dilihat di Inspector
+    private List<RumorEffect> _shuffledRumorDeck = new List<RumorEffect>();
+
+    // Property publik untuk dibaca oleh skrip lain (misal: HelpCardPhaseManager)
+    public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck; private bool rumorRunning = false;
 
     private List<PlayerProfile> players;
     [Header("Kartu Rumor Per Warna")]
@@ -59,18 +63,26 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
         public string cardName;
         public Texture texture;
     }
+    [System.Serializable] // <-- TAMBAHKAN CLASS BARU INI
+    public class CardVisuals2D
+    {
+        public string cardName;
+        public Sprite sprite; // Menggunakan Sprite, bukan Texture
+    }
+
 
     public List<CardVisual> cardVisuals = new List<CardVisual>();
+    public List<CardVisuals2D> cardVisuals2D = new List<CardVisuals2D>();
 
     public Renderer rendererRed;
     public Renderer rendererBlue;
     public Renderer rendererGreen;
     public Renderer rendererOrange;
     private void Start()
-{
-    rumorEffects = new List<RumorEffect>
     {
-        
+        rumorEffects = new List<RumorEffect>
+    {
+
         new RumorEffect { color = "Konsumer",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
         new RumorEffect { color = "Konsumer",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
         new RumorEffect { color = "Konsumer",cardName = "Revaluasi_Asset", effectType = RumorEffect.EffectType.ModifyIPO, value = 1, description = "Red market sedikit naik" },
@@ -100,7 +112,7 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
         new RumorEffect { color = "Konsumer",cardName = "Penerbitan_Saham", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Reformasi ekonomi" },
         new RumorEffect { color = "Konsumer",cardName = "Penerbitan_Saham", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Ref   ormasi ekonomi" },
 
-       
+
 
         new RumorEffect { color = "Infrastruktur",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
         new RumorEffect { color = "Infrastruktur",cardName = "Resesi_Ekonomi", effectType = RumorEffect.EffectType.ModifyIPO, value = -1, description = "Red market sedikit turun" },
@@ -189,8 +201,8 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
         new RumorEffect { color = "Tambang",cardName = "Penerbitan_Saham", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Reformasi ekonomi" },
         new RumorEffect { color = "Tambang",cardName = "Penerbitan_Saham", effectType = RumorEffect.EffectType.StockDilution, value = -1, description = "Reformasi ekonomi" },
     };
-    InitializeRumorDeck(); // Atau panggil dari GameManager saat game dimulai
-}
+        InitializeRumorDeck(); // Atau panggil dari GameManager saat game dimulai
+    }
 
 
     public void InitializeRumorDeck()
@@ -209,7 +221,7 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
                 shuffledRumorDeck.Add(chosen);
             }
         }
-        
+
 
         Debug.Log("[RumorDeck] Kartu rumor telah diacak dan disiapkan:");
         foreach (var effect in shuffledRumorDeck)
@@ -237,30 +249,30 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
 
         foreach (var selected in shuffledRumorDeck)
         {
-            
+
             // Tentukan posisi kamera berdasarkan warna kartu
             CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
             switch (selected.color)
             {
-                case "Konsumer":      targetPos = CameraController.CameraPosition.KonsumerRumour; break;
+                case "Konsumer": targetPos = CameraController.CameraPosition.KonsumerRumour; break;
                 case "Infrastruktur": targetPos = CameraController.CameraPosition.InfrastrukturRumour; break;
-                case "Keuangan":      targetPos = CameraController.CameraPosition.KeuanganRumour; break;
-                case "Tambang":       targetPos = CameraController.CameraPosition.TambangRumour; break;
+                case "Keuangan": targetPos = CameraController.CameraPosition.KeuanganRumour; break;
+                case "Tambang": targetPos = CameraController.CameraPosition.TambangRumour; break;
             }
 
             // 1. GERAKKAN KAMERA KE KARTU
             if (cameraController) yield return cameraController.MoveTo(targetPos);
-            
+
             yield return new WaitForSeconds(0.5f); // Sedikit jeda setelah kamera sampai
 
             // Tampilkan kartu
             ShowCardByColorAndName(selected.color, selected.cardName);
             Debug.Log($"[Rumor] Warna {selected.color}: {selected.description}");
 
-            
-            yield return new WaitForSeconds(3f); // Tunggu sebelum sembunyikan kartu & reset kamera
 
-            HideAllCardObjects();
+            yield return new WaitForSeconds(2f); // Tunggu sebelum sembunyikan kartu & reset kamera
+
+
 
 
             // Terapkan efek
@@ -275,7 +287,7 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
             {
                 yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
             }
-            
+
             yield return new WaitForSeconds(1.0f); // Jeda sebelum kartu berikutnya
         }
 
@@ -288,7 +300,15 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
 
     private void ShowCardByColorAndName(string color, string cardName)
     {
-        HideAllCardObjects(); // Sembunyikan dulu semua kartu
+
+        if (faceUpRumorCards.ContainsKey(color))
+        {
+            if (faceUpRumorCards[color] != null)
+            {
+                faceUpRumorCards[color].SetActive(false);
+            }
+            faceUpRumorCards.Remove(color);
+        }// Sembunyikan dulu semua kartu
 
         Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == cardName)?.texture;
         if (frontTexture == null)
@@ -301,24 +321,24 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
         Renderer renderer = null;
 
         switch (color)
-    {
-        case "Konsumer":
-            card = cardRed;
-            renderer = rendererRed;
-            break;
-        case "Infrastruktur":
-            card = cardBlue;
-            renderer = rendererBlue;
-            break;
-        case "Keuangan":
-            card = cardGreen;
-            renderer = rendererGreen;
-            break;
-        case "Tambang":
-            card = cardOrange;
-            renderer = rendererOrange;
-            break;
-    }
+        {
+            case "Konsumer":
+                card = cardRed;
+                renderer = rendererRed;
+                break;
+            case "Infrastruktur":
+                card = cardBlue;
+                renderer = rendererBlue;
+                break;
+            case "Keuangan":
+                card = cardGreen;
+                renderer = rendererGreen;
+                break;
+            case "Tambang":
+                card = cardOrange;
+                renderer = rendererOrange;
+                break;
+        }
 
         if (card && renderer)
         {
@@ -326,7 +346,7 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
             StartCoroutine(FlipCard(card));
         }
     }
-    
+
     public IEnumerator MoveObjectToTargetAndBack(GameObject objectToMove)
     {
         // Pemeriksaan keamanan
@@ -398,46 +418,27 @@ public List<RumorEffect> shuffledRumorDeck => _shuffledRumorDeck;    private boo
     }
     // Tambahkan metode ini di dalam kelas RumorPhaseManager.cs
 
-public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
-{
-    Debug.Log($"Menampilkan bocoran kartu rumor: {rumorToShow.cardName}");
-
-    // Langkah 1: Tentukan objek kartu dan renderer yang akan digunakan
-    GameObject cardObject = null;
-    Renderer cardRenderer = null;
-    switch (rumorToShow.color)
+    public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
     {
-        case "Konsumer":
-            cardObject = cardRed;
-            cardRenderer = rendererRed;
-            break;
-        case "Infrastruktur":
-            cardObject = cardBlue;
-            cardRenderer = rendererBlue;
-            break;
-        case "Keuangan":
-            cardObject = cardGreen;
-            cardRenderer = rendererGreen;
-            break;
-        case "Tambang":
-            cardObject = cardOrange;
-            cardRenderer = rendererOrange;
-            break;
-    }
+        Debug.Log($"Menampilkan bocoran kartu rumor: {rumorToShow.cardName}");
 
-    if (cardObject == null || cardRenderer == null)
-    {
-        Debug.LogError($"Objek kartu atau renderer untuk warna '{rumorToShow.color}' tidak ditemukan!");
-        yield break;
-    }
+        // Langkah 1: Tentukan objek kartu dan renderer yang akan digunakan
+        GameObject cardObject = predictionCardObject;
+        Renderer cardRenderer = predictionCardRenderer;
 
-    // Validasi texture
-    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == rumorToShow.cardName)?.texture;
-    if (frontTexture == null)
-    {
-        Debug.LogWarning($"Texture untuk '{rumorToShow.cardName}' tidak ditemukan!");
-        yield break;
-    }
+        if (cardObject == null || cardRenderer == null)
+        {
+            Debug.LogError("Referensi 'Prediction Card Object' atau 'Prediction Card Renderer' belum di-assign di Inspector!");
+            yield break;
+        }
+
+        // Validasi texture
+        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == rumorToShow.cardName)?.texture;
+        if (frontTexture == null)
+        {
+            Debug.LogWarning($"Texture untuk '{rumorToShow.cardName}' tidak ditemukan!");
+            yield break;
+        }
 
         if (cameraController) yield return cameraController.MoveTo(CameraController.CameraPosition.Center);
 
@@ -468,10 +469,24 @@ public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
         if (cardGreen) cardGreen.SetActive(false);
         if (cardOrange) cardOrange.SetActive(false);
     }
+    public void HideAllFaceUpRumorCards()
+    {
+        if (faceUpRumorCards == null) return;
+
+        foreach (var cardObject in faceUpRumorCards.Values)
+        {
+            if (cardObject != null)
+            {
+                cardObject.SetActive(false);
+            }
+        }
+        faceUpRumorCards.Clear();
+        Debug.Log("[RumorPhase] Semua kartu rumor yang terbuka telah disembunyikan.");
+    }
 
 
 
-      private IEnumerator ApplyRumorEffect(RumorEffect effect)
+    private IEnumerator ApplyRumorEffect(RumorEffect effect)
     {
         if (effect.effectType == RumorEffect.EffectType.ModifyIPO)
         {
@@ -493,7 +508,7 @@ public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
                     affectedPlayers.Add(p);
                 }
             }
-            
+
             yield return StartCoroutine(sellingPhaseManager.ModifyIPOIndexWithCamera(effect.color, effect.value));
 
             foreach (var p in affectedPlayers)
@@ -537,30 +552,27 @@ public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
                         player.finpoint -= penalty;
                         Debug.Log($"{player.playerName} membayar pajak jalan sebesar {penalty} finpoint (turnOrder: {player.ticketNumber})");
                         break;
-                    } 
+                    }
             }
         }
     }
 
-     public void ResetAllIPOIndexes()
+    public void ResetAllIPOIndexes()
     {
         // Fungsi ini sekarang didelegasikan ke SellingPhaseManager
         StartCoroutine(sellingPhaseManager.ResetAllIPOIndexesWithCamera());
     }
 
     public IEnumerator DisplayAndHidePrediction(RumorEffect predictionCard)
-{
-    Debug.Log($"Menampilkan bocoran kartu rumor: {predictionCard.cardName}");
-    
-    // Panggil fungsi yang sudah ada untuk menampilkan kartu di tengah
-    yield return StartCoroutine(ShowPredictionCardAtCenter(predictionCard));
-    
-    // Tunggu selama beberapa detik agar pemain bisa melihat
-    yield return new WaitForSeconds(3f); // Anda bisa sesuaikan durasi
-    
-    // Sembunyikan semua kartu
-    HideAllCardObjects();
-}
+    {
+        Debug.Log($"Menampilkan bocoran kartu rumor: {predictionCard.cardName}");
+
+        // Panggil fungsi yang sudah ada untuk menampilkan kartu di tengah
+        yield return StartCoroutine(ShowPredictionCardAtCenter(predictionCard));
+
+        // Tunggu selama beberapa detik agar pemain bisa melihat
+        yield return new WaitForSeconds(1f); // Anda bisa sesuaikan durasi  
+    }
 
 
 
@@ -570,4 +582,25 @@ public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
         // Fungsi ini sekarang didelegasikan ke SellingPhaseManager
         StartCoroutine(sellingPhaseManager.ModifyIPOIndexWithCamera(color, delta));
     }
+    
+    public string GetCardNameFromTexture(Texture texture3D)
+{
+    var visual = cardVisuals.FirstOrDefault(v => v.texture == texture3D);
+    if (visual != null)
+    {
+        return visual.cardName;
+    }
+    return null; // Return null jika tidak ditemukan
+}
+/// Mencari Sprite 2D berdasarkan nama kartunya.
+public Sprite GetCardSprite2D(string cardName)
+{
+    var visual2D = cardVisuals2D.FirstOrDefault(v => v.cardName == cardName);
+    if (visual2D != null)
+    {
+        return visual2D.sprite;
+    }
+    Debug.LogWarning($"Sprite 2D untuk '{cardName}' tidak ditemukan!");
+    return null; // Return null jika tidak ditemukan
+}
 }
