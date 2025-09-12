@@ -42,10 +42,10 @@ public class HelpCardPhaseManager : MonoBehaviour
     public UnityEngine.UI.Button blueButton;
     public UnityEngine.UI.Button greenButton;
     public UnityEngine.UI.Button orangeButton;
-    [Header("Player Selection UI")]
-    public GameObject playerSelectionPanel;
-    public Transform playerButtonContainer;
-    public GameObject playerButtonPrefab;
+    //[Header("Player Selection UI")]
+    //public GameObject playerSelectionPanel;
+    //public Transform playerButtonContainer;
+    //public GameObject playerButtonPrefab;
 
     private List<PlayerProfile> turnOrder;
     private void Awake()
@@ -492,26 +492,20 @@ public class HelpCardPhaseManager : MonoBehaviour
     // Fungsi baru untuk menampilkan UI pemilihan pemain
     public IEnumerator ShowPlayerSelectionUI(List<PlayerProfile> players, Action<PlayerProfile> onPlayerSelected)
     {
-        playerSelectionPanel.SetActive(true);
-        foreach (Transform child in playerButtonContainer)
-        {
-            Destroy(child.gameObject);
-        }
+        // Pastikan panel lama (jika masih ada) tidak aktif
+    
 
         bool selectionMade = false;
 
-        foreach (var player in players)
+        // Panggil fungsi baru di GameManager untuk mengaktifkan tombol target di UI pemain
+        gameManager.StartPlayerTargeting(players, selectedPlayer =>
         {
-            GameObject btnObj = Instantiate(playerButtonPrefab, playerButtonContainer);
-            btnObj.GetComponentInChildren<UnityEngine.UI.Text>().text = player.playerName;
-            btnObj.GetComponent<UnityEngine.UI.Button>().onClick.AddListener(() =>
-            {
-                onPlayerSelected?.Invoke(player);
-                selectionMade = true;
-                playerSelectionPanel.SetActive(false);
-            });
-        }
+            // Callback ini akan dijalankan oleh GameManager saat target sudah diklik
+            onPlayerSelected?.Invoke(selectedPlayer);
+            selectionMade = true;
+        });
 
+        // Coroutine ini akan berhenti di sini sampai 'selectionMade' menjadi true
         yield return new WaitUntil(() => selectionMade);
     }
     private IEnumerator ShowEffectResult(PlayerProfile player, HelpCard card, string targetInfo)
@@ -531,7 +525,7 @@ public class HelpCardPhaseManager : MonoBehaviour
         effectDisplayPanel.SetActive(false);
     }
 
-    public bool isTesting = true;
+    public bool isTesting = false;
     private HelpCard GetRandomHelpCard()
     {
         HelpCardEffect randomEffect;

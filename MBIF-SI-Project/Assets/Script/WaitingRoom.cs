@@ -117,9 +117,6 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
 
     private void OnPlayButtonClicked()
     {
-        if (SfxManager.Instance != null)
-            SfxManager.Instance.PlayButtonClick();
-
         // Pengecekan ini tetap ada sebagai lapisan keamanan kedua
         if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount == PhotonNetwork.CurrentRoom.MaxPlayers)
         {

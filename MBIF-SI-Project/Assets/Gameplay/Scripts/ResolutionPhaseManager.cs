@@ -44,16 +44,25 @@ public class ResolutionPhaseManager : MonoBehaviour
 
 
     // Mapping dari dividendIndex ke jumlah finpoint per kartu
-    private Dictionary<int, int> dividendRewards = new Dictionary<int, int>()
-    {
-        { -3, 0 },
-        { -2, 1 },
-        { -1, 1 },
-        { 0, 1 },
-        { 1, 2 },
-        { 2, 3 },
-        { 3, 3 }
-    };
+    // Mapping baru dari warna -> (dividendIndex -> jumlah finpoint per kartu)
+    private Dictionary<string, int[]> colorDividendRewards;
+private void Awake()
+{
+    InitializeColorDividendRewards();
+}
+
+private void InitializeColorDividendRewards()
+{
+    colorDividendRewards = new Dictionary<string, int[]>();
+
+    // Cukup tuliskan 7 nilai reward berurutan dari index -3 hingga +3.
+    // Urutan: Reward untuk [-3, -2, -1,  0,  1,  2,  3]
+
+    colorDividendRewards["Konsumer"]      = new int[] { 0, 1, 1, 1, 2, 3, 3 };
+    colorDividendRewards["Infrastruktur"] = new int[] { 0, 1, 1, 1, 2, 3, 3 };
+    colorDividendRewards["Keuangan"]      = new int[] { 0, 1, 1, 1, 2, 3, 3 };
+    colorDividendRewards["Tambang"]       = new int[] { 0, 1, 1, 1, 2, 3, 3 };
+}
     private void Start()
     {
         CacheDividendInitialPositions();
@@ -192,7 +201,7 @@ public class ResolutionPhaseManager : MonoBehaviour
 
                 // --- 3. Hitung dan Bagikan Dividen untuk Sektor Ini (PINDAH KE SINI) ---
                 int dividendIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
-                int reward = dividendRewards[dividendIndex];
+                int reward = colorDividendRewards[color][dividendIndex + 3];
 
                 Debug.Log($"--- Resolusi Dividen untuk {color} (Index: {dividendIndex}, Reward/kartu: {reward} FP) ---");
 

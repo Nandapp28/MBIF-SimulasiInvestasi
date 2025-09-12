@@ -23,21 +23,21 @@ public class UITransitionAnimator : MonoBehaviour
     private Vector3 initialScale;
     private Coroutine runningCoroutine = null;
 
-    void Awake()
+   void Awake()
+{
+    if (Instance != null && Instance != this)
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        Instance = this;
-
-        rectTransform = GetComponent<RectTransform>();
-        initialPosition = rectTransform.anchoredPosition;
-        initialScale = rectTransform.localScale;
-        
-        // Objek dibiarkan aktif dan terlihat di posisi awalnya
+        Destroy(gameObject);
+        return;
     }
+    Instance = this;
+
+    // DontDestroyOnLoad(gameObject); // <-- BARIS INI YANG HARUS DIHAPUS
+
+    rectTransform = GetComponent<RectTransform>();
+    initialPosition = rectTransform.anchoredPosition;
+    initialScale = rectTransform.localScale;
+}
 
     public void StartTransition(string newText)
     {

@@ -36,7 +36,7 @@ public class SellingPhaseManager : MonoBehaviour
     public Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
         { "Konsumer", new int[] { 1, 2, 3, 5, 6, 7, 8 } },
-        { "Infrastruktur", new int[] { 1, 2, 4, 5, 6, 8, 9 } },
+        { "Infrastruktur", new int[] { 1, 2, 4, 5, 6, 7, 9 } },
         { "Keuangan", new int[] { 1, 3, 4, 5, 6, 7, 9 } },
         { "Tambang",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
     };
@@ -115,6 +115,7 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
             }
             data.manager = this; // INJEKSI Referensi ke manager
         }
+        UpdateIPOVisuals();
 
     }
 
@@ -182,23 +183,31 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
             currentValues[color] = currentValue;
             valueText.text = currentValue.ToString();
 
-            plusButton.onClick.AddListener(() =>
+             if (maxValue == 0)
             {
-                if (currentValues[color] < maxValue)
+                plusButton.interactable = false;
+                minusButton.interactable = false;
+            }
+            else
+            {
+                plusButton.onClick.AddListener(() =>
                 {
-                    currentValues[color]++;
-                    valueText.text = currentValues[color].ToString();
-                }
-            });
+                    if (currentValues[color] < maxValue)
+                    {
+                        currentValues[color]++;
+                        valueText.text = currentValues[color].ToString();
+                    }
+                });
 
-            minusButton.onClick.AddListener(() =>
-            {
-                if (currentValues[color] > 0)
+                minusButton.onClick.AddListener(() =>
                 {
-                    currentValues[color]--;
-                    valueText.text = currentValues[color].ToString();
-                }
-            });
+                    if (currentValues[color] > 0)
+                    {
+                        currentValues[color]--;
+                        valueText.text = currentValues[color].ToString();
+                    }
+                });
+            }
         }
 
         confirmSellButton.onClick.AddListener(() =>
@@ -456,64 +465,78 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
         UpdateVisualsForState(data);
     }
     // Tambahkan method ini di dalam kelas SellingPhaseManager
-    public IEnumerator ShowSingleColorSellUI(PlayerProfile player, string color, System.Action<int> onConfirm)
+    public IEnumerator ShowMultiColorSellUI(PlayerProfile player, System.Action<Dictionary<string, int>> onConfirm)
 {
     sellingUI.SetActive(true);
     confirmSellButton.onClick.RemoveAllListeners();
     foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
 
-    int cardsOwned = player.cards.Count(c => c.color == color);
-    if (cardsOwned == 0)
+    Dictionary<string, int> currentValues = new Dictionary<string, int>();
+    var cardsByColor = player.cards.GroupBy(c => c.color).ToDictionary(g => g.Key, g => g.Count());
+
+    // --- PERUBAHAN DIMULAI DI SINI ---
+    // Selalu iterasi melalui semua 4 warna utama dari ipoPriceMap
+    foreach (var color in ipoPriceMap.Keys)
     {
-        Debug.LogWarning($"[TradeFree] {player.playerName} tidak punya kartu warna {color} untuk dijual.");
-        sellingUI.SetActive(false);
-        onConfirm(0); // Kirim balik jumlah 0
-        yield break;
+        int maxValue = cardsByColor.ContainsKey(color) ? cardsByColor[color] : 0;
+        
+        // Buat baris UI untuk setiap warna
+        GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
+        row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
+        int pricePerCard = GetFullCardPrice(color);
+        row.transform.Find("PriceLabel").GetComponent<Text>().text = $"{pricePerCard}";
+
+        Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
+        Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
+        Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
+        
+        currentValues[color] = 0; // Mulai dari 0 untuk semua warna
+        valueText.text = "0";
+
+        // Nonaktifkan tombol jika pemain tidak punya kartu warna ini
+        if (maxValue == 0)
+        {
+            plusButton.interactable = false;
+            minusButton.interactable = false;
+        }
+        else
+        {
+            // Gunakan variabel lokal 'currentColor' untuk menghindari masalah closure
+            string currentColor = color; 
+
+            plusButton.onClick.AddListener(() =>
+            {
+                if (currentValues[currentColor] < maxValue)
+                {
+                    currentValues[currentColor]++;
+                    valueText.text = currentValues[currentColor].ToString();
+                }
+            });
+
+            minusButton.onClick.AddListener(() =>
+            {
+                if (currentValues[currentColor] > 0)
+                {
+                    currentValues[currentColor]--;
+                    valueText.text = currentValues[currentColor].ToString();
+                }
+            });
+        }
     }
+    // --- PERUBAHAN SELESAI ---
 
-    // Hanya buat satu baris untuk warna yang relevan
-    GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
-    row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
-
-    Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
-    Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
-    Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
-
-    int sellAmount = cardsOwned; // Defaultnya adalah menjual semua
-    valueText.text = sellAmount.ToString();
-
-    plusButton.onClick.AddListener(() =>
-    {
-        if (sellAmount < cardsOwned)
-        {
-            sellAmount++;
-            valueText.text = sellAmount.ToString();
-        }
-    });
-
-    minusButton.onClick.AddListener(() =>
-    {
-        if (sellAmount > 0)
-        {
-            sellAmount--;
-            valueText.text = sellAmount.ToString();
-        }
-    });
-    
-    // Konfigurasi tombol konfirmasi
     confirmSellButton.onClick.AddListener(() =>
     {
         sellingUI.SetActive(false);
-        onConfirm(sellAmount); // Panggil callback dengan jumlah yang dipilih
+        onConfirm?.Invoke(currentValues);
     });
 
-    // Tunggu sampai UI ditutup (saat onConfirm dipanggil)
+    // Tunggu sampai UI ditutup
     while (sellingUI.activeSelf)
     {
         yield return null;
     }
 }
-
 
 
     public void UpdateIPOVisuals()

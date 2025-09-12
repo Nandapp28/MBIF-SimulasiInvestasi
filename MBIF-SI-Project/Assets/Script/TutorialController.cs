@@ -85,10 +85,12 @@ public class TutorialController : MonoBehaviour
         choiceButtons.SetActive(true);
         conversationStep = 2;
     }
-    
+
     public void OnYesButtonClicked()
     {
         SceneManager.LoadScene(playSceneName);
+        PlayerPrefs.SetString("hasCompletedTutorial", "yes");
+        PlayerPrefs.Save();
     }
 
     public void OnNoButtonClicked()
