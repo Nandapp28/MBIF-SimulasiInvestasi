@@ -16,6 +16,8 @@ public class RumorPhaseManager : MonoBehaviour
     public Renderer predictionCardRenderer;
     [Header("System References")]
     public CameraController cameraController;
+    [Header("Sound Effects")]
+    public AudioClip rumourFlipSound;
     [System.Serializable]
     public class RumorEffect
     {
@@ -394,6 +396,7 @@ public class RumorPhaseManager : MonoBehaviour
     }
     private IEnumerator FlipCard(GameObject cardObject)
     {
+        
         cardObject.SetActive(true);
 
         // Mulai dari kondisi terbalik
@@ -405,7 +408,11 @@ public class RumorPhaseManager : MonoBehaviour
         Quaternion startRot = cardObject.transform.rotation;
         Quaternion endRot = Quaternion.Euler(0, -180, 0); // Menghadap depan
 
-        yield return new WaitForSeconds(0.5f); // jeda sejenak sebelum animasi
+        yield return new WaitForSeconds(0.5f);
+        if (SfxManager.Instance != null && rumourFlipSound != null) // <-- MODIFIKASI DISINI
+        {
+            SfxManager.Instance.PlaySound(rumourFlipSound); // <-- MODIFIKASI DISINI
+        }// jeda sejenak sebelum animasi
 
         while (elapsed < duration)
         {

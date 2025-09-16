@@ -42,7 +42,8 @@ public class GameManager : MonoBehaviour
     public GameObject leaderboardEntryPrefab;
     [Header("Card Visuals")]
     public List<CardTextureMapping> cardTextureMappings; // ⬅️ TAMBAHKAN INI
-
+[Header("Sound Effects")]
+    public AudioClip cardSound;
 
     [Header("Button References")]
     public Button bot2Button;
@@ -648,6 +649,7 @@ public void ToggleCardHolderPanel()
 
                     cardBtn.onClick.AddListener(() =>
                     {
+                        
                         if (cardTaken) return;
 
                         // Jika sudah ada kartu lain yang dipilih, reset dulu
@@ -655,6 +657,10 @@ public void ToggleCardHolderPanel()
                         {
                             ResetCardSelection();
                         }
+                         if (SfxManager.Instance != null && cardSound != null) // <-- MODIFIKASI DISINI
+        {
+            SfxManager.Instance.PlaySound(cardSound); // <-- MODIFIKASI DISINI
+        }
 
                         if (currentlySelectedCard == obj) return; // Sudah aktif
 
@@ -943,6 +949,10 @@ public void ToggleCardHolderPanel()
             cardBtn.onClick.RemoveAllListeners();
             cardBtn.onClick.AddListener(() =>
             {
+                if (SfxManager.Instance != null && cardSound != null) // <-- MODIFIKASI DISINI
+        {
+            SfxManager.Instance.PlaySound(cardSound); // <-- MODIFIKASI DISINI
+        }
                 if (selectedCards.Contains(cardObj))
                 {
                     selectedCards.Remove(cardObj);

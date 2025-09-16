@@ -11,7 +11,9 @@ public class ResolutionPhaseManager : MonoBehaviour
   
     [Header("System References")]
     
-    public CameraController cameraController; // <-- TAMBAHKAN INI
+    public CameraController cameraController;
+     [Header("Sound Effects")]
+    public AudioClip tokenFlipSound; // <-- TAMBAHKAN INI
 
 
 
@@ -313,6 +315,10 @@ private void InitializeColorDividendRewards()
 
     private IEnumerator<WaitForSeconds> AnimateTokenFlip(GameObject token)
     {
+        if (SfxManager.Instance != null && tokenFlipSound != null) // <-- MODIFIKASI DISINI
+        {
+            SfxManager.Instance.PlaySound(tokenFlipSound); // <-- MODIFIKASI DISINI
+        }
         float duration = 0.3f;
         float time = 0f;
         Quaternion startRot = token.transform.rotation;
