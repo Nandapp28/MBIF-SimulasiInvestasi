@@ -44,6 +44,7 @@ public class GameManager : MonoBehaviour
     public List<CardTextureMapping> cardTextureMappings; // ⬅️ TAMBAHKAN INI
 [Header("Sound Effects")]
     public AudioClip cardSound;
+    public AudioClip skipSound;
 
     [Header("Button References")]
     public Button bot2Button;
@@ -628,6 +629,11 @@ public void ToggleCardHolderPanel()
                 skipButton.GetComponent<Button>().onClick.RemoveAllListeners();
                 skipButton.GetComponent<Button>().onClick.AddListener(() =>
                 {
+                     if (SfxManager.Instance != null && skipSound != null) // <-- MODIFIKASI DISINI
+        {
+            SfxManager.Instance.PlaySound(skipSound); // <-- MODIFIKASI DISINI
+        }
+
                     skipButton.SetActive(false);
                     ResetCardSelection();
                     skipCount++;

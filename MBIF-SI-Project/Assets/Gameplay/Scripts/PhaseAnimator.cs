@@ -17,6 +17,8 @@ public class UITransitionAnimator : MonoBehaviour
     [SerializeField] private float animationDuration = 0.6f;
     [SerializeField] private float displayDuration = 1.5f;
     [SerializeField] private float scaleMultiplier = 2f;
+    [Header("Sound Effects")]
+    public AudioClip phaseChangeSound;
 
     private RectTransform rectTransform;
     private Vector3 initialPosition;
@@ -70,6 +72,10 @@ public class UITransitionAnimator : MonoBehaviour
         rectTransform.anchoredPosition = targetPos;
         rectTransform.localScale = targetScale;
         yield return new WaitForSeconds(0.5f);
+        if (SfxManager.Instance != null && phaseChangeSound != null) // <-- MODIFIKASI DISINI
+        {
+            SfxManager.Instance.PlaySound(phaseChangeSound); // <-- MODIFIKASI DISINI
+        }
         if (displayText != null)
         {
             displayText.text = newText;
