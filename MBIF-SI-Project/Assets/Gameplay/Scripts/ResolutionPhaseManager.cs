@@ -8,13 +8,13 @@ public class ResolutionPhaseManager : MonoBehaviour
     public GameManager gameManager;
     public SellingPhaseManager sellingPhaseManager;
     public HelpCardPhaseManager helpCardPhaseManager;
-  
-    [Header("System References")]
-    
-    public CameraController cameraController;
-     [Header("Sound Effects")]
-    public AudioClip tokenFlipSound; // <-- TAMBAHKAN INI
 
+    [Header("System References")]
+
+    public CameraController cameraController;
+    [Header("Sound Effects")]
+    public AudioClip tokenFlipSound; // <-- TAMBAHKAN INI
+    public AudioClip dividendDownSound, dividendUpSound;
 
 
     // Dividend Index disimpan terpisah dari IPO
@@ -48,23 +48,23 @@ public class ResolutionPhaseManager : MonoBehaviour
     // Mapping dari dividendIndex ke jumlah finpoint per kartu
     // Mapping baru dari warna -> (dividendIndex -> jumlah finpoint per kartu)
     private Dictionary<string, int[]> colorDividendRewards;
-private void Awake()
-{
-    InitializeColorDividendRewards();
-}
+    private void Awake()
+    {
+        InitializeColorDividendRewards();
+    }
 
-private void InitializeColorDividendRewards()
-{
-    colorDividendRewards = new Dictionary<string, int[]>();
+    private void InitializeColorDividendRewards()
+    {
+        colorDividendRewards = new Dictionary<string, int[]>();
 
-    // Cukup tuliskan 7 nilai reward berurutan dari index -3 hingga +3.
-    // Urutan: Reward untuk [-3, -2, -1,  0,  1,  2,  3]
+        // Cukup tuliskan 7 nilai reward berurutan dari index -3 hingga +3.
+        // Urutan: Reward untuk [-3, -2, -1,  0,  1,  2,  3]
 
-    colorDividendRewards["Konsumer"]      = new int[] { 0, 1, 1, 1, 2, 3, 3 };
-    colorDividendRewards["Infrastruktur"] = new int[] { 0, 1, 1, 1, 2, 3, 3 };
-    colorDividendRewards["Keuangan"]      = new int[] { 0, 1, 1, 1, 2, 3, 3 };
-    colorDividendRewards["Tambang"]       = new int[] { 0, 1, 1, 1, 2, 3, 3 };
-}
+        colorDividendRewards["Konsumer"] = new int[] { 0, 1, 1, 1, 2, 3, 3 };
+        colorDividendRewards["Infrastruktur"] = new int[] { 0, 1, 1, 1, 2, 3, 3 };
+        colorDividendRewards["Keuangan"] = new int[] { 0, 1, 1, 1, 2, 3, 3 };
+        colorDividendRewards["Tambang"] = new int[] { 0, 1, 1, 1, 2, 3, 3 };
+    }
     private void Start()
     {
         CacheDividendInitialPositions();
@@ -193,9 +193,7 @@ private void InitializeColorDividendRewards()
             if (data != null)
             {
                 // --- 2. Terapkan Efek Token Ramalan ---
-               yield return StartCoroutine(ApplyRamalanEffect(data));
-                UpdateDividendVisuals(); // Perbarui posisi indikator dividen
-                yield return new WaitForSeconds(0.5f); // Jeda untuk melihat pergerakan marker
+                yield return StartCoroutine(ApplyRamalanEffect(data));
 
                 // Cek apakah ada efek Boom/Crash ke IPO
                 sellingPhaseManager.UpdateIPOVisuals();
@@ -255,13 +253,17 @@ private void InitializeColorDividendRewards()
         {
             UITransitionAnimator.Instance.StartTransition("Bidding Phase");
         }
-        
+
         yield return new WaitForSeconds(4f);
 
         gameManager.ResetSemesterButton();
     }
     private IEnumerator ApplyRamalanEffect(DividendData data)
     {
+        if (SfxManager.Instance != null && tokenFlipSound != null) // <-- MODIFIKASI DISINI
+        {
+            SfxManager.Instance.PlaySound(tokenFlipSound); // <-- MODIFIKASI DISINI
+        }
         if (data.revealedTokenCount < data.ramalanTokens.Count)
         {
             int index = data.revealedTokenCount;
@@ -273,20 +275,35 @@ private void InitializeColorDividendRewards()
             // Cek overflow/underflow sebelum clamp
             if (data.dividendIndex < -3)
             {
+                data.dividendIndex = 0; // Reset dividend index
+                if (SfxManager.Instance != null && dividendDownSound != null) // <-- MODIFIKASI DISINI
+                {
+                    SfxManager.Instance.PlaySound(dividendDownSound); // <-- MODIFIKASI DISINI
+                }
+                data.dividendIndex = 0;
+                UpdateDividendVisuals();
+                yield return new WaitForSeconds(0.5f);
                 Debug.LogWarning($"[Dividen Crash] {data.color} terlalu rendah (index: {data.dividendIndex}). Mengurangi IPO index.");
                 yield return StartCoroutine(ModifyIPOIndex(data.color, -1)); // <-- JADIKAN COROUTINE
-                data.dividendIndex = 0; // Reset dividend index
             }
             else if (data.dividendIndex > 3)
             {
+                if (SfxManager.Instance != null && dividendUpSound != null) // <-- MODIFIKASI DISINI
+                {
+                    SfxManager.Instance.PlaySound(dividendUpSound); // <-- MODIFIKASI DISINI
+                }
+                data.dividendIndex = 0;
+                UpdateDividendVisuals();
+                yield return new WaitForSeconds(0.5f);
                 Debug.LogWarning($"[Dividen Boom] {data.color} terlalu tinggi (index: {data.dividendIndex}). Menambah IPO index.");
                 yield return StartCoroutine(ModifyIPOIndex(data.color, 1)); // <-- JADIKAN COROUTINE
-                data.dividendIndex = 0; // Reset dividend index
+                 // Reset dividend index
             }
             else
             {
                 // Jika tidak boom/crash, clamp nilainya seperti biasa
                 data.dividendIndex = Mathf.Clamp(data.dividendIndex, -3, 3);
+                UpdateDividendVisuals();
             }
 
             // Naikkan counter HANYA setelah efek diterapkan
@@ -352,17 +369,17 @@ private void InitializeColorDividendRewards()
         }
     }
     private void ApplyNegativeFinpointPenalty(List<PlayerProfile> players)
-{
-    Debug.Log("[ResolutionPhase] Mengecek pemain dengan finpoint negatif untuk penalti...");
-    foreach (var player in players)
     {
-        // Jika finpoint pemain menjadi negatif setelah pembagian dividen
-        if (player.finpoint < 0)
+        Debug.Log("[ResolutionPhase] Mengecek pemain dengan finpoint negatif untuk penalti...");
+        foreach (var player in players)
         {
-            player.finpoint -= 1; // Kurangi 1 finpoint lagi
-            Debug.LogWarning($"[PENALTI] {player.playerName} memiliki finpoint negatif. Dikenakan penalti -1 FP. Finpoint baru: {player.finpoint}");
+            // Jika finpoint pemain menjadi negatif setelah pembagian dividen
+            if (player.finpoint < 0)
+            {
+                player.finpoint -= 1; // Kurangi 1 finpoint lagi
+                Debug.LogWarning($"[PENALTI] {player.playerName} memiliki finpoint negatif. Dikenakan penalti -1 FP. Finpoint baru: {player.finpoint}");
+            }
         }
     }
-}
 
 }
