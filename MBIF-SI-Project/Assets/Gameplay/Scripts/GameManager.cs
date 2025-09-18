@@ -44,7 +44,7 @@ public class GameManager : MonoBehaviour
     public List<CardTextureMapping> cardTextureMappings; // ⬅️ TAMBAHKAN INI
     [Header("Sound Effects")]
     public AudioClip cardSound;
-    public AudioClip skipSound;
+    public AudioClip skipSound, cardTakeSound;
 
     [Header("Button References")]
     public Button bot2Button;
@@ -668,9 +668,9 @@ public class GameManager : MonoBehaviour
                 skipButton.GetComponent<Button>().onClick.RemoveAllListeners();
                 skipButton.GetComponent<Button>().onClick.AddListener(() =>
                 {
-                    if (SfxManager.Instance != null && skipSound != null) // <-- MODIFIKASI DISINI
+                    if (SfxManager.Instance != null && cardSound != null) // <-- MODIFIKASI DISINI
                     {
-                        SfxManager.Instance.PlaySound(skipSound); // <-- MODIFIKASI DISINI
+                        SfxManager.Instance.PlaySound(cardSound); // <-- MODIFIKASI DISINI
                     }
 
                     skipButton.SetActive(false);
@@ -1187,6 +1187,10 @@ public class GameManager : MonoBehaviour
         takenCards.Add(cardObj);
 
         // Nonaktifkan klik dan buat buram
+        if (SfxManager.Instance != null && skipSound != null) // <-- MODIFIKASI DISINI
+                        {
+                            SfxManager.Instance.PlaySound(skipSound); // <-- MODIFIKASI DISINI
+                        }
         CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
         if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
         cg.alpha = 0.3f;
@@ -1332,6 +1336,10 @@ public class GameManager : MonoBehaviour
         takenCards.Add(cardObj);
 
         // Nonaktifkan klik dan buat buram
+        if (SfxManager.Instance != null && cardTakeSound != null) // <-- MODIFIKASI DISINI
+                        {
+                            SfxManager.Instance.PlaySound(cardTakeSound); // <-- MODIFIKASI DISINI
+                        }
         CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
         if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
         cg.alpha = 0.3f;
