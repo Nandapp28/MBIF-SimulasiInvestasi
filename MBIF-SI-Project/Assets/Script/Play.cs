@@ -37,7 +37,7 @@ public class GameModeSelector : MonoBehaviour
         else
         {
             // Jika sudah, langsung ke gameplay
-            SceneManager.LoadScene("Gameplay");
+            SceneManager.LoadScene("Singleplayer");
         }
     }
 

@@ -116,7 +116,7 @@ public class CardEffectManager
             int currentFullPrice = spm.GetFullCardPrice(color);
             float targetPrice = currentFullPrice / 2f;
             Debug.Log($"[Stock Split] Info Awal '{color}': Harga Penuh={currentFullPrice}, State={ipoData.currentState}. Harga Target={targetPrice}");
-
+            IPOState originalState = ipoData.currentState;
             var allPossibilities = new List<PriceOutcome>();
             int[] priceMap = spm.ipoPriceMap[color];
             int maxIndex = (color == "Tambang") ? 2 : 3;
@@ -161,6 +161,26 @@ public class CardEffectManager
             ipoData.currentState = bestMatch.State;
             ipoData.salesBonus = bestMatch.SalesBonus;
             ipoData.ipoIndex = bestMatch.IpoIndex;
+            if (bestMatch.State != originalState && (int)bestMatch.State < (int)originalState)
+            {
+                // Jika state turun, putar suara 'state down'
+                if (SfxManager.Instance != null && spm.ipoMoveSound != null)
+                {
+                    SfxManager.Instance.PlaySound(spm.ipoMoveSound);
+                }
+                if (SfxManager.Instance != null && spm.ipoStateDown != null)
+                {
+                    SfxManager.Instance.PlaySound(spm.ipoStateDown);
+                }
+            }
+            else
+            {
+                // Jika state tidak turun (tetap atau naik), putar suara gerak biasa
+                if (SfxManager.Instance != null && spm.ipoMoveSound != null)
+                {
+                    SfxManager.Instance.PlaySound(spm.ipoMoveSound);
+                }
+            }
 
             spm.UpdateIPOVisuals();
             gameManager.UpdateDeckCardValuesWithIPO();
@@ -336,7 +356,7 @@ public class CardEffectManager
         {
             bool hasConfirmed = false;
             Debug.Log($"[TradeFee] Menampilkan UI penjualan multi-warna untuk {player.playerName}...");
-            
+
             yield return sellingManager.StartCoroutine(
                 sellingManager.ShowMultiColorSellUI(player, (confirmedAmounts) =>
                 {
@@ -344,7 +364,7 @@ public class CardEffectManager
                     hasConfirmed = true;
                 })
             );
-            
+
             yield return new WaitUntil(() => hasConfirmed);
         }
         else // Logika untuk Bot
@@ -399,7 +419,7 @@ public class CardEffectManager
                 }
                 salesSummary += $"{amount} '{color}' ({earningsForColor} FP), ";
             }
-            
+
             if (totalEarnings > 0)
             {
                 player.finpoint += totalEarnings;
@@ -408,7 +428,7 @@ public class CardEffectManager
             }
             else
             {
-                 Debug.Log($"[TradeFee] {player.playerName} memilih untuk tidak menjual kartu.");
+                Debug.Log($"[TradeFee] {player.playerName} memilih untuk tidak menjual kartu.");
             }
         }
         else

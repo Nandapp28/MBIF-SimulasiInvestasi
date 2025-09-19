@@ -16,6 +16,8 @@ public class RumorPhaseManager : MonoBehaviour
     public Renderer predictionCardRenderer;
     [Header("System References")]
     public CameraController cameraController;
+    [Header("Sound Effects")]
+    public AudioClip rumourFlipSound;
     [System.Serializable]
     public class RumorEffect
     {
@@ -283,13 +285,15 @@ public class RumorPhaseManager : MonoBehaviour
 
 
             // 2. KEMBALIKAN KAMERA KE POSISI NORMAL
-            if (cameraController && cameraController.CurrentPosition != CameraController.CameraPosition.Normal)
-            {
-                yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
-            }
+
 
             yield return new WaitForSeconds(1.0f); // Jeda sebelum kartu berikutnya
         }
+        if (cameraController && cameraController.CurrentPosition != CameraController.CameraPosition.Normal)
+        {
+            yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+        }
+        yield return new WaitForSeconds(1.0f); 
 
         rumorRunning = false;
         UITransitionAnimator.Instance.StartTransition("Resolution Phase");
@@ -394,6 +398,7 @@ public class RumorPhaseManager : MonoBehaviour
     }
     private IEnumerator FlipCard(GameObject cardObject)
     {
+
         cardObject.SetActive(true);
 
         // Mulai dari kondisi terbalik
@@ -405,7 +410,11 @@ public class RumorPhaseManager : MonoBehaviour
         Quaternion startRot = cardObject.transform.rotation;
         Quaternion endRot = Quaternion.Euler(0, -180, 0); // Menghadap depan
 
-        yield return new WaitForSeconds(0.5f); // jeda sejenak sebelum animasi
+        yield return new WaitForSeconds(0.5f);
+        if (SfxManager.Instance != null && rumourFlipSound != null) // <-- MODIFIKASI DISINI
+        {
+            SfxManager.Instance.PlaySound(rumourFlipSound); // <-- MODIFIKASI DISINI
+        }// jeda sejenak sebelum animasi
 
         while (elapsed < duration)
         {
@@ -582,25 +591,25 @@ public class RumorPhaseManager : MonoBehaviour
         // Fungsi ini sekarang didelegasikan ke SellingPhaseManager
         StartCoroutine(sellingPhaseManager.ModifyIPOIndexWithCamera(color, delta));
     }
-    
+
     public string GetCardNameFromTexture(Texture texture3D)
-{
-    var visual = cardVisuals.FirstOrDefault(v => v.texture == texture3D);
-    if (visual != null)
     {
-        return visual.cardName;
+        var visual = cardVisuals.FirstOrDefault(v => v.texture == texture3D);
+        if (visual != null)
+        {
+            return visual.cardName;
+        }
+        return null; // Return null jika tidak ditemukan
     }
-    return null; // Return null jika tidak ditemukan
-}
-/// Mencari Sprite 2D berdasarkan nama kartunya.
-public Sprite GetCardSprite2D(string cardName)
-{
-    var visual2D = cardVisuals2D.FirstOrDefault(v => v.cardName == cardName);
-    if (visual2D != null)
+    /// Mencari Sprite 2D berdasarkan nama kartunya.
+    public Sprite GetCardSprite2D(string cardName)
     {
-        return visual2D.sprite;
+        var visual2D = cardVisuals2D.FirstOrDefault(v => v.cardName == cardName);
+        if (visual2D != null)
+        {
+            return visual2D.sprite;
+        }
+        Debug.LogWarning($"Sprite 2D untuk '{cardName}' tidak ditemukan!");
+        return null; // Return null jika tidak ditemukan
     }
-    Debug.LogWarning($"Sprite 2D untuk '{cardName}' tidak ditemukan!");
-    return null; // Return null jika tidak ditemukan
-}
 }
