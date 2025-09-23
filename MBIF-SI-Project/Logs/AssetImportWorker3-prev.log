@@ -15,7 +15,7 @@ C:/Users/chrst/Documents/GitHub/MBIF-SimulasiInvestasi/MBIF-SI-Project
 -logFile
 Logs/AssetImportWorker3.log
 -srvPort
-62921
+55926
 Successfully changed project path to: C:/Users/chrst/Documents/GitHub/MBIF-SimulasiInvestasi/MBIF-SI-Project
 C:/Users/chrst/Documents/GitHub/MBIF-SimulasiInvestasi/MBIF-SI-Project
 [UnityMemory] Configuration Parameters - Can be set up in boot.config
@@ -49,14 +49,14 @@ C:/Users/chrst/Documents/GitHub/MBIF-SimulasiInvestasi/MBIF-SI-Project
     "memorysetup-temp-allocator-size-cloud-worker=32768"
     "memorysetup-temp-allocator-size-gi-baking-worker=262144"
     "memorysetup-temp-allocator-size-gfx=262144"
-Player connection [8872]  Target information:
+Player connection [20944]  Target information:
 
-Player connection [8872]  * "[IP] 192.168.1.85 [Port] 0 [Flags] 2 [Guid] 2610975670 [EditorId] 2610975670 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-KOOCMRS) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+Player connection [20944]  * "[IP] 192.168.1.85 [Port] 0 [Flags] 2 [Guid] 636458331 [EditorId] 636458331 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-KOOCMRS) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
 
-Player connection [8872] Host joined multi-casting on [225.0.0.222:54997]...
-Player connection [8872] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Player connection [20944] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [20944] Host joined alternative multi-casting on [225.0.0.222:34997]...
 [PhysX] Initialized MultithreadedTaskDispatcher with 12 workers.
-Refreshing native plugins compatible for Editor in 62.80 ms, found 6 plugins.
+Refreshing native plugins compatible for Editor in 48.10 ms, found 6 plugins.
 Preloading 0 native plugins for Editor in 0.00 ms.
 Initialize engine version: 2022.3.44f1 (c3ae09b9f03c)
 [Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/2022.3.44f1/Editor/Data/Resources/UnitySubsystems
@@ -68,49 +68,55 @@ Direct3D:
     Vendor:   NVIDIA
     VRAM:     5945 MB
     Driver:   32.0.15.7700
-Shader 'Hidden/Universal Render Pipeline/FallbackError': fallback shader 'Hidden/Core/FallbackError' not found
 Initialize mono
 Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/2022.3.44f1/Editor/Data/Managed'
 Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/2022.3.44f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
 Mono config path = 'C:/Program Files/Unity/Hub/Editor/2022.3.44f1/Editor/Data/MonoBleedingEdge/etc'
-Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56780
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56636
 Begin MonoManager ReloadAssembly
 Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/2022.3.44f1/Editor/Data/PlaybackEngines/AndroidPlayer/UnityEditor.Android.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/2022.3.44f1/Editor/Data/PlaybackEngines/iOSSupport/UnityEditor.iOS.Extensions.dll
 Register platform support module: C:/Program Files/Unity/Hub/Editor/2022.3.44f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
-Registered in 0.010704 seconds.
-- Loaded All Assemblies, in  0.553 seconds
+Registered in 0.015764 seconds.
+- Loaded All Assemblies, in  0.515 seconds
 Native extension for WindowsStandalone target not found
+[usbmuxd] Start listen thread
+[usbmuxd] Listen thread started
+Native extension for iOS target not found
+Native extension for Android target not found
+Android Extension - Scanning For ADB Devices 522 ms
 Mono: successfully reloaded assembly
-- Finished resetting the current domain, in  0.374 seconds
-Domain Reload Profiling: 925ms
-	BeginReloadAssembly (229ms)
+- Finished resetting the current domain, in  0.879 seconds
+Domain Reload Profiling: 1392ms
+	BeginReloadAssembly (196ms)
 		ExecutionOrderSort (0ms)
 		DisableScriptedObjects (0ms)
 		BackupInstance (0ms)
 		ReleaseScriptingObjects (0ms)
-		CreateAndSetChildDomain (1ms)
-	RebuildCommonClasses (46ms)
-	RebuildNativeTypeToScriptingClass (11ms)
-	initialDomainReloadingComplete (72ms)
-	LoadAllAssembliesAndSetupDomain (192ms)
-		LoadAssemblies (226ms)
+		CreateAndSetChildDomain (2ms)
+	RebuildCommonClasses (40ms)
+	RebuildNativeTypeToScriptingClass (13ms)
+	initialDomainReloadingComplete (79ms)
+	LoadAllAssembliesAndSetupDomain (185ms)
+		LoadAssemblies (192ms)
 		RebuildTransferFunctionScriptingTraits (0ms)
-		AnalyzeDomain (189ms)
-			TypeCache.Refresh (186ms)
-				TypeCache.ScanAssembly (167ms)
-			ScanForSourceGeneratedMonoScriptInfo (0ms)
+		AnalyzeDomain (182ms)
+			TypeCache.Refresh (179ms)
+				TypeCache.ScanAssembly (158ms)
+			ScanForSourceGeneratedMonoScriptInfo (1ms)
 			ResolveRequiredComponents (1ms)
-	FinalizeReload (374ms)
+	FinalizeReload (880ms)
 		ReleaseScriptCaches (0ms)
 		RebuildScriptCaches (0ms)
-		SetupLoadedEditorAssemblies (309ms)
+		SetupLoadedEditorAssemblies (821ms)
 			LogAssemblyErrors (0ms)
-			InitializePlatformSupportModulesInManaged (13ms)
-			SetLoadedEditorAssemblies (10ms)
+			InitializePlatformSupportModulesInManaged (636ms)
+			SetLoadedEditorAssemblies (6ms)
 			RefreshPlugins (0ms)
-			BeforeProcessingInitializeOnLoad (2ms)
-			ProcessInitializeOnLoadAttributes (217ms)
-			ProcessInitializeOnLoadMethodAttributes (66ms)
+			BeforeProcessingInitializeOnLoad (3ms)
+			ProcessInitializeOnLoadAttributes (126ms)
+			ProcessInitializeOnLoadMethodAttributes (49ms)
 			AfterProcessingInitializeOnLoad (0ms)
 			EditorAssembliesLoaded (0ms)
 		ExecutionOrderSort2 (0ms)
@@ -124,84 +130,52 @@ Symbol file LoadedFromMemory is not a mono symbol file
 Symbol file LoadedFromMemory is not a mono symbol file
 Symbol file LoadedFromMemory is not a mono symbol file
 Symbol file LoadedFromMemory is not a mono symbol file
-- Loaded All Assemblies, in  1.243 seconds
+- Loaded All Assemblies, in  1.145 seconds
 Native extension for WindowsStandalone target not found
+Native extension for iOS target not found
+Native extension for Android target not found
 Mono: successfully reloaded assembly
-- Finished resetting the current domain, in  0.994 seconds
-Domain Reload Profiling: 2232ms
-	BeginReloadAssembly (213ms)
+- Finished resetting the current domain, in  0.945 seconds
+Domain Reload Profiling: 2086ms
+	BeginReloadAssembly (201ms)
 		ExecutionOrderSort (0ms)
-		DisableScriptedObjects (6ms)
+		DisableScriptedObjects (7ms)
 		BackupInstance (0ms)
 		ReleaseScriptingObjects (0ms)
-		CreateAndSetChildDomain (35ms)
-	RebuildCommonClasses (47ms)
-	RebuildNativeTypeToScriptingClass (11ms)
-	initialDomainReloadingComplete (59ms)
-	LoadAllAssembliesAndSetupDomain (908ms)
-		LoadAssemblies (732ms)
+		CreateAndSetChildDomain (45ms)
+	RebuildCommonClasses (48ms)
+	RebuildNativeTypeToScriptingClass (16ms)
+	initialDomainReloadingComplete (56ms)
+	LoadAllAssembliesAndSetupDomain (819ms)
+		LoadAssemblies (622ms)
 		RebuildTransferFunctionScriptingTraits (0ms)
-		AnalyzeDomain (304ms)
-			TypeCache.Refresh (251ms)
-				TypeCache.ScanAssembly (218ms)
-			ScanForSourceGeneratedMonoScriptInfo (34ms)
-			ResolveRequiredComponents (17ms)
-	FinalizeReload (994ms)
+		AnalyzeDomain (302ms)
+			TypeCache.Refresh (252ms)
+				TypeCache.ScanAssembly (220ms)
+			ScanForSourceGeneratedMonoScriptInfo (32ms)
+			ResolveRequiredComponents (16ms)
+	FinalizeReload (945ms)
 		ReleaseScriptCaches (0ms)
 		RebuildScriptCaches (0ms)
-		SetupLoadedEditorAssemblies (858ms)
+		SetupLoadedEditorAssemblies (764ms)
 			LogAssemblyErrors (0ms)
-			InitializePlatformSupportModulesInManaged (7ms)
-			SetLoadedEditorAssemblies (4ms)
+			InitializePlatformSupportModulesInManaged (38ms)
+			SetLoadedEditorAssemblies (5ms)
 			RefreshPlugins (0ms)
-			BeforeProcessingInitializeOnLoad (98ms)
-			ProcessInitializeOnLoadAttributes (658ms)
-			ProcessInitializeOnLoadMethodAttributes (82ms)
+			BeforeProcessingInitializeOnLoad (91ms)
+			ProcessInitializeOnLoadAttributes (551ms)
+			ProcessInitializeOnLoadMethodAttributes (69ms)
 			AfterProcessingInitializeOnLoad (9ms)
 			EditorAssembliesLoaded (0ms)
 		ExecutionOrderSort2 (0ms)
-		AwakeInstancesAfterBackupRestoration (10ms)
-Failed to load shader (instanceID 12162, GUID 14eb328de4b8eb245bb7cea29e4ac00b)
-Failed to load shader (instanceID 12164, GUID 68e6db2ebdc24f95958faec2be5558d6)
-Failed to load shader (instanceID 12166, GUID 9271e864ef20504479d70527f1b73721)
-Failed to load shader (instanceID 12168, GUID bf830f6dc459b154e90c1fc091db9314)
-Failed to load shader (instanceID 12170, GUID 00a6eaa36044a3f4ea77da5c0bc479c8)
-Failed to load shader (instanceID 12172, GUID fe393ace9b354375a9cb14cdbbc28be4)
-Failed to load shader (instanceID 12174, GUID a16365e8c873daa4c94919438490b905)
-Failed to load shader (instanceID 12176, GUID 0d0f817524897904ba47a6a1d55e7668)
-Failed to load shader (instanceID 12178, GUID 77cfa04f893eb8745b6a454a3d51b43c)
-Failed to load shader (instanceID 12180, GUID 128e987d567d4e2c824d754223b3f3b0)
-Failed to load shader (instanceID 12182, GUID c8d12adcee749c344b8117cf7c7eb912)
-Failed to load shader (instanceID 12184, GUID 36e335017ad71d54fbb10842863188ae)
-Failed to load shader (instanceID 12186, GUID 50b406436c6214c49aaaa6011b71dde8)
-Failed to load shader (instanceID 12188, GUID 915bb1da4d81a154e8bc7e65f8a448ee)
-Failed to load shader (instanceID 12190, GUID 4386e57b23a56004c93e1d57d2bbcb4f)
-Failed to load shader (instanceID 12192, GUID 48bb5f55d8670e349b6e614913f9d910)
-Failed to load shader (instanceID 12194, GUID 85187c2149c549c5b33f0cdb02836b17)
-Failed to load shader (instanceID 12196, GUID bc1ede39bf3643ee8e493720e4259791)
-Failed to load shader (instanceID 12198, GUID cf81c85f95fe47e1a27f6ae460cf182c)
-Failed to load shader (instanceID 12200, GUID 5caf62d8bd7c44596ace77ef9eb8ea31)
-Failed to load shader (instanceID 12202, GUID 9c442dc870b456e48b615cd8add0e9ef)
-Failed to load shader (instanceID 12204, GUID f7ada0af4f174f0694ca6a487b8f543d)
-Failed to load shader (instanceID 12206, GUID da07703fcc09f8d4799221050659bd55)
-Failed to load shader (instanceID 12208, GUID 2df96b66b5510f94b98df2ac6f926ef4)
-Failed to load shader (instanceID 12210, GUID dd89cf5b9246416f84610a006f916af7)
-Failed to load shader (instanceID 12212, GUID 1bb9d16f70d130d49b3c3d372a111da9)
-Failed to load shader (instanceID 12214, GUID 61e53729ad706d049b12a441f328fe34)
-Failed to load shader (instanceID 12216, GUID 221c1cf6f04aa9441b632c0eb64d9c72)
-Failed to load shader (instanceID 12218, GUID 953d6c4c7f7ec324d860efb0db9c68ff)
-Failed to load shader (instanceID 12220, GUID 95e15a77195eb574ab82aaac18b1c796)
-Failed to load shader (instanceID 12222, GUID a02a7d8c237544f1962732b55a9aebf1)
-Failed to load shader (instanceID 12224, GUID 1e3b057af24249748ff873be7fafee47)
-Shader 'Hidden/Universal Render Pipeline/FallbackError': fallback shader 'Hidden/Core/FallbackError' not found
-Shader 'Hidden/Universal Render Pipeline/FallbackError': fallback shader 'Hidden/Core/FallbackError' not found
-Launched and connected shader compiler UnityShaderCompiler.exe after 0.07 seconds
-Refreshing native plugins compatible for Editor in 27.42 ms, found 6 plugins.
+		AwakeInstancesAfterBackupRestoration (11ms)
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.12 seconds
+Refreshing native plugins compatible for Editor in 17.32 ms, found 6 plugins.
 Preloading 0 native plugins for Editor in 0.00 ms.
-Unloading 77 Unused Serialized files (Serialized files now loaded: 0)
-Unloading 8 unused Assets / (0.7 MB). Loaded Objects now: 551.
-Memory consumption went from 104.8 MB to 104.1 MB.
-Total: 9.741800 ms (FindLiveObjects: 0.170400 ms CreateObjectMapping: 0.015300 ms MarkObjects: 8.803200 ms  DeleteObjects: 0.750900 ms)
+Unloading 5347 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 39 unused Assets / (352.7 KB). Loaded Objects now: 5817.
+Memory consumption went from 224.9 MB to 224.6 MB.
+Total: 24.218300 ms (FindLiveObjects: 1.085600 ms CreateObjectMapping: 0.221900 ms MarkObjects: 22.422200 ms  DeleteObjects: 0.486300 ms)
 
 AssetImportParameters requested are different than current active one (requested -> active):
   custom:container-demuxer-ogg: 62fdf1f143b41e24485cea50d1cbac27 -> 
@@ -217,13 +191,8 @@ AssetImportParameters requested are different than current active one (requested
   custom:video-encoder-webm-vp8: eb34c28f22e8b96e1ab97ce403110664 -> 
   custom:audio-decoder-ogg-vorbis: bf7c407c2cedff20999df2af8eb42d56 -> 
   custom:audio-encoder-webm-vorbis: bf7c407c2cedff20999df2af8eb42d56 -> 
-========================================================================
-Received Import Request.
-  Time since last request: 250789.973823 seconds.
-  path: Assets/Input Color.png
-  artifactKey: Guid(cea8c06533794634ca80a3205e2379ad) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
-Start importing Assets/Input Color.png using Guid(cea8c06533794634ca80a3205e2379ad) Importer(815301076,1909f56bfc062723c751e8b465ee728b) [PhysX] Initialized MultithreadedTaskDispatcher with 12 workers.
-[PhysX] Initialized MultithreadedTaskDispatcher with 12 workers.
- -> (artifact id: '3bf61290b84275df96869865917a1664') in 0.260965 seconds
-Number of updated asset objects reloaded before import = 0
-Number of asset objects unloaded after import = 3
+Editor requested this worker to shutdown with reason: Scaling down because of idle timeout
+TcpMessagingSession - receive error: operation aborted. errorcode: 995, details: The I/O operation has been aborted because of either a thread exit or an application request.
+AssetImportWorker is now disconnected from the server
+Process exiting
+Exiting without the bug reporter. Application will terminate with return code 0

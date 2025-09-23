@@ -394,6 +394,7 @@ public class SellingPhaseManager : MonoBehaviour
                     {
                         // Hitung kelebihan nilai
                         int excess = currentIndex - (maxThreshold + 1);
+                         NotificationManager.Instance.ShowNotification($"[ASCEND] Harga Saham dari Sektor {data.color} Meningkat!!!", 3f);
                         Debug.Log($"[STATE CHANGE] {data.color}: Normal ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
 
                         // Ubah status dan bonus
@@ -411,6 +412,7 @@ public class SellingPhaseManager : MonoBehaviour
                     else if (currentIndex < minThreshold)
                     {
                         // Logika Crash tetap sama, tidak perlu loop
+                        NotificationManager.Instance.ShowNotification($"[CRASH] Semua Saham dari Sektor {data.color} dikembalikan ke Bank!!!", 3f);
                         Debug.LogWarning($"[CRASH] {data.color} market crash! Saham dikembalikan ke bank.");
                         data._ipoIndex = 0;
                         data.salesBonus = 0;
@@ -436,6 +438,7 @@ public class SellingPhaseManager : MonoBehaviour
                     if (currentIndex > 0) // Ambang batas atas untuk Ascend adalah 0
                     {
                         int excess = currentIndex - 1;
+                        NotificationManager.Instance.ShowNotification($"[ADVANCED] Harga Saham dari Sektor {data.color} Meningkat!!!", 3f);
                         Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Advanced. Menyimpan kelebihan nilai: {excess}");
 
                         data.currentState = IPOState.Advanced;
@@ -452,6 +455,7 @@ public class SellingPhaseManager : MonoBehaviour
                     else if (currentIndex < 0) // Ambang batas bawah untuk Ascend adalah 0
                     {
                         int excess = currentIndex + 1; // Seluruh nilai adalah kelebihan negatif
+                        NotificationManager.Instance.ShowNotification($"[DESCEND] Harga Saham dari Sektor {data.color} Menurun", 3f);
                         Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Normal. Menyimpan kelebihan nilai: {excess}");
 
                         data.currentState = IPOState.Normal;
@@ -471,6 +475,7 @@ public class SellingPhaseManager : MonoBehaviour
                     if (currentIndex < minThreshold)
                     {
                         int excess = currentIndex - (minThreshold - 1);
+                        NotificationManager.Instance.ShowNotification($"[DESCEND] Harga Saham dari Sektor {data.color} Kembali ke Normal", 3f);
                         Debug.Log($"[STATE CHANGE] {data.color}: Advanced ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
 
                         data.currentState = IPOState.Ascend;
@@ -668,10 +673,10 @@ public class SellingPhaseManager : MonoBehaviour
         yield return new WaitForSeconds(1.5f); // Jeda untuk melihat perubahan
 
         // 4. Kembalikan kamera
-        //if (cameraController != null)
-        //{
-            //yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
-        //}
+        if (cameraController != null)
+        {
+            yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+        }
     }
 
     public IEnumerator ResetAllIPOIndexesWithCamera()
