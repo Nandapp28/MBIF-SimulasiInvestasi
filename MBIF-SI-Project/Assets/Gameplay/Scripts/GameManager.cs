@@ -734,7 +734,14 @@ public class GameManager : MonoBehaviour
                             if (!CanActivateEffect(cardName, cardColor, currentPlayer))
                             {
                                 // Jika tidak, tampilkan pesan error spesifik dan hentikan aksi
-                                Debug.LogWarning(GetActivationErrorMessage(cardName));
+                                string pesanError = GetActivationErrorMessage(cardName);
+
+                                // 2. Gunakan variabel tersebut untuk Debug Log
+                                Debug.LogWarning(pesanError);
+
+                                // 3. Gunakan variabel yang sama untuk menampilkan notifikasi
+                                NotificationManager.Instance.ShowNotification(pesanError, 2f);
+
                                 return; // Hentikan eksekusi
                             }
 
@@ -1188,9 +1195,9 @@ public class GameManager : MonoBehaviour
 
         // Nonaktifkan klik dan buat buram
         if (SfxManager.Instance != null && skipSound != null) // <-- MODIFIKASI DISINI
-                        {
-                            SfxManager.Instance.PlaySound(skipSound); // <-- MODIFIKASI DISINI
-                        }
+        {
+            SfxManager.Instance.PlaySound(skipSound); // <-- MODIFIKASI DISINI
+        }
         CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
         if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
         cg.alpha = 0.3f;
@@ -1208,6 +1215,7 @@ public class GameManager : MonoBehaviour
         if (!string.IsNullOrEmpty(cardName))
         {
             // Kirim nama, pemain, dan warna ke efek
+            NotificationManager.Instance.ShowNotification($"Kartu '{cardName}' disektor ({cardColor}) diaktifkan untuk {currentPlayer.playerName}", 3f);
             Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
             yield return StartCoroutine(CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor));
 
@@ -1337,9 +1345,9 @@ public class GameManager : MonoBehaviour
 
         // Nonaktifkan klik dan buat buram
         if (SfxManager.Instance != null && cardTakeSound != null) // <-- MODIFIKASI DISINI
-                        {
-                            SfxManager.Instance.PlaySound(cardTakeSound); // <-- MODIFIKASI DISINI
-                        }
+        {
+            SfxManager.Instance.PlaySound(cardTakeSound); // <-- MODIFIKASI DISINI
+        }
         CanvasGroup cg = cardObj.GetComponent<CanvasGroup>();
         if (cg == null) cg = cardObj.AddComponent<CanvasGroup>();
         cg.alpha = 0.3f;
@@ -1616,14 +1624,19 @@ public class GameManager : MonoBehaviour
         switch (cardName)
         {
             case "TradeFee":
+                return $"Anda tidak punya kartu untuk dijual";
+
             case "StockSplit":
-                return $"Aktivasi {cardName} gagal: Anda harus memiliki minimal 1 kartu tersimpan dengan warna yang sama.";
+
+                return $"Anda harus memiliki minimal 1 saham disektor yang sama";
 
             case "TenderOffer":
-                return "Aktivasi TenderOffer gagal: Tidak ada target yang valid (pemain lain dengan kartu warna sama yang lebih sedikit).";
+
+                return "Tidak ada Pemain yang dapat ditarget";
 
             case "Flashbuy":
-                return "Aktivasi Flashbuy gagal: Harus ada lebih dari 1 kartu yang tersedia di meja.";
+
+                return "Tidak ada kartu yang dapat diambil dari pengaktifkan Flashbuy";
 
             default:
                 return "Aktivasi gagal: Syarat kartu tidak terpenuhi.";

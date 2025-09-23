@@ -283,6 +283,7 @@ public class ResolutionPhaseManager : MonoBehaviour
                 data.dividendIndex = 0;
                 UpdateDividendVisuals();
                 yield return new WaitForSeconds(0.5f);
+                NotificationManager.Instance.ShowNotification($"[Dividen CRASH] Dividen dari sektor {data.color} terlalu rendah!!! IPO dari sektor {data.color} Berkurang", 3f);
                 Debug.LogWarning($"[Dividen Crash] {data.color} terlalu rendah (index: {data.dividendIndex}). Mengurangi IPO index.");
                 yield return StartCoroutine(ModifyIPOIndex(data.color, -1)); // <-- JADIKAN COROUTINE
             }
@@ -295,6 +296,7 @@ public class ResolutionPhaseManager : MonoBehaviour
                 data.dividendIndex = 0;
                 UpdateDividendVisuals();
                 yield return new WaitForSeconds(0.5f);
+                 NotificationManager.Instance.ShowNotification($"[Dividen BOOM] Dividen dari sektor {data.color} terlalu tinggi!!! IPO dari sektor {data.color} Bertambah", 3f);
                 Debug.LogWarning($"[Dividen Boom] {data.color} terlalu tinggi (index: {data.dividendIndex}). Menambah IPO index.");
                 yield return StartCoroutine(ModifyIPOIndex(data.color, 1)); // <-- JADIKAN COROUTINE
                  // Reset dividend index
