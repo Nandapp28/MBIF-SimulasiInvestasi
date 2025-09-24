@@ -37,6 +37,10 @@ public class GameManager : MonoBehaviour
     public GameObject activateButtonPrefab;
     public GameObject saveButtonPrefab;
     public Transform ActiveSaveContainer;
+    public GameObject detailButtonPrefab; // ⬅️ BARU: Prefab untuk tombol Detail
+public GameObject cardDetailPanel;    // ⬅️ BARU: Panel untuk menampilkan detail
+public Image cardDetailImage;         // ⬅️ BARU: Image di dalam panel
+public Button closeDetailPanelButton;
     public GameObject leaderboardPanel;
     public Transform leaderboardContainer;
     public GameObject leaderboardEntryPrefab;
@@ -58,7 +62,7 @@ public class GameManager : MonoBehaviour
     public Sprite defaultTicketSprite; // Texture A
     public List<Sprite> ticketNumberSprites;
 
-
+GameObject detailBtnInstance = null;
 
 
     public static GameManager Instance;
@@ -166,6 +170,15 @@ public class GameManager : MonoBehaviour
         {
             toggleCardsButton.gameObject.SetActive(false);
         }
+         if (cardDetailPanel != null)
+    {
+        cardDetailPanel.SetActive(false); // Sembunyikan panel di awal
+    }
+    if (closeDetailPanelButton != null)
+    {
+        // Tambahkan listener untuk menyembunyikan panel saat tombol close diklik
+        closeDetailPanelButton.onClick.AddListener(HideCardDetailPanel);
+    }
 
         isBotCountSelected = false;
 
@@ -716,10 +729,13 @@ public class GameManager : MonoBehaviour
                         // Ganti canvasTransform dengan reference ke Canvas utama
 
                         activateBtnInstance = Instantiate(activateButtonPrefab, ActiveSaveContainer);
+                        detailBtnInstance = Instantiate(detailButtonPrefab, ActiveSaveContainer); 
                         saveBtnInstance = Instantiate(saveButtonPrefab, ActiveSaveContainer);
                         // Set posisi tetap di layar (misalnya di tengah bawah laya
                         activateBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(-100, -150);
+                        detailBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -150); 
                         saveBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(100, -150);
+                         detailBtnInstance.GetComponent<Button>().onClick.AddListener(() => ShowCardDetailPanel(obj));
 
 
                         activateBtnInstance.GetComponent<Button>().onClick.AddListener(() =>
@@ -1237,10 +1253,12 @@ public class GameManager : MonoBehaviour
         }
 
         if (activateBtnInstance != null) Destroy(activateBtnInstance);
+        if (detailBtnInstance != null) Destroy(detailBtnInstance); 
         if (saveBtnInstance != null) Destroy(saveBtnInstance);
 
         currentlySelectedCard = null;
         activateBtnInstance = null;
+        detailBtnInstance = null;
         saveBtnInstance = null;
     }
 
@@ -1578,6 +1596,43 @@ public class GameManager : MonoBehaviour
             Destroy(child.gameObject);
         }
     }
+    // ⬇️ FUNGSI BARU ⬇️
+private void ShowCardDetailPanel(GameObject selectedCard)
+{
+    if (cardDetailPanel == null || cardDetailImage == null || selectedCard == null) return;
+
+    // Ambil nama dan warna dari game object kartu yang dipilih
+    Text cardNameText = selectedCard.transform.Find("CardText")?.GetComponent<Text>();
+    Text cardColorText = selectedCard.transform.Find("CardColor")?.GetComponent<Text>();
+    
+    if (cardNameText == null || cardColorText == null) return;
+
+    string cardName = cardNameText.text;
+    string cardColor = cardColorText.text;
+
+    // Gunakan fungsi yang sudah ada untuk mendapatkan sprite kartu
+    Sprite sprite = GetCardSprite(cardName, cardColor);
+
+    if (sprite != null)
+    {
+        cardDetailImage.sprite = sprite;
+        cardDetailImage.preserveAspect = true;
+        cardDetailPanel.SetActive(true); // Tampilkan panel
+    }
+    else
+    {
+        Debug.LogWarning($"Sprite untuk {cardName} ({cardColor}) tidak ditemukan.");
+    }
+}
+
+// ⬇️ FUNGSI BARU ⬇️
+private void HideCardDetailPanel()
+{
+    if (cardDetailPanel != null)
+    {
+        cardDetailPanel.SetActive(false); // Sembunyikan panel
+    }
+}
 
     public void ShowLeaderboard()
     {
