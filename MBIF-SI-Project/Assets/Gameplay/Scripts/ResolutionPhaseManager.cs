@@ -247,7 +247,6 @@ public class ResolutionPhaseManager : MonoBehaviour
         }
         if (gameManager.resetCount == gameManager.maxResetCount)
         {
-            UITransitionAnimator.Instance.StartTransition("Menghitung Hasil...");
         }
         else
         {
