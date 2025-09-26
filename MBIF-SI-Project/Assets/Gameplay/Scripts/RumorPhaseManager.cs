@@ -396,35 +396,91 @@ public class RumorPhaseManager : MonoBehaviour
         objectToMove.transform.position = originalPosition;
         Debug.Log($"'{objectToMove.name}' telah kembali.");
     }
-    private IEnumerator FlipCard(GameObject cardObject)
+   private IEnumerator FlipCard(GameObject cardObject)
+{
+    Vector3 originalPosition = cardObject.transform.position;
+    Quaternion finalRotation = Quaternion.Euler(0, 180, 0);
+    Vector3 flipStartPosition;
+
+    if (cardObject.activeInHierarchy)
     {
+        // --- JIKA AKTIF: Jalankan Animasi 1 (Gerakan Melengkung ke Belakang) ---
+        
+        float moveDuration = 0.6f; // Sedikit lebih lama untuk gerakan melengkung
+        float sideOffset = -2.0f;   // Jarak lengkungan ke samping
+        float backOffset = 0.05f;  // Seberapa jauh turun ke belakang
+        float moveElapsed = 0f;
 
-        cardObject.SetActive(true);
+        Vector3 moveStartPos = originalPosition;
+        // Posisi akhir dari animasi ini adalah di tengah, tapi lebih rendah
+        Vector3 moveEndPos = originalPosition;
+        moveEndPos.y -= backOffset;
 
-        // Mulai dari kondisi terbalik
-        cardObject.transform.rotation = Quaternion.Euler(0, -180, 180);
-
-        float duration = 0.5f;
-        float elapsed = 0f;
-
-        Quaternion startRot = cardObject.transform.rotation;
-        Quaternion endRot = Quaternion.Euler(0, -180, 0); // Menghadap depan
-
-        yield return new WaitForSeconds(0.5f);
-        if (SfxManager.Instance != null && rumourFlipSound != null) // <-- MODIFIKASI DISINI
+        while (moveElapsed < moveDuration)
         {
-            SfxManager.Instance.PlaySound(rumourFlipSound); // <-- MODIFIKASI DISINI
-        }// jeda sejenak sebelum animasi
+            float progress = moveElapsed / moveDuration;
 
-        while (elapsed < duration)
-        {
-            cardObject.transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed / duration);
-            elapsed += Time.deltaTime;
+            // 1. Posisi turun secara linear dari awal ke akhir
+            Vector3 currentPos = Vector3.Lerp(moveStartPos, moveEndPos, progress);
+
+            // 2. Tambahkan gerakan melengkung ke samping menggunakan Sin
+            // Mathf.Sin(progress * Mathf.PI) akan menghasilkan kurva 0 -> 1 -> 0
+            currentPos.x += Mathf.Sin(progress * Mathf.PI) * sideOffset;
+            
+            cardObject.transform.position = currentPos;
+
+            moveElapsed += Time.deltaTime;
             yield return null;
         }
 
-        cardObject.transform.rotation = endRot;
+        // Pastikan posisi akhir tepat dan tetapkan sebagai titik awal flip
+        cardObject.transform.position = moveEndPos;
+        flipStartPosition = moveEndPos;
+
+        yield return new WaitForSeconds(0.2f);
     }
+    else
+    {
+        // --- JIKA TIDAK AKTIF: Langsung siapkan untuk Animasi 2 (Tidak ada perubahan di sini) ---
+        flipStartPosition = originalPosition;
+        flipStartPosition.y -= 0.01f;
+        cardObject.SetActive(true);
+    }
+
+
+    // --- Animasi 2 (Membalik kartu kembali ke posisi semula) - TIDAK ADA PERUBAHAN ---
+    
+
+    Vector3 flipEndPos = originalPosition; 
+    Quaternion flipStartRot = Quaternion.Euler(0, 180, 180); 
+    cardObject.transform.rotation = flipStartRot;
+    
+    float flipDuration = 0.7f;
+    float flipHeight = 0.5f;
+    float flipElapsed = 0f;
+    
+    if (SfxManager.Instance != null && rumourFlipSound != null)
+    {
+        SfxManager.Instance.PlaySound(rumourFlipSound);
+    }
+    
+    while (flipElapsed < flipDuration)
+    {
+        float progress = flipElapsed / flipDuration;
+
+        Vector3 currentPos = Vector3.Lerp(flipStartPosition, flipEndPos, progress);
+        currentPos.y += Mathf.Sin(progress * Mathf.PI) * flipHeight;
+        cardObject.transform.position = currentPos;
+
+        cardObject.transform.rotation = Quaternion.Slerp(flipStartRot, finalRotation, progress);
+
+        flipElapsed += Time.deltaTime;
+        yield return null;
+    }
+
+    cardObject.transform.position = originalPosition;
+    cardObject.transform.rotation = finalRotation;
+}
     // Tambahkan metode ini di dalam kelas RumorPhaseManager.cs
 
     public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
