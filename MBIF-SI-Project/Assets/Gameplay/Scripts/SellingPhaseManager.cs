@@ -68,6 +68,10 @@ public class SellingPhaseManager : MonoBehaviour
             }
         }
     }
+    public IPOData GetIPOData(string color)
+{
+    return ipoDataList.FirstOrDefault(d => d.color == color);
+}
     public int GetCurrentColorValue(string color)
     {
         IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);

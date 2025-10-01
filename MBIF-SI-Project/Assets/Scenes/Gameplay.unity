@@ -1146,8 +1146,6 @@ MonoBehaviour:
   saveButtonPrefab: {fileID: 6948458229094972117, guid: c2ad22c01fce69b4c8bf01e67d090bf5,
     type: 3}
   ActiveSaveContainer: {fileID: 1538081184}
-  detailButtonPrefab: {fileID: 5457419439911542782, guid: c120d03dddf18804ca3380763fad7f6d,
-    type: 3}
   cardDetailPanel: {fileID: 472962777}
   cardDetailImage: {fileID: 1661896206}
   closeDetailPanelButton: {fileID: 472962781}
@@ -1226,14 +1224,14 @@ MonoBehaviour:
   botSelectionPanel: {fileID: 639608046}
   resetSemesterButton: {fileID: 1039320209}
   skipButton: {fileID: 387831439}
-  defaultTicketSprite: {fileID: 21300000, guid: 87dfd7d97c45f314591a78fc97596a03,
+  defaultTicketSprite: {fileID: 21300000, guid: 89e7f63cb311e5244a17d2747b380094,
     type: 3}
   ticketNumberSprites:
-  - {fileID: 21300000, guid: 139058dff47dc9148952a6c6f62cab9c, type: 3}
-  - {fileID: 21300000, guid: ac5e1baad4356c94d8831e41cb072c66, type: 3}
-  - {fileID: 21300000, guid: 476c05a2bcff9be43bfab31abc67ef7d, type: 3}
-  - {fileID: 21300000, guid: f6f75f232aed6c04d88e618f9e14a926, type: 3}
-  - {fileID: 21300000, guid: 0cd2a02cac3025a4e95dccf9b6901918, type: 3}
+  - {fileID: 21300000, guid: e6ea41c32f2b04c4b9241ca25ecd9153, type: 3}
+  - {fileID: 21300000, guid: a930f511038949f4aa6a52f8ccdbce10, type: 3}
+  - {fileID: 21300000, guid: e189f8ed46652db47aea1e39b5a41964, type: 3}
+  - {fileID: 21300000, guid: 85b640e61d301164cb937202912d0657, type: 3}
+  - {fileID: 21300000, guid: 041ed6d632daac04ba95728f288a6922, type: 3}
   turnOrder: []
   currentCardIndex: 0
   skipCount: 0
@@ -14747,7 +14745,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -24, y: 52}
+  m_AnchoredPosition: {x: 3.1, y: 29.3}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1108295883
@@ -15265,6 +15263,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
         type: 3}
+      propertyPath: displayImage
+      value: 
+      objectReference: {fileID: 1830976542}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
       propertyPath: targetPosition
       value: 
       objectReference: {fileID: 2095330326}
@@ -15278,6 +15281,66 @@ PrefabInstance:
       propertyPath: phaseChangeSound
       value: 
       objectReference: {fileID: 8300000, guid: abff1c9a77c157f49bc7084ca62fafd9, type: 3}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.size
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[0].name
+      value: Action Phase
+      objectReference: {fileID: 0}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[1].name
+      value: Bidding Phase
+      objectReference: {fileID: 0}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[2].name
+      value: Resolution Phase
+      objectReference: {fileID: 0}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[3].name
+      value: Rumour Phase
+      objectReference: {fileID: 0}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[4].name
+      value: Selling Phase
+      objectReference: {fileID: 0}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[0].sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 43be05773e66aef4e91bf535b9d36df2,
+        type: 3}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[1].sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: ccd54c8c7700530498b82431ca75912f,
+        type: 3}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[2].sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: e9a16b0b530218c439962431f8f43854,
+        type: 3}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[3].sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: bcc920ffcf7835f439036691d2b6fe3c,
+        type: 3}
+    - target: {fileID: 7379508732893215471, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+        type: 3}
+      propertyPath: phaseTextures.Array.data[4].sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 46f21f8fde90d0041963c01d645889d3,
+        type: 3}
     - target: {fileID: 8278534279138553211, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
         type: 3}
       propertyPath: m_Color.b
@@ -19943,8 +20006,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -24.000244, y: 34.75}
-  m_SizeDelta: {x: 0, y: 82.5}
+  m_AnchoredPosition: {x: 0.16503906, y: 2.0999756}
+  m_SizeDelta: {x: -48.330063, y: 17.200058}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1538081185
 CanvasRenderer:
@@ -23960,6 +24023,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 58507726}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1830976542 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 860335779001206677, guid: fc6fa6308d4b3db4fa515ee236e4a60f,
+    type: 3}
+  m_PrefabInstance: {fileID: 1147462462}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1832812491
 GameObject:
   m_ObjectHideFlags: 0

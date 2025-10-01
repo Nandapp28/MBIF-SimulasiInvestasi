@@ -37,10 +37,10 @@ public class GameManager : MonoBehaviour
     public GameObject activateButtonPrefab;
     public GameObject saveButtonPrefab;
     public Transform ActiveSaveContainer;
-    public GameObject detailButtonPrefab; // ⬅️ BARU: Prefab untuk tombol Detail
-public GameObject cardDetailPanel;    // ⬅️ BARU: Panel untuk menampilkan detail
-public Image cardDetailImage;         // ⬅️ BARU: Image di dalam panel
-public Button closeDetailPanelButton;
+    // ⬅️ BARU: Prefab untuk tombol Detail
+    public GameObject cardDetailPanel;    // ⬅️ BARU: Panel untuk menampilkan detail
+    public Image cardDetailImage;         // ⬅️ BARU: Image di dalam panel
+    public Button closeDetailPanelButton;
     public GameObject leaderboardPanel;
     public Transform leaderboardContainer;
     public GameObject leaderboardEntryPrefab;
@@ -62,7 +62,7 @@ public Button closeDetailPanelButton;
     public Sprite defaultTicketSprite; // Texture A
     public List<Sprite> ticketNumberSprites;
 
-GameObject detailBtnInstance = null;
+
 
 
     public static GameManager Instance;
@@ -170,15 +170,15 @@ GameObject detailBtnInstance = null;
         {
             toggleCardsButton.gameObject.SetActive(false);
         }
-         if (cardDetailPanel != null)
-    {
-        cardDetailPanel.SetActive(false); // Sembunyikan panel di awal
-    }
-    if (closeDetailPanelButton != null)
-    {
-        // Tambahkan listener untuk menyembunyikan panel saat tombol close diklik
-        closeDetailPanelButton.onClick.AddListener(HideCardDetailPanel);
-    }
+        if (cardDetailPanel != null)
+        {
+            cardDetailPanel.SetActive(false); // Sembunyikan panel di awal
+        }
+        if (closeDetailPanelButton != null)
+        {
+            // Tambahkan listener untuk menyembunyikan panel saat tombol close diklik
+            closeDetailPanelButton.onClick.AddListener(HideCardDetailPanel);
+        }
 
         isBotCountSelected = false;
 
@@ -661,8 +661,7 @@ GameObject detailBtnInstance = null;
             yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
             ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
 
-            Debug.Log("Memulai fase penjualan...");
-            helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
+
 
 
             yield break;
@@ -709,6 +708,16 @@ GameObject detailBtnInstance = null;
                     {
 
                         if (cardTaken) return;
+                        if (currentlySelectedCard == obj)
+                        {
+                            // ...MAKA TAMPILKAN PANEL DETAIL.
+                            if (SfxManager.Instance != null && cardSound != null) // <-- MODIFIKASI DISINI
+                            {
+                                SfxManager.Instance.PlaySound(cardSound); // <-- MODIFIKASI DISINI
+                            }
+                            ShowCardDetailPanel(obj);
+                            return; // Hentikan eksekusi lebih lanjut untuk klik ini.
+                        }
 
                         // Jika sudah ada kartu lain yang dipilih, reset dulu
                         if (currentlySelectedCard != null && currentlySelectedCard != obj)
@@ -729,13 +738,12 @@ GameObject detailBtnInstance = null;
                         // Ganti canvasTransform dengan reference ke Canvas utama
 
                         activateBtnInstance = Instantiate(activateButtonPrefab, ActiveSaveContainer);
-                        detailBtnInstance = Instantiate(detailButtonPrefab, ActiveSaveContainer); 
                         saveBtnInstance = Instantiate(saveButtonPrefab, ActiveSaveContainer);
                         // Set posisi tetap di layar (misalnya di tengah bawah laya
                         activateBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(-100, -150);
-                        detailBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -150); 
+
                         saveBtnInstance.GetComponent<RectTransform>().anchoredPosition = new Vector2(100, -150);
-                         detailBtnInstance.GetComponent<Button>().onClick.AddListener(() => ShowCardDetailPanel(obj));
+
 
 
                         activateBtnInstance.GetComponent<Button>().onClick.AddListener(() =>
@@ -750,7 +758,7 @@ GameObject detailBtnInstance = null;
                             if (!CanActivateEffect(cardName, cardColor, currentPlayer))
                             {
                                 // Jika tidak, tampilkan pesan error spesifik dan hentikan aksi
-                                string pesanError = GetActivationErrorMessage(cardName);
+                                string pesanError = GetActivationErrorMessage(cardName, cardColor, currentPlayer);
 
                                 // 2. Gunakan variabel tersebut untuk Debug Log
                                 Debug.LogWarning(pesanError);
@@ -903,39 +911,43 @@ GameObject detailBtnInstance = null;
                 // Syarat: Pengaktif harus punya minimal 1 kartu (warna apa saja).
                 return activator.cards.Count > 0;
             case "StockSplit":
-                // Syarat 1: Pengaktif harus punya minimal 1 kartu tersimpan dengan warna yang sama.
-                bool hasMatchingCard = activator.GetCardColorCounts()[cardColor] >= 1;
-                if (!hasMatchingCard)
-                {
-                    return false;
-                }
+    // Syarat 1: Pengaktif harus punya minimal 1 kartu tersimpan dengan warna yang sama.
+    bool hasMatchingCard = activator.GetCardColorCounts().ContainsKey(cardColor) && activator.GetCardColorCounts()[cardColor] >= 1;
+    if (!hasMatchingCard)
+    {
+        return false;
+    }
 
-                // Syarat 2: Harga TIDAK BOLEH di titik terendah (Berlaku untuk SEMUA WARNA).
-                if (sellingManager.ipoPriceMap.TryGetValue(cardColor, out int[] prices))
-                {
-                    // --- LOGIKA BARU UNTUK MENCARI HARGA TERENDAH YANG RELEVAN ---
-                    int lowestPrice;
-                    if (cardColor == "Tambang")
-                    {
-                        // Untuk Tambang, kita hanya peduli rentang harga dari indeks -2 hingga 2.
-                        // Ini sama dengan mengambil 5 nilai dari array harga, dimulai dari elemen ke-2 (indeks 1).
-                        var relevantPrices = new ArraySegment<int>(prices, 1, 5);
-                        lowestPrice = relevantPrices.Min(); // Hasilnya akan 2, bukan 0.
-                    }
-                    else
-                    {
-                        // Untuk warna lain, harga terendah adalah nilai minimum dari keseluruhan array.
-                        lowestPrice = prices.Min();
-                    }
-                    // --- AKHIR LOGIKA BARU ---
+    // Syarat 2: Harga tidak boleh di titik terendah JIKA state-nya Normal.
+    IPOData ipoData = sellingManager.GetIPOData(cardColor); // Ambil data IPO
+    if (ipoData == null) return false; // Keamanan jika data tidak ditemukan
 
-                    int currentPrice = sellingManager.GetCurrentColorValue(cardColor);
+    if (sellingManager.ipoPriceMap.TryGetValue(cardColor, out int[] prices))
+    {
+        int lowestPrice;
+        if (cardColor == "Tambang")
+        {
+            var relevantPrices = new ArraySegment<int>(prices, 1, 5);
+            lowestPrice = relevantPrices.Min();
+        }
+        else
+        {
+            lowestPrice = prices.Min();
+        }
 
-                    // Aturan final: hanya aktif jika harga saat ini lebih besar dari harga terendah yang relevan.
-                    return currentPrice > lowestPrice;
-                }
+        int currentPrice = sellingManager.GetCurrentColorValue(cardColor);
 
-                return false;
+        // Aturan baru: Jika harga saat ini lebih rendah/sama dengan harga terendah DAN state-nya Normal, maka GAGAL.
+        if (currentPrice <= lowestPrice && ipoData.currentState == IPOState.Normal)
+        {
+            return false; // Kondisi aktivasi tidak terpenuhi
+        }
+        
+        // Jika lolos dari semua pengecekan di atas, kartu boleh diaktifkan.
+        return true;
+    }
+
+    return false;
 
             case "TenderOffer":
                 // Syarat baru: Pengaktif harus punya minimal 2 kartu warna ini, agar bisa ada target yang punya lebih sedikit tapi bukan nol.
@@ -1253,12 +1265,10 @@ GameObject detailBtnInstance = null;
         }
 
         if (activateBtnInstance != null) Destroy(activateBtnInstance);
-        if (detailBtnInstance != null) Destroy(detailBtnInstance); 
         if (saveBtnInstance != null) Destroy(saveBtnInstance);
 
         currentlySelectedCard = null;
         activateBtnInstance = null;
-        detailBtnInstance = null;
         saveBtnInstance = null;
     }
 
@@ -1597,42 +1607,42 @@ GameObject detailBtnInstance = null;
         }
     }
     // ⬇️ FUNGSI BARU ⬇️
-private void ShowCardDetailPanel(GameObject selectedCard)
-{
-    if (cardDetailPanel == null || cardDetailImage == null || selectedCard == null) return;
-
-    // Ambil nama dan warna dari game object kartu yang dipilih
-    Text cardNameText = selectedCard.transform.Find("CardText")?.GetComponent<Text>();
-    Text cardColorText = selectedCard.transform.Find("CardColor")?.GetComponent<Text>();
-    
-    if (cardNameText == null || cardColorText == null) return;
-
-    string cardName = cardNameText.text;
-    string cardColor = cardColorText.text;
-
-    // Gunakan fungsi yang sudah ada untuk mendapatkan sprite kartu
-    Sprite sprite = GetCardSprite(cardName, cardColor);
-
-    if (sprite != null)
+    private void ShowCardDetailPanel(GameObject selectedCard)
     {
-        cardDetailImage.sprite = sprite;
-        cardDetailImage.preserveAspect = true;
-        cardDetailPanel.SetActive(true); // Tampilkan panel
-    }
-    else
-    {
-        Debug.LogWarning($"Sprite untuk {cardName} ({cardColor}) tidak ditemukan.");
-    }
-}
+        if (cardDetailPanel == null || cardDetailImage == null || selectedCard == null) return;
 
-// ⬇️ FUNGSI BARU ⬇️
-private void HideCardDetailPanel()
-{
-    if (cardDetailPanel != null)
-    {
-        cardDetailPanel.SetActive(false); // Sembunyikan panel
+        // Ambil nama dan warna dari game object kartu yang dipilih
+        Text cardNameText = selectedCard.transform.Find("CardText")?.GetComponent<Text>();
+        Text cardColorText = selectedCard.transform.Find("CardColor")?.GetComponent<Text>();
+
+        if (cardNameText == null || cardColorText == null) return;
+
+        string cardName = cardNameText.text;
+        string cardColor = cardColorText.text;
+
+        // Gunakan fungsi yang sudah ada untuk mendapatkan sprite kartu
+        Sprite sprite = GetCardSprite(cardName, cardColor);
+
+        if (sprite != null)
+        {
+            cardDetailImage.sprite = sprite;
+            cardDetailImage.preserveAspect = true;
+            cardDetailPanel.SetActive(true); // Tampilkan panel
+        }
+        else
+        {
+            Debug.LogWarning($"Sprite untuk {cardName} ({cardColor}) tidak ditemukan.");
+        }
     }
-}
+
+    // ⬇️ FUNGSI BARU ⬇️
+    private void HideCardDetailPanel()
+    {
+        if (cardDetailPanel != null)
+        {
+            cardDetailPanel.SetActive(false); // Sembunyikan panel
+        }
+    }
 
     public void ShowLeaderboard()
     {
