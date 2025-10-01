@@ -919,7 +919,7 @@ public class GameManager : MonoBehaviour
     }
 
     // Syarat 2: Harga tidak boleh di titik terendah JIKA state-nya Normal.
-    IPOData ipoData = sellingManager.GetIPOData(cardColor); // Ambil data IPO
+    SellingPhaseManager.IPOData ipoData = sellingManager.GetIPOData(cardColor);// Ambil data IPO
     if (ipoData == null) return false; // Keamanan jika data tidak ditemukan
 
     if (sellingManager.ipoPriceMap.TryGetValue(cardColor, out int[] prices))
@@ -1684,28 +1684,53 @@ public class GameManager : MonoBehaviour
             }
         }
     }
-    private string GetActivationErrorMessage(string cardName)
+    private string GetActivationErrorMessage(string cardName, string cardColor, PlayerProfile activator)
+{
+    switch (cardName)
     {
-        switch (cardName)
-        {
-            case "TradeFee":
-                return $"Anda tidak punya kartu untuk dijual";
+        case "TradeFee":
+            return "Anda tidak punya kartu untuk dijual.";
 
-            case "StockSplit":
+        case "StockSplit":
+            // Cek ulang syarat 1: Kepemilikan kartu
+            bool hasMatchingCard = activator.GetCardColorCounts().ContainsKey(cardColor) && activator.GetCardColorCounts()[cardColor] >= 1;
+            if (!hasMatchingCard)
+            {
+                return $"Syarat gagal: Anda harus punya minimal 1 saham di sektor {cardColor}.";
+            }
 
-                return $"Anda harus memiliki minimal 1 saham disektor yang sama";
+            // Cek ulang syarat 2: Harga terendah pada state Normal
+            SellingPhaseManager.IPOData ipoData = sellingManager.GetIPOData(cardColor);
+            if (ipoData != null && sellingManager.ipoPriceMap.TryGetValue(cardColor, out int[] prices))
+            {
+                int lowestPrice;
+                if (cardColor == "Tambang")
+                {
+                    var relevantPrices = new ArraySegment<int>(prices, 1, 5);
+                    lowestPrice = relevantPrices.Min();
+                }
+                else
+                {
+                    lowestPrice = prices.Min();
+                }
+                int currentPrice = sellingManager.GetCurrentColorValue(cardColor);
 
-            case "TenderOffer":
+                if (currentPrice <= lowestPrice && ipoData.currentState == IPOState.Normal)
+                {
+                    return $"Harga Terendah: Saham sektor {cardColor} tidak bisa di-split saat ini.";
+                }
+            }
+            // Pesan fallback jika ada kondisi lain yang tidak terpenuhi
+            return "Aktivasi Stock Split gagal: Syarat tidak terpenuhi.";
 
-                return "Tidak ada Pemain yang dapat ditarget";
+        case "TenderOffer":
+            return "Tidak ada pemain yang dapat ditarget.";
 
-            case "Flashbuy":
+        case "Flashbuy":
+            return "Tidak ada kartu yang dapat diambil dari pengaktifan Flashbuy.";
 
-                return "Tidak ada kartu yang dapat diambil dari pengaktifkan Flashbuy";
-
-            default:
-                return "Aktivasi gagal: Syarat kartu tidak terpenuhi.";
-        }
+        default:
+            return "Aktivasi gagal: Syarat kartu tidak terpenuhi.";
     }
-
+}
 }
