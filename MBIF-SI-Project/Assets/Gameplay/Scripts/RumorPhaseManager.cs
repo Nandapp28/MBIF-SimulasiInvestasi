@@ -268,7 +268,7 @@ public class RumorPhaseManager : MonoBehaviour
             yield return new WaitForSeconds(0.5f); // Sedikit jeda setelah kamera sampai
 
             // Tampilkan kartu
-            ShowCardByColorAndName(selected.color, selected.cardName);
+            StartCoroutine(ShowCardByColorAndName(selected.color, selected.cardName));
             Debug.Log($"[Rumor] Warna {selected.color}: {selected.description}");
 
 
@@ -302,7 +302,7 @@ public class RumorPhaseManager : MonoBehaviour
     }
 
 
-    private void ShowCardByColorAndName(string color, string cardName)
+    private IEnumerator ShowCardByColorAndName(string color, string cardName)
     {
 
         if (faceUpRumorCards.ContainsKey(color))
@@ -318,7 +318,7 @@ public class RumorPhaseManager : MonoBehaviour
         if (frontTexture == null)
         {
             Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{cardName}' tidak ditemukan!");
-            return;
+            yield break;
         }
 
         GameObject card = null;
@@ -346,8 +346,12 @@ public class RumorPhaseManager : MonoBehaviour
 
         if (card && renderer)
         {
-            renderer.material.mainTexture = frontTexture; // ⬅️ langsung set texture di awal
-            StartCoroutine(FlipCard(card));
+            if (card.activeInHierarchy)
+            {
+                yield return StartCoroutine(HideCard(card));
+            }
+            renderer.material.mainTexture = frontTexture;
+            StartCoroutine(FlipCard(card)); // ⬅️ langsung set texture di awal
         }
     }
 
@@ -396,69 +400,66 @@ public class RumorPhaseManager : MonoBehaviour
         objectToMove.transform.position = originalPosition;
         Debug.Log($"'{objectToMove.name}' telah kembali.");
     }
+        
+        private IEnumerator HideCard(GameObject cardObject)
+{
+    // --- Animasi 1 (Gerakan Melengkung ke Belakang untuk Menyembunyikan) ---
+    Vector3 originalPosition = cardObject.transform.position;
+    float moveDuration = 0.5f; // Durasi animasi hide
+    float sideOffset = -2.0f;   // Jarak lengkungan ke samping
+    float backOffset = 0.05f;   // Seberapa jauh turun ke belakang
+    float moveElapsed = 0f;
+
+    Vector3 moveStartPos = originalPosition;
+    // Posisi akhir dari animasi ini adalah di tengah, tapi lebih rendah
+    Vector3 moveEndPos = originalPosition;
+    moveEndPos.y -= backOffset;
+
+    while (moveElapsed < moveDuration)
+    {
+        float progress = moveElapsed / moveDuration;
+
+        // 1. Posisi turun secara linear dari awal ke akhir
+        Vector3 currentPos = Vector3.Lerp(moveStartPos, moveEndPos, progress);
+
+        // 2. Tambahkan gerakan melengkung ke samping menggunakan Sin
+        // Mathf.Sin(progress * Mathf.PI) akan menghasilkan kurva 0 -> 1 -> 0
+        currentPos.x += Mathf.Sin(progress * Mathf.PI) * sideOffset;
+        
+        cardObject.transform.position = currentPos;
+
+        moveElapsed += Time.deltaTime;
+        yield return null;
+    }
+
+    // Pastikan posisi akhir tepat dan sembunyikan objek
+    cardObject.transform.position = moveEndPos;
+    cardObject.SetActive(false);
+        cardObject.transform.position = moveStartPos;
+    
+}
    private IEnumerator FlipCard(GameObject cardObject)
 {
-    Vector3 originalPosition = cardObject.transform.position;
-    Quaternion finalRotation = Quaternion.Euler(0, 180, 0);
-    Vector3 flipStartPosition;
-
-    if (cardObject.activeInHierarchy)
-    {
-        // --- JIKA AKTIF: Jalankan Animasi 1 (Gerakan Melengkung ke Belakang) ---
-        
-        float moveDuration = 0.6f; // Sedikit lebih lama untuk gerakan melengkung
-        float sideOffset = -2.0f;   // Jarak lengkungan ke samping
-        float backOffset = 0.05f;  // Seberapa jauh turun ke belakang
-        float moveElapsed = 0f;
-
-        Vector3 moveStartPos = originalPosition;
-        // Posisi akhir dari animasi ini adalah di tengah, tapi lebih rendah
-        Vector3 moveEndPos = originalPosition;
-        moveEndPos.y -= backOffset;
-
-        while (moveElapsed < moveDuration)
-        {
-            float progress = moveElapsed / moveDuration;
-
-            // 1. Posisi turun secara linear dari awal ke akhir
-            Vector3 currentPos = Vector3.Lerp(moveStartPos, moveEndPos, progress);
-
-            // 2. Tambahkan gerakan melengkung ke samping menggunakan Sin
-            // Mathf.Sin(progress * Mathf.PI) akan menghasilkan kurva 0 -> 1 -> 0
-            currentPos.x += Mathf.Sin(progress * Mathf.PI) * sideOffset;
-            
-            cardObject.transform.position = currentPos;
-
-            moveElapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        // Pastikan posisi akhir tepat dan tetapkan sebagai titik awal flip
-        cardObject.transform.position = moveEndPos;
-        flipStartPosition = moveEndPos;
-
-        yield return new WaitForSeconds(0.2f);
-    }
-    else
-    {
-        // --- JIKA TIDAK AKTIF: Langsung siapkan untuk Animasi 2 (Tidak ada perubahan di sini) ---
-        flipStartPosition = originalPosition;
-        flipStartPosition.y -= 0.01f;
-        cardObject.SetActive(true);
-    }
-
-
-    // --- Animasi 2 (Membalik kartu kembali ke posisi semula) - TIDAK ADA PERUBAHAN ---
+    // --- Animasi 2 (Membalik kartu ke posisi semula) ---
+    Vector3 finalPosition = cardObject.transform.position; 
     
+    // Tentukan posisi awal flip sedikit di bawah posisi akhir
+    Vector3 flipStartPosition = finalPosition;
+    flipStartPosition.y -= 0.01f;
 
-    Vector3 flipEndPos = originalPosition; 
-    Quaternion flipStartRot = Quaternion.Euler(0, 180, 180); 
-    cardObject.transform.rotation = flipStartRot;
+    // Set rotasi awal (terbalik) dan aktifkan kartu
+    Quaternion startRotation = Quaternion.Euler(0, 180, 180); 
+    Quaternion finalRotation = Quaternion.Euler(0, 180, 0);
+    
+    cardObject.transform.position = flipStartPosition; // Mulai dari posisi bawah
+    cardObject.transform.rotation = startRotation;
+    cardObject.SetActive(true);
     
     float flipDuration = 0.7f;
     float flipHeight = 0.5f;
     float flipElapsed = 0f;
     
+    // Mainkan suara saat flip dimulai
     if (SfxManager.Instance != null && rumourFlipSound != null)
     {
         SfxManager.Instance.PlaySound(rumourFlipSound);
@@ -468,17 +469,20 @@ public class RumorPhaseManager : MonoBehaviour
     {
         float progress = flipElapsed / flipDuration;
 
-        Vector3 currentPos = Vector3.Lerp(flipStartPosition, flipEndPos, progress);
+        // Gerakkan posisi dari awal ke akhir dengan lengkungan ke atas
+        Vector3 currentPos = Vector3.Lerp(flipStartPosition, finalPosition, progress);
         currentPos.y += Mathf.Sin(progress * Mathf.PI) * flipHeight;
         cardObject.transform.position = currentPos;
 
-        cardObject.transform.rotation = Quaternion.Slerp(flipStartRot, finalRotation, progress);
+        // Rotasikan kartu secara Slerp
+        cardObject.transform.rotation = Quaternion.Slerp(startRotation, finalRotation, progress);
 
         flipElapsed += Time.deltaTime;
         yield return null;
     }
 
-    cardObject.transform.position = originalPosition;
+    // Pastikan posisi dan rotasi akhir sudah tepat
+    cardObject.transform.position = finalPosition;
     cardObject.transform.rotation = finalRotation;
 }
     // Tambahkan metode ini di dalam kelas RumorPhaseManager.cs
