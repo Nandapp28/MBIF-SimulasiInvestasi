@@ -196,7 +196,7 @@ public class HelpCardPhaseManager : MonoBehaviour
     switch (card.effectType)
     {
         case HelpCardEffect.AdministrativePenalties:
-        case HelpCardEffect.NegativeEquity:
+        case HelpCardEffect.PositiveEquity:
             {
                 // --- Langkah 1: Persiapan & Penentuan Target ---
                 string colorToSabotage = null;
@@ -224,7 +224,7 @@ public class HelpCardPhaseManager : MonoBehaviour
                 }
 
                 // --- Langkah 3: Eksekusi Efek ---
-                int ipoChange = (card.effectType == HelpCardEffect.AdministrativePenalties) ? -2 : -3;
+                int ipoChange = (card.effectType == HelpCardEffect.AdministrativePenalties) ? -2 : 2;
                 yield return StartCoroutine(sellingManager.ModifyIPOIndexWithCamera(colorToSabotage, ipoChange));
             }
             break;
@@ -544,7 +544,7 @@ public class HelpCardPhaseManager : MonoBehaviour
 
             case HelpCardEffect.AdministrativePenalties:
                 return new HelpCard("Bad News", "Menurunkan nilai IPO satu warna secara acak.", randomEffect, effectSprite);
-            case HelpCardEffect.NegativeEquity:
+            case HelpCardEffect.PositiveEquity:
                 return new HelpCard("Bad News", "Menurunkan nilai IPO satu warna secara acak.", randomEffect, effectSprite);
             case HelpCardEffect.TaxEvasion:
                 return new HelpCard("Penghindaran Pajak", "Bayar 2 Finpoint untuk setiap kartu yang kamu miliki.", randomEffect, effectSprite);
