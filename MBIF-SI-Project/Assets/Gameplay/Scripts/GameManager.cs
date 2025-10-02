@@ -660,6 +660,9 @@ public class GameManager : MonoBehaviour
 
             yield return new WaitForSeconds(1f); // Delay sedikit biar visual terlihat
             ClearHiddenCards(); // 🔥 Hapus semua kartu dari UI
+             Debug.Log("Memulai fase penjualan...");
+            helpCardPhaseManager.StartHelpCardPhase(turnOrder, resetCount);
+            
 
 
 
@@ -1243,7 +1246,7 @@ public class GameManager : MonoBehaviour
         if (!string.IsNullOrEmpty(cardName))
         {
             // Kirim nama, pemain, dan warna ke efek
-            NotificationManager.Instance.ShowNotification($"Kartu '{cardName}' disektor ({cardColor}) diaktifkan untuk {currentPlayer.playerName}", 3f);
+            NotificationManager.Instance.ShowNotification($"Kartu '{cardName}' disektor ({cardColor}) diaktifkan untuk {currentPlayer.playerName}", 3f, true);
             Debug.Log($"🎴 Kartu '{cardName}' ({cardColor}) diaktifkan untuk {currentPlayer.playerName}");
             yield return StartCoroutine(CardEffectManager.ApplyEffect(cardName, currentPlayer, cardColor));
 

@@ -51,12 +51,24 @@ public class NotificationManager : MonoBehaviour
     /// </summary>
     /// <param name="message">Pesan yang ingin ditampilkan.</param>
     /// <param name="duration">Berapa lama notifikasi akan muncul (dalam detik).</param>
-    public void ShowNotification(string message, float duration = 3f)
+    ///<param name="shouldLog">Apakah pesan ini harus direkap di LogManager?</param>
+    public void ShowNotification(string message, float duration = 3f,bool shouldLog = false)
     {
         if (notificationPanel == null || notificationText == null)
         {
             Debug.LogError("[NotificationManager] Panel atau Text UI belum di-assign!");
             return;
+        }
+        if (shouldLog)
+        {
+            if (LogManager.Instance != null)
+            {
+                LogManager.Instance.AddLog(message);
+            }
+            else
+            {
+                Debug.LogWarning("[NotificationManager] Ingin merekap log, tapi LogManager.Instance tidak ditemukan.");
+            }
         }
 
         // Jika sudah ada notifikasi yang berjalan, hentikan dulu

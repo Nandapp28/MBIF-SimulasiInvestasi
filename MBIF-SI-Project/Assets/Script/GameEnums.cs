@@ -4,7 +4,7 @@
 public enum HelpCardEffect
 {
     AdministrativePenalties,
-    NegativeEquity,
+    PositiveEquity,
     TaxEvasion,
     MarketPrediction,
     EyeOfTruth,
