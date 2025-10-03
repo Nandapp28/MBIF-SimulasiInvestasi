@@ -126,10 +126,7 @@ public class GameModeSelector : MonoBehaviour
         if (SfxManager.Instance != null)
         {
             SfxManager.Instance.PlayButtonClick();
-        }
-        PlayerPrefs.SetString("hasWarning", "no");
-        PlayerPrefs.SetString("hasCompletedTutorial", "no");
-        PlayerPrefs.Save();
+        };
 
         // Memuat scene berdasarkan indeks
         SceneManager.LoadScene("Shop");
