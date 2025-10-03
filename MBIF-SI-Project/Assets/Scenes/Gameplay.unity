@@ -1236,7 +1236,7 @@ MonoBehaviour:
   currentCardIndex: 0
   skipCount: 0
   resetCount: 0
-  maxResetCount: 1
+  maxResetCount: 3
 --- !u!114 &101139719
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1276,28 +1276,28 @@ MonoBehaviour:
   ipoStateUp: {fileID: 8300000, guid: 1f18376933b8a184aadb86e94f94e7e0, type: 3}
   ipoDataList:
   - color: Konsumer
-    _ipoIndex: 3
+    _ipoIndex: 0
     colorObject: {fileID: 1230166402}
     currentState: 0
     salesBonus: 0
     ascendVisualIndicator: {fileID: 718543849}
     advancedVisualIndicator: {fileID: 597977781}
   - color: Infrastruktur
-    _ipoIndex: 3
+    _ipoIndex: 0
     colorObject: {fileID: 1821648110}
     currentState: 0
     salesBonus: 0
     ascendVisualIndicator: {fileID: 950603723}
     advancedVisualIndicator: {fileID: 1045398527}
   - color: Keuangan
-    _ipoIndex: 3
+    _ipoIndex: 0
     colorObject: {fileID: 1911353654}
     currentState: 0
     salesBonus: 0
     ascendVisualIndicator: {fileID: 982192802}
     advancedVisualIndicator: {fileID: 494440739}
   - color: Tambang
-    _ipoIndex: 2
+    _ipoIndex: 0
     colorObject: {fileID: 1265061132}
     currentState: 0
     salesBonus: 0
@@ -1441,7 +1441,7 @@ MonoBehaviour:
   tokenPlus2Material: {fileID: 2100000, guid: d56af672a85654549935074fb48b5bd3, type: 2}
   dividendDataList:
   - color: Konsumer
-    dividendIndex: 3
+    dividendIndex: 0
     ramalanTokens: 02000000020000000200000002000000
     revealedTokenCount: 0
     indicatorObject: {fileID: 2018887687}
@@ -1451,7 +1451,7 @@ MonoBehaviour:
     - {fileID: 1195880984}
     - {fileID: 383379023}
   - color: Infrastruktur
-    dividendIndex: 3
+    dividendIndex: 0
     ramalanTokens: 0000000000000000
     revealedTokenCount: 0
     indicatorObject: {fileID: 205606161}
@@ -1461,7 +1461,7 @@ MonoBehaviour:
     - {fileID: 1287893397}
     - {fileID: 453229380}
   - color: Keuangan
-    dividendIndex: 3
+    dividendIndex: 0
     ramalanTokens: 
     revealedTokenCount: 0
     indicatorObject: {fileID: 1420052926}
@@ -1471,7 +1471,7 @@ MonoBehaviour:
     - {fileID: 151590308}
     - {fileID: 533002505}
   - color: Tambang
-    dividendIndex: 3
+    dividendIndex: 0
     ramalanTokens: 
     revealedTokenCount: 0
     indicatorObject: {fileID: 1302526857}
@@ -7199,6 +7199,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 583440886}
+  - component: {fileID: 583440888}
+  - component: {fileID: 583440887}
   m_Layer: 5
   m_Name: Content
   m_TagString: Untagged
@@ -7223,9 +7225,49 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0.000015258789}
-  m_SizeDelta: {x: 0, y: 300}
-  m_Pivot: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 0, y: -396.79996}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0, y: 0}
+--- !u!114 &583440887
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 583440885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_HorizontalFit: 0
+  m_VerticalFit: 2
+--- !u!114 &583440888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 583440885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Padding:
+    m_Left: 10
+    m_Right: 10
+    m_Top: 10
+    m_Bottom: 10
+  m_ChildAlignment: 6
+  m_Spacing: 5
+  m_ChildForceExpandWidth: 1
+  m_ChildForceExpandHeight: 0
+  m_ChildControlWidth: 0
+  m_ChildControlHeight: 1
+  m_ChildScaleWidth: 0
+  m_ChildScaleHeight: 0
+  m_ReverseArrangement: 0
 --- !u!1001 &597977779
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -25739,10 +25781,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 583440886}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 10.5, y: -50.399994}
-  m_SizeDelta: {x: 800, y: 350}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 831.5, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1909824153
 MonoBehaviour:
