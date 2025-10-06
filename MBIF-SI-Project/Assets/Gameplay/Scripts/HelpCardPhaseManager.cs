@@ -218,10 +218,9 @@ public class HelpCardPhaseManager : MonoBehaviour
 
                 // --- Langkah 2: Tentukan Deskripsi & Tampilkan Hasil (untuk Bot) ---
                 targetDescription = $"Target: \n{colorToSabotage}";
-                if (!player.playerName.Contains("You"))
-                {
-                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
-                }
+                
+                yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                
 
                 // --- Langkah 3: Eksekusi Efek ---
                 int ipoChange = (card.effectType == HelpCardEffect.AdministrativePenalties) ? -2 : 2;
@@ -234,10 +233,9 @@ public class HelpCardPhaseManager : MonoBehaviour
                 // --- Langkah 1 & 2: Tentukan Deskripsi & Tampilkan Hasil ---
                 Debug.Log($"{player.playerName} mengaktifkan Penghindaran Pajak. Semua pemain lain harus membayar pajak!");
                 targetDescription = "Target: \n Semua Pemain Lain";
-                if (!player.playerName.Contains("You"))
-                {
-                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
-                }
+                
+                yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                
 
                 // --- Langkah 3: Eksekusi Efek ---
                 foreach (var p in turnOrder)
@@ -270,10 +268,9 @@ public class HelpCardPhaseManager : MonoBehaviour
 
                 // --- Langkah 2: Tentukan Deskripsi & Tampilkan Hasil (untuk Bot) ---
                 targetDescription = $"Target: \n{chosenColor}";
-                 if (!player.playerName.Contains("You"))
-                {
-                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
-                }
+                
+                yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                
 
                 // --- Langkah 3: Eksekusi Efek ---
                 RumorPhaseManager.RumorEffect futureRumor = rumorPhaseManager.shuffledRumorDeck.FirstOrDefault(r => r.color == chosenColor);
@@ -312,10 +309,9 @@ public class HelpCardPhaseManager : MonoBehaviour
                 // --- Langkah 1 & 2: Tentukan Deskripsi & Tampilkan Hasil ---
                 Debug.Log($"{player.playerName} menggunakan kartu 'Stabilisasi Pasar'. Mereset semua nilai IPO!");
                 targetDescription = "Target: Semua Sektor";
-                if (!player.playerName.Contains("You"))
-                {
-                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
-                }
+                
+                yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                
                 
                 // --- Langkah 3: Eksekusi Efek ---
                 yield return StartCoroutine(sellingManager.ResetAllIPOIndexesWithCamera());
@@ -357,11 +353,10 @@ public class HelpCardPhaseManager : MonoBehaviour
                 }
 
                 // --- Langkah 2: Tentukan Deskripsi & Tampilkan Hasil (untuk Bot) ---
-                targetDescription = $"{targetPlayer.playerName} \n Menukar sektor {colorFromPlayer} dengan {colorFromTarget} milik target";
-                if (!player.playerName.Contains("You"))
-                {
-                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
-                }
+                targetDescription = $"Menukar sektor {colorFromPlayer} dengan {colorFromTarget} milik \n{targetPlayer.playerName}";
+                
+                yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                
 
                 // --- Langkah 3: Eksekusi Efek ---
                 Card cardFromPlayer = player.cards.FirstOrDefault(c => c.color == colorFromPlayer);
@@ -410,11 +405,10 @@ public class HelpCardPhaseManager : MonoBehaviour
                 }
                 
                 // --- Langkah 2: Tentukan Deskripsi & Tampilkan Hasil (untuk Bot) ---
-                targetDescription = $"{targetPlayer.playerName} \n membeli paksa sektor 1 {colorToPurchase} milik target";
-                if (!player.playerName.Contains("You"))
-                {
-                    yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
-                }
+                targetDescription = $"membeli paksa sektor 1 {colorToPurchase} milik\n {targetPlayer.playerName}";
+                
+                yield return StartCoroutine(ShowEffectResult(player, card, targetDescription));
+                
                 
                 // --- Langkah 3: Eksekusi Efek ---
                 int fullPrice = sellingManager.GetFullCardPrice(colorToPurchase);
@@ -514,9 +508,19 @@ public class HelpCardPhaseManager : MonoBehaviour
         effectPlayerNameText.text = $"{player.playerName}\nmenggunakan:";
         effectCardImage.sprite = card.cardImage; // Gunakan gambar dari kartu
         effectTargetText.text = targetInfo;     // Tampilkan detail target
+        if (LogManager.Instance != null)
+        {
+            // Gabungkan nama pemain, nama kartu, dan target menjadi satu kalimat log.
+            // Ganti '\n' dengan spasi agar menjadi satu baris.
+            string logMessage = $"{player.playerName} menggunakan '{card.cardName}', {targetInfo.Replace("\n", " ")}";
+            LogManager.Instance.AddLog(logMessage);
+        }
 
         // 2. Tampilkan panel
-        effectDisplayPanel.SetActive(true);
+        if (!player.playerName.Contains("You"))
+        {
+            effectDisplayPanel.SetActive(true);
+        }
 
         // 3. Tunggu selama 3 detik
         yield return new WaitForSeconds(3f);
@@ -543,21 +547,21 @@ public class HelpCardPhaseManager : MonoBehaviour
         {
 
             case HelpCardEffect.AdministrativePenalties:
-                return new HelpCard("Bad News", "Menurunkan nilai IPO satu warna secara acak.", randomEffect, effectSprite);
+                return new HelpCard("Administrative Penalties", "Menurunkan nilai IPO satu warna secara acak.", randomEffect, effectSprite);
             case HelpCardEffect.PositiveEquity:
-                return new HelpCard("Bad News", "Menurunkan nilai IPO satu warna secara acak.", randomEffect, effectSprite);
+                return new HelpCard("Positive Equity", "Menurunkan nilai IPO satu warna secara acak.", randomEffect, effectSprite);
             case HelpCardEffect.TaxEvasion:
-                return new HelpCard("Penghindaran Pajak", "Bayar 2 Finpoint untuk setiap kartu yang kamu miliki.", randomEffect, effectSprite);
+                return new HelpCard("Tax Evasion", "Bayar 2 Finpoint untuk setiap kartu yang kamu miliki.", randomEffect, effectSprite);
             case HelpCardEffect.MarketPrediction:
-                return new HelpCard("Prediksi Pasar", "Dapatkan bocoran pergerakan pasar untuk satu warna pilihanmu.", randomEffect, effectSprite);
+                return new HelpCard("Market Prediction", "Dapatkan bocoran pergerakan pasar untuk satu warna pilihanmu.", randomEffect, effectSprite);
             case HelpCardEffect.EyeOfTruth:
-                return new HelpCard("Prediksi Pasar", "Dapatkan bocoran pergerakan pasar untuk satu warna pilihanmu.", randomEffect, effectSprite);
+                return new HelpCard("Eye of Truth", "Dapatkan bocoran pergerakan pasar untuk satu warna pilihanmu.", randomEffect, effectSprite);
             case HelpCardEffect.MarketStabilization:
-                return new HelpCard("Stabilisasi Pasar", "Pemerintah turun tangan! Semua harga saham kembali ke nilai awal.", randomEffect, effectSprite);
+                return new HelpCard("Market Stabilization", "Pemerintah turun tangan! Semua harga saham kembali ke nilai awal.", randomEffect, effectSprite);
             case HelpCardEffect.CardSwap:
-                return new HelpCard("Tukar Tambah", "Tukar 1 kartu yang kamu miliki dengan 1 kartu milik pemain lain.", randomEffect, effectSprite);
+                return new HelpCard("Card Swap", "Tukar 1 kartu yang kamu miliki dengan 1 kartu milik pemain lain.", randomEffect, effectSprite);
             case HelpCardEffect.ForcedPurchase:
-                return new HelpCard("Beli Paksa", "Beli 1 kartu milik pemain lain dengan setengah harga.", randomEffect, effectSprite);
+                return new HelpCard("Forced Purchase", "Beli 1 kartu milik pemain lain dengan setengah harga.", randomEffect, effectSprite);
 
 
             default:
