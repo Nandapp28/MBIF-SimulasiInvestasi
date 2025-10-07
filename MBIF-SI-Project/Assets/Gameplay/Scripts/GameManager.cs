@@ -1665,11 +1665,16 @@ public class GameManager : MonoBehaviour
 
         // Urutkan berdasarkan finpoint secara menurun
         var rankedPlayers = allPlayers.OrderByDescending(p => p.finpoint).ToList();
+        int playerRank = 0;
 
         // Buat entri leaderboard
         for (int i = 0; i < rankedPlayers.Count; i++)
         {
             PlayerProfile p = rankedPlayers[i];
+            if (p.playerName.Contains("You"))
+            {
+                playerRank = i + 1; // Peringkat dimulai dari 1
+            }
 
             GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContainer);
 
@@ -1685,6 +1690,10 @@ public class GameManager : MonoBehaviour
             {
                 Debug.LogWarning("Leaderboard entry prefab tidak memiliki cukup komponen Text!");
             }
+        }
+        if (playerRank > 0 && SingleplayerRewardManager.Instance != null)
+        {
+            SingleplayerRewardManager.Instance.AwardFinpointsForRank(playerRank);
         }
     }
     private string GetActivationErrorMessage(string cardName, string cardColor, PlayerProfile activator)
