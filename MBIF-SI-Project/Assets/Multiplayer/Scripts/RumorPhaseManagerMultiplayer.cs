@@ -47,6 +47,9 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
     [Header("Visual Kartu Rumor")]
     public List<CardVisual> allCardVisuals = new List<CardVisual>();
+  
+public List<CardVisuals2D> cardVisuals2D = new List<CardVisuals2D>();
+
 
     void Awake()
     {
@@ -215,6 +218,20 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         // Kirim dek yang baru dibuat ini karena dek yang disiapkan tidak ada.
         photonView.RPC("Rpc_SetRumorDeck", RpcTarget.All, finalDeckIndices.ToArray());
     }
+    public string GetCardNameFromTexture(Texture texture3D)
+    {
+        var visual = cardVisuals.FirstOrDefault(v => v.texture == texture3D);
+        return visual?.cardName; // Menggunakan null-conditional operator untuk keringkasan
+    }
+public Sprite GetCardSprite2D(string cardName)
+{
+    var visual2D = cardVisuals2D.FirstOrDefault(v => v.cardName == cardName);
+    if (visual2D == null)
+    {
+        Debug.LogWarning($"Sprite 2D untuk '{cardName}' tidak ditemukan!");
+    }
+    return visual2D?.sprite;
+}
 
     [PunRPC]
     private void Rpc_SetRumorDeck(int[] rumorIndices)

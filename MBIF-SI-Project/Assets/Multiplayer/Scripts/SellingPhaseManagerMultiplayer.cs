@@ -36,7 +36,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     [Header("IPO Visuals")]
     public List<IPOIndicatorMapping> ipoIndicatorMappings; // Ganti 'ipoIndicators' dengan ini
     public float ipoIndicatorOffset = 0.5f;
-    private Dictionary<string, Vector3> initialIpoPositions = new Dictionary<string, Vector3>();
+    public Dictionary<string, Vector3> initialIpoPositions = new Dictionary<string, Vector3>();
     private Dictionary<string, int> minIpoIndexMap = new Dictionary<string, int>
     {
         { "Konsumer", -3 },      // Harga terendah 1
@@ -83,7 +83,61 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     {
         if (Instance != null) Destroy(gameObject);
         else Instance = this;
+        if (PhotonNetwork.IsMasterClient)
+    {
+        // Di sinilah Anda menentukan nilai awal yang Anda inginkan!
+        Dictionary<string, int> startingIpoValues = new Dictionary<string, int>
+        {
+            { "Konsumer", 3 },
+            { "Infrastruktur", 0 },
+            { "Keuangan", 0 },
+            { "Tambang", 0 } // Ingat, Tambang range-nya -2 sampai 2
+        };
+
+        // Panggil fungsi yang ada di SellingPhaseManagerMultiplayer
+        if (SellingPhaseManagerMultiplayer.Instance != null)
+        {
+            SellingPhaseManagerMultiplayer.Instance.InitializeIpoState(startingIpoValues);
+        }
+        else
+        {
+            Debug.LogError("Instance SellingPhaseManagerMultiplayer tidak ditemukan!");
+        }
     }
+    }
+    public void InitializeIpoState(Dictionary<string, int> initialIndices)
+{
+    // Pastikan hanya MasterClient yang bisa menjalankan ini
+    if (!PhotonNetwork.IsMasterClient) return;
+
+    Debug.Log("MASTERCLIENT: Mengatur state awal IPO...");
+
+    // Siapkan Hashtable untuk menampung semua properti baru
+    Hashtable initialRoomProps = new Hashtable();
+
+    // Loop melalui setiap warna yang ada di ipoPriceMap
+    foreach (var color in ipoPriceMap.Keys)
+    {
+        string ipoIndexKey = IPO_INDEX_PREFIX + color;
+        string ipoBonusKey = IPO_BONUS_PREFIX + color;
+
+        int initialIndex = 0;
+        // Cek apakah ada nilai awal yang diberikan untuk warna ini
+        if (initialIndices != null && initialIndices.ContainsKey(color))
+        {
+            initialIndex = initialIndices[color];
+        }
+
+        // Tambahkan nilai index dan bonus awal ke Hashtable
+        initialRoomProps[ipoIndexKey] = initialIndex;
+        initialRoomProps[ipoBonusKey] = 0; // Bonus selalu dimulai dari 0
+
+        Debug.Log($" > Mengatur {color}: Index = {initialIndex}, Bonus = 0");
+    }
+
+    // Kirim semua properti yang sudah diatur ke jaringan (untuk semua pemain)
+    PhotonNetwork.CurrentRoom.SetCustomProperties(initialRoomProps);
+}
 
     public void ModifyIPOIndex(string color, int delta)
     {
