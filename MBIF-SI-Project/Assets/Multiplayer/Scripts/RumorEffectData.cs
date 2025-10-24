@@ -18,3 +18,9 @@ public class RumorEffectData
     public int value;
     public Sprite artwork; // Anda bisa tambahkan ini jika punya gambar untuk setiap rumor
 }
+[System.Serializable]
+public class CardVisuals2D
+{
+    public string cardName;
+    public Sprite sprite; // Menggunakan Sprite untuk UI
+}
