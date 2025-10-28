@@ -88,7 +88,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         // Di sinilah Anda menentukan nilai awal yang Anda inginkan!
         Dictionary<string, int> startingIpoValues = new Dictionary<string, int>
         {
-            { "Konsumer", 3 },
+            { "Konsumer", 0 },
             { "Infrastruktur", 0 },
             { "Keuangan", 0 },
             { "Tambang", 0 } // Ingat, Tambang range-nya -2 sampai 2
