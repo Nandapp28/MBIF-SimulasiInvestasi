@@ -18,12 +18,15 @@ public class SellingPhaseManager : MonoBehaviour
     public GameObject colorSellRowPrefab;
     [Header("System References")] // <-- TAMBAHKAN HEADER BARU
     public CameraController cameraController;
+    [Header("Sound Effects")] // <-- TAMBAHKAN HEADER & VARIABEL INI
+    public AudioClip ipoMoveSound;
+    public AudioClip sellSound, ipoStateDown, ipoStateUp;
 
     [Header("IPO Settings")]
     public List<IPOData> ipoDataList = new List<IPOData>();
     public float ipoSpacing = 0.5f;
     private Dictionary<string, Vector3> initialPositions = new Dictionary<string, Vector3>();
-    
+
 
 
     private Dictionary<string, SellInput> playerSellInputs = new Dictionary<string, SellInput>();
@@ -31,12 +34,12 @@ public class SellingPhaseManager : MonoBehaviour
     private List<PlayerProfile> currentPlayers;
     private int currentResetCount;
     private int currentMaxResetCount;
-    
+
 
     public Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
         { "Konsumer", new int[] { 1, 2, 3, 5, 6, 7, 8 } },
-        { "Infrastruktur", new int[] { 1, 2, 4, 5, 6, 8, 9 } },
+        { "Infrastruktur", new int[] { 1, 2, 4, 5, 6, 7, 9 } },
         { "Keuangan", new int[] { 1, 3, 4, 5, 6, 7, 9 } },
         { "Tambang",  new int[] { 0, 2, 4, 5, 7, 9, 0 } },
     };
@@ -51,8 +54,8 @@ public class SellingPhaseManager : MonoBehaviour
         public IPOState currentState = IPOState.Normal;
         public int salesBonus = 0;
         [Header("Visual Indicators")]
-public GameObject ascendVisualIndicator; // Visual untuk state Ascend
-public GameObject advancedVisualIndicator; // Visual untuk state Advanced
+        public GameObject ascendVisualIndicator; // Visual untuk state Ascend
+        public GameObject advancedVisualIndicator; // Visual untuk state Advanced
 
         public int ipoIndex
         {
@@ -65,6 +68,10 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
             }
         }
     }
+    public IPOData GetIPOData(string color)
+{
+    return ipoDataList.FirstOrDefault(d => d.color == color);
+}
     public int GetCurrentColorValue(string color)
     {
         IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);
@@ -115,6 +122,7 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
             }
             data.manager = this; // INJEKSI Referensi ke manager
         }
+        UpdateIPOVisuals();
 
     }
 
@@ -125,9 +133,9 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
 
     }
     public void InitializePlayers(List<PlayerProfile> players)
-{
-    currentPlayers = players;
-}
+    {
+        currentPlayers = players;
+    }
 
 
 
@@ -182,23 +190,31 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
             currentValues[color] = currentValue;
             valueText.text = currentValue.ToString();
 
-            plusButton.onClick.AddListener(() =>
+            if (maxValue == 0)
             {
-                if (currentValues[color] < maxValue)
+                plusButton.interactable = false;
+                minusButton.interactable = false;
+            }
+            else
+            {
+                plusButton.onClick.AddListener(() =>
                 {
-                    currentValues[color]++;
-                    valueText.text = currentValues[color].ToString();
-                }
-            });
+                    if (currentValues[color] < maxValue)
+                    {
+                        currentValues[color]++;
+                        valueText.text = currentValues[color].ToString();
+                    }
+                });
 
-            minusButton.onClick.AddListener(() =>
-            {
-                if (currentValues[color] > 0)
+                minusButton.onClick.AddListener(() =>
                 {
-                    currentValues[color]--;
-                    valueText.text = currentValues[color].ToString();
-                }
-            });
+                    if (currentValues[color] > 0)
+                    {
+                        currentValues[color]--;
+                        valueText.text = currentValues[color].ToString();
+                    }
+                });
+            }
         }
 
         confirmSellButton.onClick.AddListener(() =>
@@ -207,6 +223,10 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
             foreach (var color in ipoPriceMap.Keys)
             {
                 input.colorSellCounts[color] = currentValues[color];
+            }
+            if (SfxManager.Instance != null && sellSound != null)
+            {
+                SfxManager.Instance.PlaySound(sellSound);
             }
 
             playerSellInputs[currentPlayer.playerName] = input;
@@ -276,13 +296,13 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
                         {
                             // <-- LOGIKA LAMA (JIKA TIDAK ADA PREDIKSI) -->
                             float sellChance = color switch
-                        {
-                            "Konsumer" => 0.5f,
-                            "Infrastruktur" => 0.5f,
-                            "Keuangan" => 0.5f,
-                            "Tambang" => 0.5f,
-                            _ => 0.5f
-                        };
+                            {
+                                "Konsumer" => 0.5f,
+                                "Infrastruktur" => 0.5f,
+                                "Keuangan" => 0.5f,
+                                "Tambang" => 0.5f,
+                                _ => 0.5f
+                            };
 
                             foreach (var card in ownedCards)
                             {
@@ -302,7 +322,7 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
                 if (cardsByColor.ContainsKey(color))
                 {
                     IPOData data = ipoDataList.FirstOrDefault(d => d.color == color); // Ambil data IPO
-                if (data == null) continue;
+                    if (data == null) continue;
                     var availableCards = cardsByColor[color];
                     int actualSell = Mathf.Min(toSell, availableCards.Count);
                     int price = GetCurrentColorValue(color);
@@ -330,36 +350,37 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
         Debug.Log("Fase penjualan selesai.");
     }
     public void ForceSellAllCards(List<PlayerProfile> players)
-{
-    Debug.Log("💰 Menjual semua sisa kartu pemain untuk skor akhir...");
-
-    foreach (var player in players)
     {
-        int earnedFinpoints = 0;
-        
-        // Buat salinan daftar kartu untuk diiterasi, karena kita akan memodifikasi daftar aslinya
-        List<Card> cardsToSell = new List<Card>(player.cards);
+        Debug.Log("💰 Menjual semua sisa kartu pemain untuk skor akhir...");
 
-        foreach (var card in cardsToSell)
+        foreach (var player in players)
         {
-            // Dapatkan harga penuh (harga dasar + bonus state) untuk warna kartu
-            int price = GetFullCardPrice(card.color);
-            earnedFinpoints += price;
+            int earnedFinpoints = 0;
+
+            // Buat salinan daftar kartu untuk diiterasi, karena kita akan memodifikasi daftar aslinya
+            List<Card> cardsToSell = new List<Card>(player.cards);
+
+            foreach (var card in cardsToSell)
+            {
+                // Dapatkan harga penuh (harga dasar + bonus state) untuk warna kartu
+                int price = GetFullCardPrice(card.color);
+                earnedFinpoints += price;
+            }
+
+            if (earnedFinpoints > 0)
+            {
+                Debug.Log($"[Penjualan Akhir] {player.playerName} mendapatkan {earnedFinpoints} Finpoint dari {cardsToSell.Count} kartu.");
+                player.finpoint += earnedFinpoints;
+            }
+
+            // Hapus semua kartu dari profil pemain
+            player.cards.Clear();
         }
 
-        if (earnedFinpoints > 0)
-        {
-            Debug.Log($"[Penjualan Akhir] {player.playerName} mendapatkan {earnedFinpoints} Finpoint dari {cardsToSell.Count} kartu.");
-            player.finpoint += earnedFinpoints;
-        }
-        
-        // Hapus semua kartu dari profil pemain
-        player.cards.Clear();
+        // Perbarui UI pemain untuk terakhir kalinya jika diperlukan
+        gameManager.UpdatePlayerUI();
     }
-
-    // Perbarui UI pemain untuk terakhir kalinya jika diperlukan
-    gameManager.UpdatePlayerUI();
-}    public void UpdateIPOState(IPOData data)
+    public void UpdateIPOState(IPOData data)
     {
         bool stateHasChanged;
         do
@@ -377,11 +398,16 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
                     {
                         // Hitung kelebihan nilai
                         int excess = currentIndex - (maxThreshold + 1);
+                         NotificationManager.Instance.ShowNotification($"[ASCEND] Harga Saham dari Sektor {data.color} Meningkat!!!", 3f, true);
                         Debug.Log($"[STATE CHANGE] {data.color}: Normal ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
 
                         // Ubah status dan bonus
                         data.currentState = IPOState.Ascend;
                         data.salesBonus = 5;
+                        if (SfxManager.Instance != null && ipoStateUp != null)
+                        {
+                            SfxManager.Instance.PlaySound(ipoStateUp);
+                        }
 
                         // Atur ulang index ke 0 dan tambahkan kelebihannya
                         data._ipoIndex = 0 + excess;
@@ -390,9 +416,14 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
                     else if (currentIndex < minThreshold)
                     {
                         // Logika Crash tetap sama, tidak perlu loop
+                        NotificationManager.Instance.ShowNotification($"[CRASH] Semua Saham dari Sektor {data.color} dikembalikan ke Bank!!!", 3f, true);
                         Debug.LogWarning($"[CRASH] {data.color} market crash! Saham dikembalikan ke bank.");
                         data._ipoIndex = 0;
                         data.salesBonus = 0;
+                        if (SfxManager.Instance != null && ipoStateDown != null)
+                        {
+                            SfxManager.Instance.PlaySound(ipoStateDown);
+                        }
 
                         foreach (var player in currentPlayers)
                         {
@@ -411,10 +442,15 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
                     if (currentIndex > 0) // Ambang batas atas untuk Ascend adalah 0
                     {
                         int excess = currentIndex - 1;
+                        NotificationManager.Instance.ShowNotification($"[ADVANCED] Harga Saham dari Sektor {data.color} Meningkat!!!", 3f, true);
                         Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Advanced. Menyimpan kelebihan nilai: {excess}");
 
                         data.currentState = IPOState.Advanced;
                         data.salesBonus = 10;
+                        if (SfxManager.Instance != null && ipoStateUp != null)
+                        {
+                            SfxManager.Instance.PlaySound(ipoStateUp);
+                        }
 
                         // Atur ulang index ke nilai MINIMUM dari state baru dan tambahkan kelebihannya
                         data._ipoIndex = minThreshold + excess;
@@ -423,10 +459,15 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
                     else if (currentIndex < 0) // Ambang batas bawah untuk Ascend adalah 0
                     {
                         int excess = currentIndex + 1; // Seluruh nilai adalah kelebihan negatif
+                        NotificationManager.Instance.ShowNotification($"[DESCEND] Harga Saham dari Sektor {data.color} Menurun", 3f, true);
                         Debug.Log($"[STATE CHANGE] {data.color}: Ascend ➡ Normal. Menyimpan kelebihan nilai: {excess}");
 
                         data.currentState = IPOState.Normal;
                         data.salesBonus = 0;
+                        if (SfxManager.Instance != null && ipoStateDown != null)
+                        {
+                            SfxManager.Instance.PlaySound(ipoStateDown);
+                        }
 
                         // Atur ulang index ke 0 dan tambahkan kelebihannya (yang bernilai negatif)
                         data._ipoIndex = maxThreshold + excess;
@@ -438,10 +479,15 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
                     if (currentIndex < minThreshold)
                     {
                         int excess = currentIndex - (minThreshold - 1);
+                        NotificationManager.Instance.ShowNotification($"[DESCEND] Harga Saham dari Sektor {data.color} Kembali ke Normal", 3f, true);
                         Debug.Log($"[STATE CHANGE] {data.color}: Advanced ➡ Ascend. Menyimpan kelebihan nilai: {excess}");
 
                         data.currentState = IPOState.Ascend;
                         data.salesBonus = 5;
+                        if (SfxManager.Instance != null && ipoStateDown != null)
+                        {
+                            SfxManager.Instance.PlaySound(ipoStateDown);
+                        }
 
                         // Atur ulang index ke 0 dan tambahkan kelebihannya
                         data._ipoIndex = 0 + excess;
@@ -456,67 +502,83 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
         UpdateVisualsForState(data);
     }
     // Tambahkan method ini di dalam kelas SellingPhaseManager
-    public IEnumerator ShowSingleColorSellUI(PlayerProfile player, string color, System.Action<int> onConfirm)
-{
-    sellingUI.SetActive(true);
-    confirmSellButton.onClick.RemoveAllListeners();
-    foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
-
-    int cardsOwned = player.cards.Count(c => c.color == color);
-    if (cardsOwned == 0)
+    public IEnumerator ShowMultiColorSellUI(PlayerProfile player, System.Action<Dictionary<string, int>> onConfirm)
     {
-        Debug.LogWarning($"[TradeFree] {player.playerName} tidak punya kartu warna {color} untuk dijual.");
-        sellingUI.SetActive(false);
-        onConfirm(0); // Kirim balik jumlah 0
-        yield break;
-    }
+        sellingUI.SetActive(true);
+        confirmSellButton.onClick.RemoveAllListeners();
+        foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
 
-    // Hanya buat satu baris untuk warna yang relevan
-    GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
-    row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
-    int pricePerCard = GetFullCardPrice(color);
-    Text priceLabel = row.transform.Find("PriceLabel").GetComponent<Text>();
-    priceLabel.text = $"{pricePerCard}";
+        Dictionary<string, int> currentValues = new Dictionary<string, int>();
+        var cardsByColor = player.cards.GroupBy(c => c.color).ToDictionary(g => g.Key, g => g.Count());
 
-    Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
-    Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
-    Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
-
-    int sellAmount = cardsOwned; // Defaultnya adalah menjual semua
-    valueText.text = sellAmount.ToString();
-
-    plusButton.onClick.AddListener(() =>
-    {
-        if (sellAmount < cardsOwned)
+        // --- PERUBAHAN DIMULAI DI SINI ---
+        // Selalu iterasi melalui semua 4 warna utama dari ipoPriceMap
+        foreach (var color in ipoPriceMap.Keys)
         {
-            sellAmount++;
-            valueText.text = sellAmount.ToString();
-        }
-    });
+            int maxValue = cardsByColor.ContainsKey(color) ? cardsByColor[color] : 0;
 
-    minusButton.onClick.AddListener(() =>
-    {
-        if (sellAmount > 0)
+            // Buat baris UI untuk setiap warna
+            GameObject row = Instantiate(colorSellRowPrefab, colorSellPanelContainer);
+            row.transform.Find("ColorLabel").GetComponent<Text>().text = color;
+            int pricePerCard = GetFullCardPrice(color);
+            row.transform.Find("PriceLabel").GetComponent<Text>().text = $"{pricePerCard}";
+
+            Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
+            Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
+            Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
+
+            currentValues[color] = 0; // Mulai dari 0 untuk semua warna
+            valueText.text = "0";
+
+            // Nonaktifkan tombol jika pemain tidak punya kartu warna ini
+            if (maxValue == 0)
+            {
+                plusButton.interactable = false;
+                minusButton.interactable = false;
+            }
+            else
+            {
+                // Gunakan variabel lokal 'currentColor' untuk menghindari masalah closure
+                string currentColor = color;
+
+                plusButton.onClick.AddListener(() =>
+                {
+                    if (currentValues[currentColor] < maxValue)
+                    {
+                        currentValues[currentColor]++;
+                        valueText.text = currentValues[currentColor].ToString();
+                    }
+                });
+
+                minusButton.onClick.AddListener(() =>
+                {
+                    if (currentValues[currentColor] > 0)
+                    {
+                        currentValues[currentColor]--;
+                        valueText.text = currentValues[currentColor].ToString();
+                    }
+                });
+            }
+        }
+        // --- PERUBAHAN SELESAI ---
+
+        confirmSellButton.onClick.AddListener(() =>
         {
-            sellAmount--;
-            valueText.text = sellAmount.ToString();
+            if (SfxManager.Instance != null && sellSound != null)
+            {
+                SfxManager.Instance.PlaySound(sellSound);
+            }
+
+            sellingUI.SetActive(false);
+            onConfirm?.Invoke(currentValues);
+        });
+
+        // Tunggu sampai UI ditutup
+        while (sellingUI.activeSelf)
+        {
+            yield return null;
         }
-    });
-    
-    // Konfigurasi tombol konfirmasi
-    confirmSellButton.onClick.AddListener(() =>
-    {
-        sellingUI.SetActive(false);
-        onConfirm(sellAmount); // Panggil callback dengan jumlah yang dipilih
-    });
-
-    // Tunggu sampai UI ditutup (saat onConfirm dipanggil)
-    while (sellingUI.activeSelf)
-    {
-        yield return null;
     }
-}
-
 
 
     public void UpdateIPOVisuals()
@@ -572,7 +634,7 @@ public GameObject advancedVisualIndicator; // Visual untuk state Advanced
                 break;
         }
     }
-public IEnumerator ModifyIPOIndexWithCamera(string color, int delta)
+    public IEnumerator ModifyIPOIndexWithCamera(string color, int delta)
     {
         if (cameraController != null)
         {
@@ -592,7 +654,7 @@ public IEnumerator ModifyIPOIndexWithCamera(string color, int delta)
                 yield return cameraController.MoveTo(targetPos);
             }
             yield return new WaitForSeconds(0.5f);
-            
+
         }
 
         // 3. Logika untuk mengubah IPO (seperti sebelumnya)
@@ -600,6 +662,10 @@ public IEnumerator ModifyIPOIndexWithCamera(string color, int delta)
         if (data != null)
         {
             data.ipoIndex += delta;
+            if (SfxManager.Instance != null && ipoMoveSound != null)
+            {
+                SfxManager.Instance.PlaySound(ipoMoveSound);
+            }
             UpdateIPOVisuals();
             Debug.Log($"[Modify IPO] {color} IPO index diubah sebesar {delta}, menjadi {data.ipoIndex}");
         }
@@ -607,7 +673,7 @@ public IEnumerator ModifyIPOIndexWithCamera(string color, int delta)
         {
             Debug.LogWarning($"[Modify IPO] Tidak ditemukan IPOData untuk warna: {color}");
         }
-        
+
         yield return new WaitForSeconds(1.5f); // Jeda untuk melihat perubahan
 
         // 4. Kembalikan kamera
@@ -629,6 +695,10 @@ public IEnumerator ModifyIPOIndexWithCamera(string color, int delta)
         // 2. Logika reset (seperti di RumorPhaseManager)
         foreach (var data in ipoDataList)
         {
+            if (SfxManager.Instance != null && ipoMoveSound != null)
+            {
+                SfxManager.Instance.PlaySound(ipoMoveSound);
+            }
             data.ipoIndex = 0;
             data.currentState = IPOState.Normal;
             data.salesBonus = 0;
@@ -636,7 +706,7 @@ public IEnumerator ModifyIPOIndexWithCamera(string color, int delta)
             UpdateIPOState(data);
         }
         UpdateIPOVisuals();
-        
+
         yield return new WaitForSeconds(2.0f); // Jeda untuk melihat perubahan
 
         // 3. Kembalikan kamera

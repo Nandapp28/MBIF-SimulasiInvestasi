@@ -59,20 +59,19 @@
     <UnityVersion>2022.3.44f1</UnityVersion>
   </PropertyGroup>
   <ItemGroup>
-<<<<<<< Updated upstream
-=======
-    <Analyzer Include="C:\Users\MARBUN PC\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.1.2\Analyzers\Microsoft.Unity.Analyzers.dll" />
->>>>>>> Stashed changes
+    <Analyzer Include="C:\Users\Jamal\.vscode\extensions\visualstudiotoolsforunity.vstuc-1.1.3\Analyzers\Microsoft.Unity.Analyzers.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\2022.3.44f1\Editor\Data\Tools\Unity.SourceGenerators\Unity.SourceGenerators.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\2022.3.44f1\Editor\Data\Tools\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Gameplay\TestingScript\TestingFlipCard.cs" />
     <Compile Include="Assets\Photon\PhotonRealtime\Demos\DemoLoadBalancing\ConnectAndJoinRandomLb.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\SellingPhaseManagerMultiplayer.cs" />
     <Compile Include="Assets\Gameplay\Scripts\GameObject Script\CameraView.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\TicketButtonMultiplayer.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\ResolutionPhaseManagerMultiplayer.cs" />
     <Compile Include="Assets\Gameplay\Scripts\Dice\FaceDetector.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\Online\SingleplayerRewardManager.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\DemoChat\AppSettingsExtensions.cs" />
     <Compile Include="Assets\Gameplay\Scripts\Dice\Score.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\CardPoolEntry.cs" />
@@ -86,36 +85,48 @@
     <Compile Include="Assets\Photon\PhotonChat\Demos\Common\OnStartDelete.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\DemoChat\ChatGui.cs" />
     <Compile Include="Assets\Gameplay\Scripts\GameObject Script\DynmaicLayoutCard.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\NotificationManager.cs" />
+    <Compile Include="Assets\Multiplayer\Scripts\TestingCardData.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\Rumor\RumorCardViewerUI.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\DemoChat\ChannelSelector.cs" />
+    <Compile Include="Assets\Multiplayer\Scripts\TestingCardManagerMultiplayer.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\DemoChat\ChatAppIdCheckerUI.cs" />
     <Compile Include="Assets\TutorialInfo\Scripts\Readme.cs" />
     <Compile Include="Assets\Gameplay\Scripts\SellingPhaseManager.cs" />
     <Compile Include="Assets\Gameplay\Scripts\HelpCard.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\Common\TextToggleIsOnTransition.cs" />
-    <Compile Include="Assets\Multiplayer\Scripts\TargetPlayerButton.cs" />
     <Compile Include="Assets\Gameplay\Scripts\PhaseAnimator.cs" />
     <Compile Include="Assets\Gameplay\Scripts\TicketManager.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\DemoChat\FriendItem.cs" />
     <Compile Include="Assets\Gameplay\Scripts\RumorPhaseManager.cs" />
-    <Compile Include="Assets\Multiplayer\Scripts\HelpCardPhaseManagerMultiplayer.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\LogManager.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\PlayerInfoPanel.cs" />
     <Compile Include="Assets\Gameplay\Scripts\PlayerProfile.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\PlayerProfileMultiplayer.cs" />
     <Compile Include="Assets\Gameplay\Scripts\Dice\DiceRoll.cs" />
+    <Compile Include="Assets\Multiplayer\Scripts\InputManagerMultiplayer.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\InputManager.cs" />
     <Compile Include="Assets\Gameplay\Scripts\ResolutionPhaseManager.cs" />
     <Compile Include="Assets\Gameplay\Scripts\CardUi.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\GameStatusUI.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\ActionPhaseManager.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\Pause Manager.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\Rumor\RumorCardClickHandler.cs" />
     <Compile Include="Assets\Gameplay\Scripts\GameObject Script\CenteredHorizontalLayout.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\DemoChat\IgnoreUiRaycastWhenInactive.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\Common\EventSystemSpawner.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\RumorEffectData.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\RumorPhaseManagerMultiplayer.cs" />
+    <Compile Include="Assets\Multiplayer\Scripts\SettingMenuMultiplayer.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\ActionCardUI.cs" />
     <Compile Include="Assets\Gameplay\Scripts\HelpCardPhaseManager.cs" />
+    <Compile Include="Assets\Multiplayer\Scripts\TestingCardUI.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\DemoChat\NamePickGui.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\CardEffectManagerMultiplayer.cs" />
     <Compile Include="Assets\Gameplay\Scripts\PlayerTabManager.cs" />
     <Compile Include="Assets\Photon\PhotonChat\Demos\Common\TextButtonTransition.cs" />
+    <Compile Include="Assets\Multiplayer\Scripts\RumorCardClickHandlerMultiplayer.cs" />
+    <Compile Include="Assets\Gameplay\Scripts\Online\SingleplayerProflieDisplay.cs" />
     <Compile Include="Assets\Multiplayer\Scripts\MultiplayerManager.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -521,7 +532,6 @@
       <HintPath>Assets\Photon\PhotonLibs\netstandard2.0\Photon3Unity3D.dll</HintPath>
       <Private>False</Private>
     </Reference>
-<<<<<<< Updated upstream
     <Reference Include="Firebase.Platform">
       <HintPath>Assets\Firebase\Plugins\Firebase.Platform.dll</HintPath>
       <Private>False</Private>
@@ -530,8 +540,6 @@
       <HintPath>Assets\Firebase\Plugins\Google.MiniJson.dll</HintPath>
       <Private>False</Private>
     </Reference>
-=======
->>>>>>> Stashed changes
     <Reference Include="Unity.Android.Types">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.44f1\Editor\Data\PlaybackEngines\AndroidPlayer\Unity.Android.Types.dll</HintPath>
       <Private>False</Private>
@@ -1187,10 +1195,7 @@
     <ProjectReference Include="PunDemos.DemoSlotcarEditor.csproj" />
     <ProjectReference Include="PhotonRealtime.csproj" />
     <ProjectReference Include="PhotonChat.csproj" />
-<<<<<<< Updated upstream
     <ProjectReference Include="GameLogic.csproj" />
-=======
->>>>>>> Stashed changes
     <ProjectReference Include="PhotonUnityNetworking.csproj" />
     <ProjectReference Include="PhotonUnityNetworking.Utilities.Culling.Editor.csproj" />
     <ProjectReference Include="PhotonUnityNetworking.Demos.csproj" />

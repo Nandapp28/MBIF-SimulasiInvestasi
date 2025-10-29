@@ -1,17 +1,14 @@
-// File: TestingCardUI.cs
+// File: TestingCardUI.cs (Versi Disesuaikan untuk Enum)
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro; // Gunakan ini jika Anda memakai TextMeshPro
+using TMPro;
 
 public class TestingCardUI : MonoBehaviour
 {
-    // Referensi ke komponen UI di dalam prefab kartu
     public Image cardArtwork;
-    public TextMeshProUGUI cardNameText; // Ganti ke 'public Text' jika pakai UI Text biasa
+    public TextMeshProUGUI cardNameText;
 
-    // Fungsi sederhana untuk mengatur tampilan kartu
-    // Kita menggunakan CardPoolEntry karena lebih simpel dan sudah ada datanya.
-    public void Setup(CardPoolEntry cardData)
+    public void Setup(TestingCardData cardData)
     {
         if (cardData == null) return;
 
@@ -22,7 +19,10 @@ public class TestingCardUI : MonoBehaviour
 
         if (cardNameText != null)
         {
-            cardNameText.text = cardData.cardName;
+            // --- PERUBAHAN: Kita ambil nama dari enum dengan .ToString() ---
+            // Contoh: jika 'cardType' adalah TestingCardType.Cardtest1,
+            // .ToString() akan menghasilkan string "Cardtest1".
+            cardNameText.text = cardData.cardType.ToString();
         }
     }
 }

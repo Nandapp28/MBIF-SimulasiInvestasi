@@ -9,9 +9,16 @@ public class LoadingManager : MonoBehaviour
     public GameObject loadingPanel;
     public Slider slider;
 
+    private void Start()
+    {
+        Time.timeScale = 1f;
+    }
+    
+
     // Ganti parameter dari int ke string
     public void LoadLevel(string sceneName)
     {
+        Time.timeScale = 1f;
         // 🔊 Mainkan SFX saat tombol ditekan
         if (SfxManager.Instance != null)
         {

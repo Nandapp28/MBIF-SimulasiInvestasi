@@ -47,6 +47,9 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
     [Header("Visual Kartu Rumor")]
     public List<CardVisual> allCardVisuals = new List<CardVisual>();
+  
+public List<CardVisuals2D> cardVisuals2D = new List<CardVisuals2D>();
+
 
     void Awake()
     {
@@ -215,6 +218,20 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         // Kirim dek yang baru dibuat ini karena dek yang disiapkan tidak ada.
         photonView.RPC("Rpc_SetRumorDeck", RpcTarget.All, finalDeckIndices.ToArray());
     }
+    public string GetCardNameFromTexture(Texture texture3D)
+    {
+        var visual = cardVisuals.FirstOrDefault(v => v.texture == texture3D);
+        return visual?.cardName; // Menggunakan null-conditional operator untuk keringkasan
+    }
+public Sprite GetCardSprite2D(string cardName)
+{
+    var visual2D = cardVisuals2D.FirstOrDefault(v => v.cardName == cardName);
+    if (visual2D == null)
+    {
+        Debug.LogWarning($"Sprite 2D untuk '{cardName}' tidak ditemukan!");
+    }
+    return visual2D?.sprite;
+}
 
     [PunRPC]
     private void Rpc_SetRumorDeck(int[] rumorIndices)
@@ -273,10 +290,7 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             photonView.RPC("Rpc_ShowRumorCard", RpcTarget.All, index);
             yield return new WaitForSeconds(3f); // Waktu untuk pemain membaca kartu
 
-            // 4. SEMBUNYIKAN kartu rumor terlebih dahulu
-            photonView.RPC("Rpc_HideRumorCards", RpcTarget.All); // <<< PINDAHKAN KE SINI
-            yield return new WaitForSeconds(0.5f); // Beri jeda singkat agar kartu sempat hilang
-
+            
             // 5. BARULAH MasterClient menerapkan efek dari rumor
             ApplyRumorEffect(effectData); // <<< SEKARANG EFEK DITERAPKAN SETELAH KARTU HILANG
             yield return new WaitForSeconds(2f); // Jeda agar pemain bisa melihat pergerakan IPO
@@ -287,12 +301,19 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             yield return new WaitForSeconds(waitDuration);
         }
 
+        // 1. Panggil RPC untuk memulai transisi di SEMUA klien
         if (MultiplayerManager.Instance != null)
         {
-            yield return StartCoroutine(MultiplayerManager.Instance.FadeTransition(
-               MultiplayerManager.Instance.resolutionTransitionCG, 0.5f, 1f, 0.5f
-           ));
+            MultiplayerManager.Instance.photonView.RPC(
+                "Rpc_StartFadeTransition",
+                RpcTarget.All,
+                MultiplayerManager.TransitionType.Resolution // Kirim tipe transisi yang benar
+            );
         }
+
+        // 2. Tunggu selama total durasi transisi agar tidak tumpang tindih
+        // Durasi = fadeIn + hold + fadeOut = 0.5s + 1s + 0.5s = 2.0s
+        yield return new WaitForSeconds(2.0f);
 
         Debug.Log("✅ Fase Rumor Selesai. Memulai fase berikutnya...");
 
@@ -358,7 +379,6 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 Renderer cardRenderer = cardToDisplay.GetComponent<Renderer>();
                 cardRenderer.material.mainTexture = frontTexture;
                 StartCoroutine(FlipCard(cardToDisplay));
-                yield return StartCoroutine(MoveObjectToTargetAndBack(cardToDisplay));
             }
         }
 
@@ -388,129 +408,135 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     }
     private IEnumerator FlipCard(GameObject cardObject)
     {
+        // --- Persiapan ---
+        Vector3 finalPosition = cardObject.transform.position;
+        Vector3 flipStartPosition = finalPosition;
+        flipStartPosition.y -= 0.01f; // Mulai sedikit dari bawah
+
+        // Set rotasi awal (terbalik) dan aktifkan kartu
+        Quaternion startRotation = Quaternion.Euler(0, 180, 180);
+        Quaternion finalRotation = Quaternion.Euler(0, 180, 0);
+
+        cardObject.transform.position = flipStartPosition;
+        cardObject.transform.rotation = startRotation;
         cardObject.SetActive(true);
 
-        // Mulai dari kondisi terbalik
-        cardObject.transform.rotation = Quaternion.Euler(0, -180, 180);
+        float flipDuration = 0.7f;
+        float flipHeight = 0.5f; // Ketinggian lengkungan saat flip
+        float flipElapsed = 0f;
 
-        float duration = 0.5f;
-        float elapsed = 0f;
-
-        Quaternion startRot = cardObject.transform.rotation;
-        // Rotasi akhir diubah dari (20, -180, 0) menjadi (0, -180, 0) agar lurus
-        Quaternion endRot = Quaternion.Euler(0, -180, 0);
-
-        yield return new WaitForSeconds(0.5f); // Jeda sejenak sebelum animasi
-
-        while (elapsed < duration)
+        // --- Loop Animasi ---
+        while (flipElapsed < flipDuration)
         {
-            cardObject.transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed / duration);
-            elapsed += Time.deltaTime;
+            float progress = flipElapsed / flipDuration;
+
+            // Gerakkan posisi dari awal ke akhir dengan lengkungan ke atas
+            Vector3 currentPos = Vector3.Lerp(flipStartPosition, finalPosition, progress);
+            currentPos.y += Mathf.Sin(progress * Mathf.PI) * flipHeight;
+            cardObject.transform.position = currentPos;
+
+            // Rotasikan kartu secara Slerp
+            cardObject.transform.rotation = Quaternion.Slerp(startRotation, finalRotation, progress);
+
+            flipElapsed += Time.deltaTime;
             yield return null;
         }
 
-        cardObject.transform.rotation = endRot;
+        // --- Finalisasi ---
+        // Pastikan posisi dan rotasi akhir sudah tepat
+        cardObject.transform.position = finalPosition;
+        cardObject.transform.rotation = finalRotation;
     }
+private IEnumerator HideCard(GameObject cardObject)
+{
+    // --- Persiapan ---
+    Vector3 originalPosition = cardObject.transform.position;
+    float moveDuration = 0.5f; // Durasi animasi hide
+    float sideOffset = -2.0f;  // Jarak lengkungan ke samping
+    float backOffset = 0.05f;  // Seberapa jauh turun ke belakang
+    float moveElapsed = 0f;
 
-    // [BARU] Menambahkan coroutine untuk gerak maju-mundur, disalin dari RumorPhaseManager.cs
-    public IEnumerator MoveObjectToTargetAndBack(GameObject objectToMove)
+    Vector3 moveStartPos = originalPosition;
+    Vector3 moveEndPos = originalPosition;
+    moveEndPos.y -= backOffset;
+
+    // --- Loop Animasi ---
+    while (moveElapsed < moveDuration)
     {
-        if (objectToMove == null)
-        {
-            yield break;
-        }
+        float progress = moveElapsed / moveDuration;
 
-        // [BARU] Simpan posisi dan SKALA awal kartu
-        Vector3 originalPosition = objectToMove.transform.position;
-        Vector3 originalScale = objectToMove.transform.localScale;
+        // 1. Posisi turun secara linear
+        Vector3 currentPos = Vector3.Lerp(moveStartPos, moveEndPos, progress);
 
-        // [BARU] Definisikan posisi dan SKALA target saat kartu di depan kamera
-        Vector3 targetPosition = originalPosition + new Vector3(-1.96f, 2.72f, 0f);
-        // Kartu akan menjadi 70% dari ukuran aslinya. Anda bisa mengubah nilai 0.7f ini.
-        // Contoh: 0.5f untuk setengah ukuran, 1.0f untuk ukuran asli.
-        Vector3 targetScale = originalScale * 0.7f;
+        // 2. Tambahkan gerakan melengkung ke samping menggunakan Sin
+        currentPos.x += Mathf.Sin(progress * Mathf.PI) * sideOffset;
 
-        float moveDuration = 1f;    // Durasi pergerakan
-        float waitDuration = 3f;    // Durasi kartu diam di depan kamera
-        float elapsedTime = 0f;
+        cardObject.transform.position = currentPos;
 
-        // --- Pergerakan ke Posisi Target (Posisi & Skala) ---
-        while (elapsedTime < moveDuration)
-        {
-            // Animasikan posisi
-            objectToMove.transform.position = Vector3.Lerp(originalPosition, targetPosition, elapsedTime / moveDuration);
-
-            // [BARU] Animasikan skala secara bersamaan
-            objectToMove.transform.localScale = Vector3.Lerp(originalScale, targetScale, elapsedTime / moveDuration);
-
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-        // Pastikan posisi dan skala tepat di tujuan
-        objectToMove.transform.position = targetPosition;
-        objectToMove.transform.localScale = targetScale;
-
-        // --- Tunggu ---
-        yield return new WaitForSeconds(waitDuration);
-
-        // --- Pergerakan Kembali ke Posisi Awal (Posisi & Skala) ---
-        elapsedTime = 0f;
-        while (elapsedTime < moveDuration)
-        {
-            // Animasikan posisi kembali
-            objectToMove.transform.position = Vector3.Lerp(targetPosition, originalPosition, elapsedTime / moveDuration);
-
-            // [BARU] Animasikan skala kembali ke ukuran aslinya
-            objectToMove.transform.localScale = Vector3.Lerp(targetScale, originalScale, elapsedTime / moveDuration);
-
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-        // Pastikan kartu kembali tepat ke posisi dan skala semula
-        objectToMove.transform.position = originalPosition;
-        objectToMove.transform.localScale = originalScale;
+        moveElapsed += Time.deltaTime;
+        yield return null;
     }
+
+    // --- Finalisasi ---
+    // Pastikan posisi akhir tepat dan sembunyikan objek
+    cardObject.transform.position = moveEndPos;
+    cardObject.SetActive(false);
+    cardObject.transform.position = moveStartPos; // Kembalikan transform ke posisi semula
+}
+    // [BARU] Menambahkan coroutine untuk gerak maju-mundur, disalin dari RumorPhaseManager.cs
 
     [PunRPC]
-    private void Rpc_ShowRumorCard(int rumorIndex)
+   private void Rpc_ShowRumorCard(int rumorIndex)
+{
+    // Sekarang, tugas RPC ini hanya untuk memulai Coroutine di setiap client.
+    StartCoroutine(AnimateCardRevealSequence(rumorIndex));
+}
+    private IEnumerator AnimateCardRevealSequence(int rumorIndex)
+{
+    if (rumorIndex < 0 || rumorIndex >= allRumorEffects.Count)
     {
-        if (rumorIndex < 0 || rumorIndex >= allRumorEffects.Count) return;
-
-        RumorEffectData effect = allRumorEffects[rumorIndex];
-        Debug.Log($"[SEMUA PEMAIN] Menampilkan rumor: {effect.description} ({effect.color})");
-
-        HideAllCardObjects(); // Sembunyikan dulu kartu sebelumnya
-
-        // Cari texture yang sesuai
-        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == effect.cardName)?.texture;
-        if (frontTexture == null)
-        {
-            Debug.LogWarning($"[RumorPhase] Texture untuk cardName '{effect.cardName}' tidak ditemukan!");
-            return;
-        }
-
-        // Tentukan GameObject dan Renderer mana yang akan digunakan
-        GameObject cardToDisplay = null;
-        switch (effect.color)
-        {
-            case Sektor.Konsumer: cardToDisplay = rumorCardKonsumer; break;
-            case Sektor.Infrastruktur: cardToDisplay = rumorCardInfrastruktur; break;
-            case Sektor.Keuangan: cardToDisplay = rumorCardKeuangan; break;
-            case Sektor.Tambang: cardToDisplay = rumorCardTambang; break;
-            case Sektor.Netral: cardToDisplay = rumorCardNetral; break;
-        }
-
-        if (cardToDisplay != null)
-        {
-            Renderer cardRenderer = cardToDisplay.GetComponent<Renderer>();
-            if (cardRenderer != null)
-            {
-                cardRenderer.material.mainTexture = frontTexture;
-                StartCoroutine(FlipCard(cardToDisplay));
-                StartCoroutine(MoveObjectToTargetAndBack(cardToDisplay));
-            }
-        }
+        yield break; // Keluar jika indeks tidak valid
     }
+
+    RumorEffectData effect = allRumorEffects[rumorIndex];
+    
+    // Cari texture yang sesuai
+    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == effect.cardName)?.texture;
+    if (frontTexture == null)
+    {
+        Debug.LogWarning($"[RumorPhase] Texture untuk '{effect.cardName}' tidak ditemukan!");
+        yield break;
+    }
+
+    // Tentukan GameObject dan Renderer mana yang akan digunakan
+    GameObject cardToDisplay = null;
+    switch (effect.color)
+    {
+        case Sektor.Konsumer: cardToDisplay = rumorCardKonsumer; break;
+        case Sektor.Infrastruktur: cardToDisplay = rumorCardInfrastruktur; break;
+        case Sektor.Keuangan: cardToDisplay = rumorCardKeuangan; break;
+        case Sektor.Tambang: cardToDisplay = rumorCardTambang; break;
+        case Sektor.Netral: cardToDisplay = rumorCardNetral; break;
+    }
+
+    if (cardToDisplay != null)
+    {
+        // === INI ADALAH LOGIKA INTI YANG ANDA INGINKAN ===
+        Renderer cardRenderer = cardToDisplay.GetComponent<Renderer>();
+
+        // 1. Jika kartu untuk sektor ini sedang aktif, sembunyikan dulu dan tunggu selesai.
+        if (cardToDisplay.activeInHierarchy)
+        {
+            yield return StartCoroutine(HideCard(cardToDisplay));
+        }
+
+        // 2. Ganti texture-nya.
+        cardRenderer.material.mainTexture = frontTexture;
+
+        // 3. Jalankan animasi untuk membalik kartu.
+        yield return StartCoroutine(FlipCard(cardToDisplay));
+    }
+}
 
     // Fungsi ini berjalan di SEMUA pemain untuk menyembunyikan visual
     [PunRPC]
@@ -522,13 +548,23 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
     // Fungsi bantuan untuk menyembunyikan semua objek kartu 3D
     private void HideAllCardObjects()
-    {
-        if (rumorCardKonsumer) rumorCardKonsumer.SetActive(false);
-        if (rumorCardInfrastruktur) rumorCardInfrastruktur.SetActive(false);
-        if (rumorCardKeuangan) rumorCardKeuangan.SetActive(false);
-        if (rumorCardTambang) rumorCardTambang.SetActive(false);
-        if (rumorCardNetral) rumorCardNetral.SetActive(false);
-    }
+{
+    // Cek setiap kartu, jika aktif, jalankan animasi HideCard
+    if (rumorCardKonsumer && rumorCardKonsumer.activeInHierarchy)
+        StartCoroutine(HideCard(rumorCardKonsumer));
+
+    if (rumorCardInfrastruktur && rumorCardInfrastruktur.activeInHierarchy)
+        StartCoroutine(HideCard(rumorCardInfrastruktur));
+
+    if (rumorCardKeuangan && rumorCardKeuangan.activeInHierarchy)
+        StartCoroutine(HideCard(rumorCardKeuangan));
+
+    if (rumorCardTambang && rumorCardTambang.activeInHierarchy)
+        StartCoroutine(HideCard(rumorCardTambang));
+
+    if (rumorCardNetral && rumorCardNetral.activeInHierarchy)
+        StartCoroutine(HideCard(rumorCardNetral));
+}
 
     [PunRPC]
     private void Rpc_AnimateInsiderTradePreview(int rumorIndex)
@@ -585,8 +621,7 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 {
                     cardRenderer.material.mainTexture = frontTexture;
                     StartCoroutine(FlipCard(cardToDisplay));
-                    // TUNGGU SAMPAI ANIMASI KARTU SELESAI
-                    yield return StartCoroutine(MoveObjectToTargetAndBack(cardToDisplay));
+
                 }
             }
         }
@@ -727,23 +762,5 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     }
 
     // Ubah FlipCard menjadi publik dan tambahkan parameter durasi
-    public IEnumerator FlipCard(GameObject cardObject, float duration)
-    {
-        cardObject.SetActive(true);
-        cardObject.transform.rotation = Quaternion.Euler(0, -180, 180); // Mulai dari terbalik
-
-        float elapsed = 0f;
-        Quaternion startRot = cardObject.transform.rotation;
-        Quaternion endRot = Quaternion.Euler(0, -180, 0); // Menghadap depan
-
-        yield return new WaitForSeconds(0.5f); 
-
-        while (elapsed < duration)
-        {
-            cardObject.transform.rotation = Quaternion.Slerp(startRot, endRot, elapsed / duration);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-        cardObject.transform.rotation = endRot;
-    }
+    
 }

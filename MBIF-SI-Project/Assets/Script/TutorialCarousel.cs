@@ -17,7 +17,7 @@ public class TutorialCarousel : MonoBehaviour
     [Tooltip("Nama folder di dalam folder 'Resources' tempat menyimpan gambar.")]
     public string resourceFolderPath = "TutorialImages";
     [Tooltip("Nama scene Main Menu yang akan dituju.")]
-    public string mainMenuSceneName = "MainMenu";
+    public string mainMenuSceneName = "Play";
 
     private List<Sprite> tutorialSprites;
     private int currentIndex = 0;
@@ -44,9 +44,16 @@ public class TutorialCarousel : MonoBehaviour
     {
         // JIKA sudah di gambar terakhir, klik tombol akan ke Main Menu
         if (currentIndex >= tutorialSprites.Count - 1)
-        {
-            SceneManager.LoadScene(mainMenuSceneName);
-        }
+    {
+        // 1. Set status "yes" di device (PlayerPrefs)
+        PlayerPrefs.SetString("hasCompletedTutorial", "yes");
+        PlayerPrefs.Save();
+
+        
+        
+        // Pindah ke scene selanjutnya
+        SceneManager.LoadScene("Play");
+    }
         else // JIKA BELUM, lanjut ke gambar berikutnya
         {
             currentIndex++;

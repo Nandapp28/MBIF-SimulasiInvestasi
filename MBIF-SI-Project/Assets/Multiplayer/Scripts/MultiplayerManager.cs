@@ -26,16 +26,16 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         Action,
         Selling,
         Rumor,
-        Resolution
+        Resolution,
+        Testing
     }
 
     [Header("Player Management")]
     public GameObject playerPrefab;
-    public Transform playerContainer;
+    public Transform localPlayerContainer;  // Kontainer untuk UI pemain lokal
+    public Transform onlinePlayerContainer;
 
-    [Header("Layout Management")]
-    public List<Transform> playerPositions;
-    public const string POSITION_KEY = "posIndex";
+
 
     [Header("Transisi UI")] // <-- TAMBAHKAN HEADER INI
     public CanvasGroup biddingTransitionCG;
@@ -43,6 +43,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     public CanvasGroup sellingTransitionCG;
     public CanvasGroup rumorTransitionCG;
     public CanvasGroup resolutionTransitionCG;
+    public CanvasGroup testingTransitionCG;
 
     [Header("End Game UI")]
     public GameObject leaderboardPanel;
@@ -234,6 +235,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
             case TransitionType.Selling: targetCG = sellingTransitionCG; break;
             case TransitionType.Rumor: targetCG = rumorTransitionCG; break;
             case TransitionType.Resolution: targetCG = resolutionTransitionCG; break;
+            case TransitionType.Testing: targetCG = testingTransitionCG; break;
         }
 
         // --- TAMBAHKAN DEBUG.LOG KEDUA INI ---
@@ -344,63 +346,28 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    private void Rpc_ArrangePlayerUIs()
+private void Rpc_ArrangePlayerUIs()
     {
-        // 1. Ambil semua pemain dan urutkan berdasarkan giliran (TURN_ORDER_KEY)
-        // Ini penting agar urutan pemain lain konsisten di setiap layar
-        List<Player> sortedPlayers = PhotonNetwork.PlayerList.OrderBy(p =>
-            (p.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY)) ?
-            (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY] :
-            int.MaxValue
-        ).ToList();
-
-        // 2. Temukan semua objek profil pemain yang ada di scene
+        // 1. Temukan semua objek profil pemain yang ada di scene
         PlayerProfileMultiplayer[] allPlayerProfiles = FindObjectsOfType<PlayerProfileMultiplayer>();
 
-        // 3. Tentukan slot mana untuk pemain lokal (Posisi 5 -> indeks 4)
-        int localPlayerSlotIndex = 4; // Asumsi list 'playerPositions' dimulai dari indeks 0
-
-        // 4. Siapkan indeks untuk pemain lain
-        int otherPlayerSlotIndex = 0;
-
-        // 5. Loop melalui pemain yang sudah diurutkan dan tempatkan mereka
-        foreach (Player player in sortedPlayers)
+        // 2. Loop melalui semua profil dan tempatkan ke kontainer yang benar
+        foreach (PlayerProfileMultiplayer profile in allPlayerProfiles)
         {
-            // Cari prefab profile yang sesuai (kode ini tidak berubah)
-            PlayerProfileMultiplayer profileToPlace = null;
-            foreach (var profile in allPlayerProfiles)
+            // Periksa apakah profile ini milik pemain lokal
+            if (profile.photonView.IsMine)
             {
-                if (profile.photonView.Owner == player)
-                {
-                    profileToPlace = profile;
-                    break;
-                }
-            }
-
-            if (profileToPlace == null) continue;
-
-            if (player == PhotonNetwork.LocalPlayer)
-            {
-                profileToPlace.transform.SetParent(playerContainer, false);
-                profileToPlace.transform.position = playerPositions[localPlayerSlotIndex].position;
-                profileToPlace.transform.localScale = Vector3.one; // <-- TAMBAHKAN BARIS INI
+                // Jika ya, masukkan ke kontainer lokal
+                profile.transform.SetParent(localPlayerContainer, false);
             }
             else
             {
-                if (otherPlayerSlotIndex == localPlayerSlotIndex)
-                {
-                    otherPlayerSlotIndex++;
-                }
-
-                if (otherPlayerSlotIndex < playerPositions.Count)
-                {
-                    profileToPlace.transform.SetParent(playerContainer, false);
-                    profileToPlace.transform.position = playerPositions[otherPlayerSlotIndex].position;
-                    profileToPlace.transform.localScale = Vector3.one; // <-- TAMBAHKAN BARIS INI JUGA
-                    otherPlayerSlotIndex++;
-                }
+                // Jika tidak, masukkan ke kontainer online
+                profile.transform.SetParent(onlinePlayerContainer, false);
             }
-            profileToPlace.gameObject.SetActive(true);
+            // Pastikan skala tidak berubah saat dipindahkan
+            profile.transform.localScale = Vector3.one; 
+            profile.gameObject.SetActive(true);
         }
     }
 

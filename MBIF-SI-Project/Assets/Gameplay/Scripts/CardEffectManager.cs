@@ -25,7 +25,7 @@ public class CardEffectManager
                 yield return GameManager.Instance.StartCoroutine(TenderOfferEffect(player, color));
                 break;
             case "TradeFee":
-                yield return GameManager.Instance.StartCoroutine(TradeFeeEffect(player, color));
+                yield return GameManager.Instance.StartCoroutine(TradeFeeEffect(player));
                 break;
             case "Flashbuy":
                 yield return GameManager.Instance.StartCoroutine(FlashbuyEffect(player));
@@ -47,162 +47,183 @@ public class CardEffectManager
     // Definisikan struct kecil ini di dalam class CardEffectManager, di atas method-methodnya
     // untuk membantu menyimpan data sementara.
     private struct PriceOutcome
-{
-    public int TotalPrice;
-    public IPOState State;
-    public int IpoIndex;
-    public int SalesBonus;
-}
-
-private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
-{
-    // 1. Dapatkan referensi manager
-    SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
-    GameManager gameManager = GameObject.FindObjectOfType<GameManager>();
-    if (spm == null || gameManager == null)
     {
-        Debug.LogError("SellingPhaseManager atau GameManager tidak ditemukan!");
-        yield break;
-    }
-    CameraController cameraController = spm.cameraController; // Ambil referensi kamera
-
-    var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
-    if (ipoData == null)
-    {
-        Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
-        yield break;
+        public int TotalPrice;
+        public IPOState State;
+        public int IpoIndex;
+        public int SalesBonus;
     }
 
-    // --- LOGIKA BARU: KAMERA DAN UI ---
-    // Sembunyikan card holder
-    if (gameManager.cardHolderParent != null)
+    private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
     {
-        gameManager.cardHolderParent.gameObject.SetActive(false);
-    }
-
-    // Gerakkan kamera ke target
-    if (cameraController != null)
-    {
-        CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
-        switch (color)
+        // 1. Dapatkan referensi manager
+        SellingPhaseManager spm = GameObject.FindObjectOfType<SellingPhaseManager>();
+        GameManager gameManager = GameObject.FindObjectOfType<GameManager>();
+        if (spm == null || gameManager == null)
         {
-            case "Konsumer": targetPos = CameraController.CameraPosition.Konsumer; break;
-            case "Infrastruktur": targetPos = CameraController.CameraPosition.Infrastruktur; break;
-            case "Keuangan": targetPos = CameraController.CameraPosition.Keuangan; break;
-            case "Tambang": targetPos = CameraController.CameraPosition.Tambang; break;
+            Debug.LogError("SellingPhaseManager atau GameManager tidak ditemukan!");
+            yield break;
+        }
+        CameraController cameraController = spm.cameraController; // Ambil referensi kamera
+
+        var ipoData = spm.ipoDataList.FirstOrDefault(d => d.color == color);
+        if (ipoData == null)
+        {
+            Debug.LogWarning($"IPOData untuk warna '{color}' tidak ditemukan.");
+            yield break;
         }
 
-        if (cameraController.CurrentPosition != targetPos)
+        // --- LOGIKA BARU: KAMERA DAN UI ---
+        // Sembunyikan card holder
+        if (gameManager.cardHolderParent != null)
         {
-            yield return cameraController.MoveTo(targetPos);
-            yield return new WaitForSeconds(0.5f);
+            gameManager.cardHolderParent.gameObject.SetActive(false);
         }
-    }
-    // --- AKHIR LOGIKA BARU ---
 
-
-    // [ ... logika penyesuaian harga yang sudah ada tetap di sini ... ]
-    #region Existing Price Logic (No Changes)
-    int minIndex = (color == "Tambang") ? -2 : -3;
-    if (ipoData.currentState == IPOState.Normal && ipoData.ipoIndex == minIndex)
-    {
-        Debug.Log($"📉 [Stock Split] Kondisi Khusus Terpenuhi untuk '{color}'. Index sudah minimal. Menurunkan index sebesar 1 untuk memicu crash.");
-        ipoData.ipoIndex -= 1;
-        spm.UpdateIPOState(ipoData);
-        spm.UpdateIPOVisuals();
-    }
-    else
-    {
-        int currentFullPrice = spm.GetFullCardPrice(color);
-        int targetPrice = Mathf.FloorToInt(currentFullPrice / 2f);
-        Debug.Log($"[Stock Split] Info Awal '{color}': Harga Penuh={currentFullPrice}, State={ipoData.currentState}. Harga Target={targetPrice}");
-
-        var allPossibilities = new List<PriceOutcome>();
-        int[] priceMap = spm.ipoPriceMap[color];
-        int maxIndex = (color == "Tambang") ? 2 : 3;
-        var statesAndBonuses = new[]
+        // Gerakkan kamera ke target
+        if (cameraController != null)
         {
+            CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
+            switch (color)
+            {
+                case "Konsumer": targetPos = CameraController.CameraPosition.Konsumer; break;
+                case "Infrastruktur": targetPos = CameraController.CameraPosition.Infrastruktur; break;
+                case "Keuangan": targetPos = CameraController.CameraPosition.Keuangan; break;
+                case "Tambang": targetPos = CameraController.CameraPosition.Tambang; break;
+            }
+
+            if (cameraController.CurrentPosition != targetPos)
+            {
+                yield return cameraController.MoveTo(targetPos);
+                yield return new WaitForSeconds(0.5f);
+            }
+        }
+        // --- AKHIR LOGIKA BARU ---
+
+
+        // [ ... logika penyesuaian harga yang sudah ada tetap di sini ... ]
+        #region Existing Price Logic (No Changes)
+        int minIndex = (color == "Tambang") ? -2 : -3;
+        if (ipoData.currentState == IPOState.Normal && ipoData.ipoIndex == minIndex)
+        {
+            Debug.Log($"📉 [Stock Split] Kondisi Khusus Terpenuhi untuk '{color}'. Index sudah minimal. Menurunkan index sebesar 1 untuk memicu crash.");
+            ipoData.ipoIndex -= 1;
+            spm.UpdateIPOState(ipoData);
+            spm.UpdateIPOVisuals();
+        }
+        else
+        {
+            int currentFullPrice = spm.GetFullCardPrice(color);
+            float targetPrice = currentFullPrice / 2f;
+            Debug.Log($"[Stock Split] Info Awal '{color}': Harga Penuh={currentFullPrice}, State={ipoData.currentState}. Harga Target={targetPrice}");
+            IPOState originalState = ipoData.currentState;
+            var allPossibilities = new List<PriceOutcome>();
+            int[] priceMap = spm.ipoPriceMap[color];
+            int maxIndex = (color == "Tambang") ? 2 : 3;
+            var statesAndBonuses = new[]
+            {
             new { State = IPOState.Normal, Bonus = 0 },
             new { State = IPOState.Ascend, Bonus = 5 },
             new { State = IPOState.Advanced, Bonus = 10 }
         };
 
-        foreach (var stateInfo in statesAndBonuses)
-        {
-            for (int i = minIndex; i <= maxIndex; i++)
+            foreach (var stateInfo in statesAndBonuses)
             {
-                int basePrice = priceMap[i + 3];
-                if (basePrice == 0) continue;
-                allPossibilities.Add(new PriceOutcome
+                for (int i = minIndex; i <= maxIndex; i++)
                 {
-                    TotalPrice = basePrice + stateInfo.Bonus,
-                    State = stateInfo.State,
-                    IpoIndex = i,
-                    SalesBonus = stateInfo.Bonus
-                });
+                    int basePrice = priceMap[i + 3];
+                    if (basePrice == 0) continue;
+                    allPossibilities.Add(new PriceOutcome
+                    {
+                        TotalPrice = basePrice + stateInfo.Bonus,
+                        State = stateInfo.State,
+                        IpoIndex = i,
+                        SalesBonus = stateInfo.Bonus
+                    });
+                }
             }
-        }
 
-        if (allPossibilities.Count == 0)
-        {
-            Debug.LogError("Tidak ada kemungkinan harga yang valid ditemukan!");
-            
-            // Kembalikan UI sebelum keluar
-            if (gameManager.cardHolderParent != null) gameManager.cardHolderParent.gameObject.SetActive(true);
-            yield break;
-        }
-
-        PriceOutcome bestMatch = allPossibilities
-            .OrderBy(p => Mathf.Abs(p.TotalPrice - targetPrice))
-            .First();
-
-        Debug.Log($"📉 [Stock Split] Hasil Terbaik untuk '{color}': State={bestMatch.State}, Index={bestMatch.IpoIndex}, Harga Total={bestMatch.TotalPrice}");
-        ipoData.currentState = bestMatch.State;
-        ipoData.salesBonus = bestMatch.SalesBonus;
-        ipoData.ipoIndex = bestMatch.IpoIndex;
-
-        spm.UpdateIPOVisuals();
-        gameManager.UpdateDeckCardValuesWithIPO();
-    }
-    #endregion
-    
-    yield return new WaitForSeconds(1.5f); // Jeda agar pemain bisa lihat perubahan IPO
-
-    // --- LOGIKA DUPLIKASI KARTU DIMULAI ---
-    Debug.Log($"[Stock Split] Menggandakan semua kartu berwarna '{color}' untuk setiap pemain.");
-
-    foreach (var p in gameManager.turnOrder)
-    {
-        var cardsToDuplicate = p.cards.Where(c => c.color == color).ToList();
-        if (cardsToDuplicate.Any())
-        {
-            Debug.Log($"Pemain {p.playerName} memiliki {cardsToDuplicate.Count} kartu '{color}'. Menggandakan...");
-            foreach (var card in cardsToDuplicate)
+            if (allPossibilities.Count == 0)
             {
-                Card newCard = new Card(card.cardName, card.description, card.value, card.color);
-                p.AddCard(newCard);
-                Debug.Log($"    -> Menambahkan duplikat '{newCard.cardName}' ke {p.playerName}.");
+                Debug.LogError("Tidak ada kemungkinan harga yang valid ditemukan!");
+
+                // Kembalikan UI sebelum keluar
+                if (gameManager.cardHolderParent != null) gameManager.cardHolderParent.gameObject.SetActive(true);
+                yield break;
+            }
+
+            PriceOutcome bestMatch = allPossibilities
+        .OrderBy(p => Mathf.Abs(p.TotalPrice - targetPrice)) // Kriteria 1: Jarak terdekat
+        .ThenBy(p => p.TotalPrice)                           // Kriteria 2: Jika jarak sama, pilih harga terendah
+        .First();
+
+            Debug.Log($"📉 [Stock Split] Hasil Terbaik untuk '{color}': State={bestMatch.State}, Index={bestMatch.IpoIndex}, Harga Total={bestMatch.TotalPrice}");
+            ipoData.currentState = bestMatch.State;
+            ipoData.salesBonus = bestMatch.SalesBonus;
+            ipoData.ipoIndex = bestMatch.IpoIndex;
+            if (bestMatch.State != originalState && (int)bestMatch.State < (int)originalState)
+            {
+                // Jika state turun, putar suara 'state down'
+                if (SfxManager.Instance != null && spm.ipoMoveSound != null)
+                {
+                    SfxManager.Instance.PlaySound(spm.ipoMoveSound);
+                }
+                if (SfxManager.Instance != null && spm.ipoStateDown != null)
+                {
+                    SfxManager.Instance.PlaySound(spm.ipoStateDown);
+                }
+            }
+            else
+            {
+                // Jika state tidak turun (tetap atau naik), putar suara gerak biasa
+                if (SfxManager.Instance != null && spm.ipoMoveSound != null)
+                {
+                    SfxManager.Instance.PlaySound(spm.ipoMoveSound);
+                }
+            }
+
+            spm.UpdateIPOVisuals();
+            gameManager.UpdateDeckCardValuesWithIPO();
+        }
+        #endregion
+
+        yield return new WaitForSeconds(1.5f); // Jeda agar pemain bisa lihat perubahan IPO
+
+        // --- LOGIKA DUPLIKASI KARTU DIMULAI ---
+        Debug.Log($"[Stock Split] Menggandakan semua kartu berwarna '{color}' untuk setiap pemain.");
+
+        foreach (var p in gameManager.turnOrder)
+        {
+            var cardsToDuplicate = p.cards.Where(c => c.color == color).ToList();
+            if (cardsToDuplicate.Any())
+            {
+                Debug.Log($"Pemain {p.playerName} memiliki {cardsToDuplicate.Count} kartu '{color}'. Menggandakan...");
+                foreach (var card in cardsToDuplicate)
+                {
+                    Card newCard = new Card(card.cardName, card.description, card.value, card.color);
+                    p.AddCard(newCard);
+                    Debug.Log($"    -> Menambahkan duplikat '{newCard.cardName}' ke {p.playerName}.");
+                }
             }
         }
-    }
-    
-    gameManager.UpdatePlayerUI();
-    // --- LOGIKA DUPLIKASI KARTU SELESAI ---
 
-    // --- LOGIKA BARU: KEMBALIKAN KAMERA DAN UI ---
-    if (cameraController != null && cameraController.CurrentPosition != CameraController.CameraPosition.Normal)
-    {
-        yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
-    }
-    
-    if (gameManager.cardHolderParent != null)
-    {
-        gameManager.cardHolderParent.gameObject.SetActive(true);
-    }
-    // --- AKHIR LOGIKA BARU ---
+        gameManager.UpdatePlayerUI();
+        // --- LOGIKA DUPLIKASI KARTU SELESAI ---
 
-    yield break;
-}
+        // --- LOGIKA BARU: KEMBALIKAN KAMERA DAN UI ---
+        if (cameraController != null && cameraController.CurrentPosition != CameraController.CameraPosition.Normal)
+        {
+            yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+        }
+
+        if (gameManager.cardHolderParent != null)
+        {
+            gameManager.cardHolderParent.gameObject.SetActive(true);
+        }
+        // --- AKHIR LOGIKA BARU ---
+
+        yield break;
+    }
     private static IEnumerator InsiderTradeEffect(PlayerProfile player, string color)
     {
         // Cari instance manager yang diperlukan
@@ -314,7 +335,7 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
         }
     }
 
-    private static IEnumerator TradeFeeEffect(PlayerProfile player, string color)
+    private static IEnumerator TradeFeeEffect(PlayerProfile player)
     {
         SellingPhaseManager sellingManager = GameObject.FindObjectOfType<SellingPhaseManager>();
         if (sellingManager == null)
@@ -323,58 +344,98 @@ private static IEnumerator StockSplitEffect(PlayerProfile player, string color)
             yield break;
         }
 
-        int cardsOwned = player.cards.Count(c => c.color == color);
-        if (cardsOwned == 0)
+        if (player.cards.Count == 0)
         {
-            Debug.Log($"[TradeFee] {player.playerName} tidak memiliki kartu warna '{color}' untuk dijual.");
+            Debug.Log($"[TradeFee] {player.playerName} tidak memiliki kartu untuk dijual.");
             yield break;
         }
 
-        int quantityToSell = 0;
+        Dictionary<string, int> quantitiesToSell = new Dictionary<string, int>();
 
-        // --- LOGIKA DIPERBAIKI ---
-        if (player.playerName.Contains("You")) // Logika untuk Pemain Manusia
+        if (player.playerName.Contains("You"))
         {
-            int sellAmountFromUI = -1;
-            Debug.Log($"[TradeFee] Menampilkan UI penjualan untuk {player.playerName}...");
+            bool hasConfirmed = false;
+            Debug.Log($"[TradeFee] Menampilkan UI penjualan multi-warna untuk {player.playerName}...");
+
             yield return sellingManager.StartCoroutine(
-                sellingManager.ShowSingleColorSellUI(player, color, (confirmedAmount) =>
+                sellingManager.ShowMultiColorSellUI(player, (confirmedAmounts) =>
                 {
-                    sellAmountFromUI = confirmedAmount;
+                    quantitiesToSell = confirmedAmounts;
+                    hasConfirmed = true;
                 })
             );
-            
-            quantityToSell = sellAmountFromUI;
+
+            yield return new WaitUntil(() => hasConfirmed);
         }
         else // Logika untuk Bot
         {
-            quantityToSell = cardsOwned;
-            Debug.Log($"[TradeFee] {player.playerName} (Bot) memutuskan untuk menjual {quantityToSell} kartu '{color}'.");
-        }
-        // --- AKHIR PERBAIKAN ---
+            Debug.Log($"[TradeFee] {player.playerName} (Bot) mengevaluasi kartu untuk dijual...");
+            Dictionary<string, List<Card>> cardsByColor = player.cards
+                .GroupBy(card => card.color)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
-        if (quantityToSell > 0)
-        {
-            int pricePerCard = sellingManager.GetFullCardPrice(color);
-            int totalEarnings = quantityToSell * pricePerCard;
-
-            player.finpoint += totalEarnings;
-
-            List<Card> cardsToRemove = player.cards.Where(c => c.color == color).Take(quantityToSell).ToList();
-            foreach (var card in cardsToRemove)
+            foreach (var color in sellingManager.ipoPriceMap.Keys)
             {
-                player.cards.Remove(card);
+                int countToSell = 0;
+                if (cardsByColor.ContainsKey(color))
+                {
+                    // Logika peluang yang sama seperti di SellingPhaseManager
+                    float sellChance = 0.5f; // Bisa disesuaikan
+                    foreach (var card in cardsByColor[color])
+                    {
+                        if (Random.value < sellChance)
+                        {
+                            countToSell++;
+                        }
+                    }
+                }
+                if (countToSell > 0)
+                {
+                    quantitiesToSell[color] = countToSell;
+                }
+            }
+        }
+
+        if (quantitiesToSell.Count > 0)
+        {
+            int totalEarnings = 0;
+            string salesSummary = "";
+
+            foreach (var pair in quantitiesToSell)
+            {
+                string color = pair.Key;
+                int amount = pair.Value;
+
+                if (amount == 0) continue;
+
+                int pricePerCard = sellingManager.GetFullCardPrice(color);
+                int earningsForColor = amount * pricePerCard;
+                totalEarnings += earningsForColor;
+
+                List<Card> cardsToRemove = player.cards.Where(c => c.color == color).Take(amount).ToList();
+                foreach (var card in cardsToRemove)
+                {
+                    player.cards.Remove(card);
+                }
+                salesSummary += $"{amount} '{color}' ({earningsForColor} FP), ";
             }
 
-            Debug.Log($"[TradeFee] Transaksi Berhasil! {player.playerName} menjual {quantityToSell} kartu '{color}' dan mendapatkan {totalEarnings} Finpoint.");
-
-            GameManager.Instance.UpdatePlayerUI();
+            if (totalEarnings > 0)
+            {
+                player.finpoint += totalEarnings;
+                Debug.Log($"[TradeFee] Transaksi Berhasil! {player.playerName} menjual {salesSummary}dan mendapatkan total {totalEarnings} Finpoint.");
+                GameManager.Instance.UpdatePlayerUI();
+            }
+            else
+            {
+                Debug.Log($"[TradeFee] {player.playerName} memilih untuk tidak menjual kartu.");
+            }
         }
         else
         {
             Debug.Log($"[TradeFee] {player.playerName} memilih untuk tidak menjual kartu.");
         }
-        
+
         yield break;
     }
 
