@@ -1,4 +1,4 @@
-// File: TicketManagerMultiplayer.cs (Versi dengan Debugging)
+// File: TicketManagerMultiplayer.cs (Dengan Perbaikan Race Condition)
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,12 +22,10 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
 
     private Dictionary<int, TicketButtonMultiplayer> localTicketButtons = new Dictionary<int, TicketButtonMultiplayer>();
     private List<int> availableTickets;
-    private PhotonView gameStatusView; // Referensi ke PhotonView di GameStatusUI
+    private PhotonView gameStatusView;
 
     void Start()
     {
-        Debug.Log("✅ TicketManagerMultiplayer.cs - Start() berhasil dijalankan.");
-        // Cari PhotonView dari GameStatusUI saat start
         if (GameStatusUI.Instance != null)
         {
             gameStatusView = GameStatusUI.Instance.photonView;
@@ -36,7 +34,6 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
 
     public void InitializeBidding()
     {
-
         if (gameStatusView != null)
         {
             gameStatusView.RPC("UpdateStatusText", RpcTarget.All, "Fase Bidding: Pilih Kartu Urutan Anda!");
@@ -48,14 +45,12 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
         System.Random rnd = new System.Random();
         int[] ticketNumbers = availableTickets.OrderBy(x => rnd.Next()).ToArray();
 
-        Debug.Log($"✅ MasterClient menyiapkan {ticketNumbers.Length} tiket. Mengirim RPC StartBiddingPhase...");
         photonView.RPC("StartBiddingPhase", RpcTarget.All, (object)ticketNumbers);
     }
 
     [PunRPC]
     void StartBiddingPhase(int[] ticketNumbers)
     {
-        Debug.Log($"✅ RPC StartBiddingPhase diterima. Membuat {ticketNumbers.Length} tombol tiket.");
         biddingPanel.SetActive(true);
         localTicketButtons.Clear();
 
@@ -63,19 +58,12 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
         {
             if (i < ticketButtonPositions.Count)
             {
-                // Baris ini sudah benar, membuat tombol sebagai anak dari penanda posisi
                 GameObject buttonObj = Instantiate(ticketButtonPrefab, ticketButtonPositions[i]);
-                
-                // --- TAMBAHKAN DUA BARIS INI ---
-                // 1. Atur posisi lokalnya ke tengah induk (0,0,0)
-                buttonObj.transform.localPosition = Vector3.zero; 
-                // 2. Atur skalanya menjadi normal (1,1,1)
+                buttonObj.transform.localPosition = Vector3.zero;
                 buttonObj.transform.localScale = Vector3.one;
-                // --- AKHIR PENAMBAHAN ---
 
                 TicketButtonMultiplayer ticketButton = buttonObj.GetComponent<TicketButtonMultiplayer>();
-                
-                ticketButton.Setup(ticketNumbers[i], this, defaultTicketSprite); 
+                ticketButton.Setup(ticketNumbers[i], this, defaultTicketSprite);
                 localTicketButtons.Add(ticketNumbers[i], ticketButton);
             }
         }
@@ -84,9 +72,6 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
     public void OnTicketButtonClicked(int ticketNumber)
     {
         Debug.Log($"Anda mengklik tiket #{ticketNumber}. Mengunci pilihan dan mengirim permintaan...");
-
-        // --- TAMBAHAN LOGIKA DI SINI ---
-        // Nonaktifkan SEMUA tombol tiket secara lokal untuk mencegah klik ganda.
         foreach (var ticketButton in localTicketButtons.Values)
         {
             if (ticketButton != null)
@@ -94,38 +79,64 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
                 ticketButton.button.interactable = false;
             }
         }
-        // --- AKHIR PENAMBAHAN ---
-
-        // Kirim permintaan ke MasterClient seperti biasa.
         photonView.RPC("RequestTicket", RpcTarget.MasterClient, ticketNumber, PhotonNetwork.LocalPlayer);
     }
 
+    // --- FUNGSI INI DIMODIFIKASI ---
     [PunRPC]
     void RequestTicket(int ticketNumber, Player requestingPlayer)
     {
-        if (!PhotonNetwork.IsMasterClient || !availableTickets.Contains(ticketNumber)) return;
+        if (!PhotonNetwork.IsMasterClient) return;
 
-        availableTickets.Remove(ticketNumber);
-        
-        Debug.Log($"MasterClient menyetujui tiket #{ticketNumber} untuk {requestingPlayer.NickName}. Mengirim RPC RevealTicketVisuals...");
-        photonView.RPC("RevealTicketVisuals", RpcTarget.All, ticketNumber);
-
-        Hashtable turnProp = new Hashtable { { PlayerProfileMultiplayer.TURN_ORDER_KEY, ticketNumber } };
-        requestingPlayer.SetCustomProperties(turnProp);
-
-        if (availableTickets.Count == 0)
+        // Cek apakah tiket masih tersedia
+        if (availableTickets.Contains(ticketNumber))
         {
-            // Panggil RPC untuk update teks status
-            if (gameStatusView != null)
-            {
-                gameStatusView.RPC("UpdateStatusText", RpcTarget.All, "Bidding Selesai! Menunggu penempatan pemain...");
-            }
+            // --- JALUR SUKSES (Tidak Berubah) ---
+            availableTickets.Remove(ticketNumber);
+            Debug.Log($"MasterClient menyetujui tiket #{ticketNumber} untuk {requestingPlayer.NickName}.");
+            photonView.RPC("RevealTicketVisuals", RpcTarget.All, ticketNumber);
+            Hashtable turnProp = new Hashtable { { PlayerProfileMultiplayer.TURN_ORDER_KEY, ticketNumber } };
+            requestingPlayer.SetCustomProperties(turnProp);
 
-            Debug.Log("✅ Semua tiket telah diambil. Mengakhiri fase bidding...");
-            Invoke(nameof(EndBiddingRPC), 2f);
+            if (availableTickets.Count == 0)
+            {
+                if (gameStatusView != null)
+                {
+                    gameStatusView.RPC("UpdateStatusText", RpcTarget.All, "Bidding Selesai! Menunggu penempatan pemain...");
+                }
+                Debug.Log("✅ Semua tiket telah diambil. Mengakhiri fase bidding...");
+                Invoke(nameof(EndBiddingRPC), 2f);
+            }
+        }
+        else
+        {
+            // --- JALUR GAGAL (BARU) ---
+            // Tiket sudah diambil orang lain. Beri tahu pemain yang meminta untuk mencoba lagi.
+            Debug.LogWarning($"Tiket #{ticketNumber} sudah diambil. Mengirim pesan gagal ke {requestingPlayer.NickName}.");
+            photonView.RPC("Rpc_TicketRequestFailed", requestingPlayer);
         }
     }
-    
+
+    // --- FUNGSI RPC BARU UNTUK MENANGANI KEGAGALAN ---
+    [PunRPC]
+    void Rpc_TicketRequestFailed()
+    {
+        Debug.Log("Permintaan tiket Anda gagal (sudah diambil orang lain). Silakan pilih lagi.");
+        
+        // Aktifkan kembali HANYA tombol yang tiketnya belum diambil.
+        // Kita bisa mengetahuinya karena tombol yang sudah diambil akan `interactable = false` dari RPC RevealTicketVisuals.
+        foreach (var ticketButton in localTicketButtons.Values)
+        {
+            // Jika sebuah tombol masih bisa diinteraksi sebelumnya (artinya belum ada yg ambil),
+            // biarkan tetap bisa diinteraksi. Jika sudah nonaktif (karena sudah diambil), biarkan nonaktif.
+            // Pengecekan sprite juga bisa jadi indikator. Tombol yang sudah diambil spritenya akan berubah.
+            if (ticketButton.buttonImage.sprite == defaultTicketSprite)
+            {
+                ticketButton.button.interactable = true;
+            }
+        }
+    }
+
     void EndBiddingRPC()
     {
         photonView.RPC("EndBiddingPhase", RpcTarget.All);
@@ -151,7 +162,7 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
         biddingPanel.SetActive(false);
         foreach (var button in localTicketButtons.Values)
         {
-            Destroy(button.gameObject);
+            if(button != null) Destroy(button.gameObject);
         }
         localTicketButtons.Clear();
     }

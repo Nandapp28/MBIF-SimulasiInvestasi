@@ -4,8 +4,8 @@ using UnityEngine;
 // Enum ini kita definisikan di sini agar mudah diakses
 public enum RumorType 
 { 
-    ModifyIPO, BonusFinpoint, PenaltyFinpoint, 
-    ResetAllIPO, TaxByTurnOrder, StockDilution 
+    ModifyIPO, BonusFinpoint, PenaltyInvestPoin, // Diubah dari PenaltyFinpoint
+    ResetAllIPO, TaxByTurnOrder, StockDilution
 }
 
 [System.Serializable]

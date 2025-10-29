@@ -15,7 +15,11 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public static RumorPhaseManagerMultiplayer Instance;
 
     [Header("Rumor Deck Setup")]
-    public List<RumorEffectData> allRumorEffects; // Isi di Inspector dengan semua kemungkinan rumor
+    // Daftar ini akan diisi oleh fungsi InitializeRumorBlueprints()
+    private List<RumorEffectData> rumorCardBlueprints = new List<RumorEffectData>();
+
+    // Daftar ini akan dibuat secara otomatis oleh skrip GenerateFullRumorDeck()
+    private List<RumorEffectData> allRumorEffects = new List<RumorEffectData>();
 
     [Header("3D Card References")]
     public GameObject rumorCardKonsumer;
@@ -31,9 +35,6 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     [Header("UI Visuals")]
     public GameObject rumorCardVisual; // Prefab atau objek kartu rumor yang akan ditampilkan
     private List<int> shuffledRumorDeckIndices; // Indeks dek rumor untuk ronde ini
-
-    [Header("Posisi Spesial")]
-    public Transform predictionCardStage;
 
     [Header("System References")]
     public CameraController cameraController;
@@ -51,11 +52,75 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     {
         if (Instance != null) Destroy(gameObject);
         else Instance = this;
+
+        // 1. Definisikan dulu semua kartu blueprint-nya
+        InitializeRumorBlueprints();
+
+        // 2. Setelah itu, baru gandakan untuk semua sektor
+        GenerateFullRumorDeck();
+    }
+
+    private void InitializeRumorBlueprints()
+    {
+        // Cukup edit di dalam blok ini untuk menyeimbangkan permainan Anda
+        rumorCardBlueprints = new List<RumorEffectData>
+        {
+            //ANDA BISA MENGUBAH EFFECTTYPE, VALUE, DAN DESCRIPTION DI BAWAH INI
+            new RumorEffectData { cardName = "Resesi_Ekonomi",    description = "Sentimen pasar negatif, harga sedikit turun.",  effectType = RumorType.ModifyIPO, value = -1 },
+            new RumorEffectData { cardName = "Revaluasi_Asset",    description = "Aset perusahaan dinilai kembali, harga naik.",    effectType = RumorType.ModifyIPO, value = 1 },
+            new RumorEffectData { cardName = "Buyback",            description = "Perusahaan membeli kembali sahamnya, harga naik.",  effectType = RumorType.ModifyIPO, value = 1 },
+            new RumorEffectData { cardName = "Tender_Kompetitif",  description = "Memenangkan tender proyek besar, harga naik.",     effectType = RumorType.ModifyIPO, value = 1 },
+            new RumorEffectData { cardName = "Audit_Forensik",     description = "Ditemukan penyelewengan dana, harga anjlok.",    effectType = RumorType.ModifyIPO, value = -2 },
+            new RumorEffectData { cardName = "Suap_Audit",         description = "Skandal suap terungkap, kepercayaan investor jatuh.", effectType = RumorType.ModifyIPO, value = -2 },
+            new RumorEffectData { cardName = "Depresiasi_Rupiah",  description = "Nilai tukar melemah, biaya impor naik.",        effectType = RumorType.ModifyIPO, value = -2 },
+            new RumorEffectData { cardName = "Krisis_Keuangan",    description = "Krisis likuiditas melanda, harga jatuh.",      effectType = RumorType.ModifyIPO, value = -2 },
+            new RumorEffectData { cardName = "Rencana_Ekspansi",   description = "Perusahaan akan berekspansi, prospek cerah.",  effectType = RumorType.ModifyIPO, value = 2 },
+            new RumorEffectData { cardName = "Stimulus_Ekonomi",   description = "Pemerintah memberi stimulus, pasar bergairah.", effectType = RumorType.ModifyIPO, value = 2 },
+            new RumorEffectData { cardName = "Ekspansi_Produk",    description = "Meluncurkan produk baru yang sukses.",           effectType = RumorType.ModifyIPO, value = 2 },
+            new RumorEffectData { cardName = "Investasi_Asing",    description = "Dana asing masuk, harga terdongkrak.",         effectType = RumorType.ModifyIPO, value = 2 },
+            new RumorEffectData { cardName = "Kenaikan_Upah",      description = "Daya beli masyarakat meningkat.",                 effectType = RumorType.ModifyIPO, value = 2 },
+            new RumorEffectData { cardName = "Siasat_Pajak",       description = "Terlibat kasus penggelapan pajak, harga anjlok.", effectType = RumorType.ModifyIPO, value = -3 },
+            new RumorEffectData { cardName = "Defisit_Keuangan",   description = "Laporan keuangan menunjukkan defisit besar.",   effectType = RumorType.ModifyIPO, value = -3 },
+            new RumorEffectData { cardName = "Merger",             description = "Merger dengan perusahaan raksasa, harga meroket.", effectType = RumorType.ModifyIPO, value = 3 },
+            new RumorEffectData { cardName = "Reformasi_Ekonomi",  description = "Peraturan baru merombak total kondisi pasar.",    effectType = RumorType.ResetAllIPO, value = 0 },
+            new RumorEffectData { cardName = "Extra_Fee",          description = "Pemain dengan kartu di sektor ini membayar denda.", effectType = RumorType.PenaltyInvestPoin, value = 1 }, // value = denda per kartu
+            new RumorEffectData { cardName = "Pajak_Jalan",        description = "Semua pemain membayar pajak sesuai urutan giliran.", effectType = RumorType.TaxByTurnOrder, value = 1 }, // value = pengali
+            new RumorEffectData { cardName = "Penerbitan_Saham",   description = "Menerbitkan saham baru, terjadi dilusi.",       effectType = RumorType.StockDilution, value = -1 } // value = efek ke harga
+        };
+    }
+
+    // --- FUNGSI LAMA YANG SUDAH KITA BUAT, BIARKAN SEPERTI INI ---
+    private void GenerateFullRumorDeck()
+    {
+        var allSektors = new Sektor[] { Sektor.Konsumer, Sektor.Infrastruktur, Sektor.Keuangan, Sektor.Tambang };
+
+        foreach (var blueprint in rumorCardBlueprints)
+        {
+            foreach (var sektor in allSektors)
+            {
+                RumorEffectData newCard = new RumorEffectData
+                {
+                    cardName = blueprint.cardName,
+                    description = blueprint.description,
+                    effectType = blueprint.effectType,
+                    value = blueprint.value,
+                    artwork = blueprint.artwork,
+                    color = sektor
+                };
+                allRumorEffects.Add(newCard);
+            }
+        }
+        Debug.Log($"Dek rumor final berhasil dibuat. Total kartu: {allRumorEffects.Count} (dari {rumorCardBlueprints.Count} blueprint)");
     }
 
     // Fungsi ini dipanggil dari SellingPhaseManager
     public void StartRumorPhase(List<Player> players)
     {
+        if (GameStatusUI.Instance != null)
+        {
+            GameStatusUI.Instance.photonView.RPC("UpdateStatusText", RpcTarget.All, "Fase Rumor: Kartu rumor akan segera diungkap!");
+        }
+
         if (PhotonNetwork.IsMasterClient)
         {
             Debug.Log("MasterClient memulai Fase Rumor...");
@@ -63,16 +128,14 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         }
     }
 
-    private void InitializeRumorDeck()
+    public void PrepareNextRumorDeck()
     {
         if (!PhotonNetwork.IsMasterClient) return;
 
+        // Logika ini disalin dari InitializeRumorDeck() untuk men-generate 4 kartu rumor.
         List<int> finalDeckIndices = new List<int>();
+        var SektorOrder = new Sektor[] { Sektor.Konsumer, Sektor.Infrastruktur, Sektor.Keuangan, Sektor.Tambang }; //
 
-        // 1. Tentukan urutan sektor yang kita inginkan
-        var SektorOrder = new Sektor[] { Sektor.Konsumer, Sektor.Infrastruktur, Sektor.Keuangan, Sektor.Tambang };
-
-        // 2. Pilih satu rumor acak dari setiap sektor utama
         foreach (var sektor in SektorOrder)
         {
             var rumorsInSektor = allRumorEffects
@@ -86,10 +149,55 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             }
         }
 
-        // 3. Cek apakah ada kartu ResetAllIPO di antara yang terpilih.
-        int resetEffectIndex = finalDeckIndices.FindIndex(i => allRumorEffects[i].effectType == RumorType.ResetAllIPO);
+        // Simpan dek yang sudah di-generate ke Room Custom Properties agar bisa diakses nanti
+        Hashtable roomProps = new Hashtable { { "nextRumorDeck", finalDeckIndices.ToArray() } };
+        PhotonNetwork.CurrentRoom.SetCustomProperties(roomProps);
+        Debug.Log("[MasterClient] Dek rumor berikutnya telah disiapkan dan disimpan di Room Properties.");
+    }
 
-        // Jika ada, ganti dengan kartu Netral (non-reset) acak.
+    private void InitializeRumorDeck()
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        // JALUR UTAMA: Gunakan dek yang sudah disiapkan sebelumnya jika ada.
+        if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("nextRumorDeck", out object deckIndicesObj))
+        {
+            int[] rumorIndices = (int[])deckIndicesObj;
+            Debug.Log("[MasterClient] Menggunakan dek rumor yang sudah disiapkan untuk 'Insider Trade'.");
+
+            // Kirim dek ini ke semua pemain untuk memulai fase rumor
+            photonView.RPC("Rpc_SetRumorDeck", RpcTarget.All, rumorIndices);
+
+            // Hapus properti setelah digunakan agar tidak menumpuk
+            Hashtable propsToClear = new Hashtable { { "nextRumorDeck", null } };
+            PhotonNetwork.CurrentRoom.SetCustomProperties(propsToClear);
+
+            // PENTING: Hentikan eksekusi fungsi di sini agar tidak membuat dek baru.
+            return;
+        }
+
+        // JALUR CADANGAN (FALLBACK): Kode ini hanya akan berjalan jika 'nextRumorDeck' tidak ditemukan.
+        // Ini seharusnya tidak terjadi dalam alur normal, tapi bagus sebagai pengaman.
+        Debug.LogError("[MasterClient] GAGAL memulai fase rumor: 'nextRumorDeck' tidak ditemukan. Men-generate dek baru secara darurat.");
+
+        List<int> finalDeckIndices = new List<int>();
+        var SektorOrder = new Sektor[] { Sektor.Konsumer, Sektor.Infrastruktur, Sektor.Keuangan, Sektor.Tambang };
+
+        foreach (var sektor in SektorOrder)
+        {
+            var rumorsInSektor = allRumorEffects
+                .Select((data, index) => new { data, index })
+                .Where(x => x.data.color == sektor)
+                .ToList();
+
+            if (rumorsInSektor.Any())
+            {
+                finalDeckIndices.Add(rumorsInSektor[Random.Range(0, rumorsInSektor.Count)].index);
+            }
+        }
+
+        // Logika untuk mengganti kartu ResetAllIPO (jika ada) tetap diperlukan di sini
+        int resetEffectIndex = finalDeckIndices.FindIndex(i => allRumorEffects[i].effectType == RumorType.ResetAllIPO);
         if (resetEffectIndex != -1)
         {
             var neutralReplacements = allRumorEffects
@@ -104,7 +212,7 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             }
         }
 
-        // Pastikan kita mengirim tepat 4 kartu
+        // Kirim dek yang baru dibuat ini karena dek yang disiapkan tidak ada.
         photonView.RPC("Rpc_SetRumorDeck", RpcTarget.All, finalDeckIndices.ToArray());
     }
 
@@ -121,6 +229,19 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         }
     }
 
+    public RumorEffectData GetRumorCardData(int index)
+    {
+        // Pastikan indeksnya valid untuk menghindari eror
+        if (index >= 0 && index < allRumorEffects.Count)
+        {
+            return allRumorEffects[index];
+        }
+
+        // Jika indeks tidak valid, kembalikan null
+        Debug.LogError($"Permintaan data kartu dengan indeks di luar jangkauan: {index}");
+        return null;
+    }
+
     private IEnumerator RunRumorSequence()
     {
         Debug.Log("MasterClient memulai urutan rumor dengan pergerakan kamera...");
@@ -134,12 +255,12 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
             switch (effectData.color)
             {
-                case Sektor.Konsumer:      targetPos = CameraController.CameraPosition.Konsumer; break;
+                case Sektor.Konsumer: targetPos = CameraController.CameraPosition.Konsumer; break;
                 case Sektor.Infrastruktur: targetPos = CameraController.CameraPosition.Infrastruktur; break;
-                case Sektor.Keuangan:      targetPos = CameraController.CameraPosition.Keuangan; break;
-                case Sektor.Tambang:       targetPos = CameraController.CameraPosition.Tambang; break;
+                case Sektor.Keuangan: targetPos = CameraController.CameraPosition.Keuangan; break;
+                case Sektor.Tambang: targetPos = CameraController.CameraPosition.Tambang; break;
                 // Untuk Netral, kamera bisa tetap di Normal atau pindah ke tengah (Center)
-                case Sektor.Netral:        targetPos = CameraController.CameraPosition.Center; break;
+                case Sektor.Netral: targetPos = CameraController.CameraPosition.Center; break;
             }
 
             // 2. Perintahkan SEMUA client untuk menggerakkan kamera mereka ke target
@@ -152,13 +273,13 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             photonView.RPC("Rpc_ShowRumorCard", RpcTarget.All, index);
             yield return new WaitForSeconds(3f); // Waktu untuk pemain membaca kartu
 
-            // 4. MasterClient menerapkan efek dari rumor
-            ApplyRumorEffect(effectData);
-            yield return new WaitForSeconds(2f); // Jeda setelah efek diterapkan
+            // 4. SEMBUNYIKAN kartu rumor terlebih dahulu
+            photonView.RPC("Rpc_HideRumorCards", RpcTarget.All); // <<< PINDAHKAN KE SINI
+            yield return new WaitForSeconds(0.5f); // Beri jeda singkat agar kartu sempat hilang
 
-            // 5. Sembunyikan kartu rumor di perangkat semua pemain
-            photonView.RPC("Rpc_HideRumorCards", RpcTarget.All);
-            yield return new WaitForSeconds(1.0f);
+            // 5. BARULAH MasterClient menerapkan efek dari rumor
+            ApplyRumorEffect(effectData); // <<< SEKARANG EFEK DITERAPKAN SETELAH KARTU HILANG
+            yield return new WaitForSeconds(2f); // Jeda agar pemain bisa melihat pergerakan IPO
 
             // 6. Perintahkan SEMUA client untuk mengembalikan kamera ke posisi Normal
             photonView.RPC("Rpc_MoveCamera", RpcTarget.All, CameraController.CameraPosition.Normal);
@@ -166,7 +287,15 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             yield return new WaitForSeconds(waitDuration);
         }
 
+        if (MultiplayerManager.Instance != null)
+        {
+            yield return StartCoroutine(MultiplayerManager.Instance.FadeTransition(
+               MultiplayerManager.Instance.resolutionTransitionCG, 0.5f, 1f, 0.5f
+           ));
+        }
+
         Debug.Log("✅ Fase Rumor Selesai. Memulai fase berikutnya...");
+
         if (ResolutionPhaseManagerMultiplayer.Instance != null)
         {
             ResolutionPhaseManagerMultiplayer.Instance.StartResolutionPhase();
@@ -174,6 +303,76 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     }
 
     #region Visuals & Animation
+    public IEnumerator AnimatePrivateRumorPreview(string sectorName)
+    {
+        Debug.Log($"[PRIVATE PREVIEW] Menjalankan animasi privat untuk sektor: {sectorName}");
+
+        // Dapatkan dek rumor yang akan datang dari Room Properties
+        if (!PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("nextRumorDeck", out object deckIndicesObj))
+        {
+            Debug.LogError("[PRIVATE PREVIEW] Gagal: 'nextRumorDeck' tidak ditemukan.");
+            yield break;
+        }
+
+        int[] rumorIndices = (int[])deckIndicesObj;
+        Sektor targetSektor = (Sektor)System.Enum.Parse(typeof(Sektor), sectorName);
+
+        // Tentukan indeks kartu yang sesuai dengan sektor yang dipilih
+        int sectorIndexInDeck = -1;
+        switch (targetSektor)
+        {
+            case Sektor.Konsumer: sectorIndexInDeck = 0; break;
+            case Sektor.Infrastruktur: sectorIndexInDeck = 1; break;
+            case Sektor.Keuangan: sectorIndexInDeck = 2; break;
+            case Sektor.Tambang: sectorIndexInDeck = 3; break;
+        }
+
+        if (sectorIndexInDeck == -1 || rumorIndices.Length <= sectorIndexInDeck)
+        {
+            Debug.LogError($"[PRIVATE PREVIEW] Indeks sektor tidak valid untuk {sectorName}.");
+            yield break;
+        }
+
+        // Dapatkan data kartu rumor yang akan ditampilkan
+        int cardToShowIndex = rumorIndices[sectorIndexInDeck];
+        if (cardToShowIndex < 0 || cardToShowIndex >= allRumorEffects.Count) yield break;
+        RumorEffectData effectData = allRumorEffects[cardToShowIndex];
+
+        // Salin dan tempel logika animasi dari AnimateSingleRumorCard
+        // Bagian 1: Gerakkan Kamera
+        CameraController.CameraPosition targetPos = (CameraController.CameraPosition)System.Enum.Parse(typeof(CameraController.CameraPosition), sectorName);
+        if (cameraController != null)
+        {
+            cameraController.MoveTo(targetPos);
+            yield return new WaitForSeconds(cameraController.moveDuration);
+        }
+
+        // Bagian 2: Tampilkan Kartu 3D
+        HideAllCardObjects();
+        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == effectData.cardName)?.texture;
+        if (frontTexture != null)
+        {
+            GameObject cardToDisplay = GetCardObjectByColor(sectorName);
+            if (cardToDisplay != null)
+            {
+                Renderer cardRenderer = cardToDisplay.GetComponent<Renderer>();
+                cardRenderer.material.mainTexture = frontTexture;
+                StartCoroutine(FlipCard(cardToDisplay));
+                yield return StartCoroutine(MoveObjectToTargetAndBack(cardToDisplay));
+            }
+        }
+
+        // Bagian 3: Kembalikan Kamera
+        HideAllCardObjects();
+        yield return new WaitForSeconds(0.5f);
+        if (cameraController != null)
+        {
+            cameraController.MoveTo(CameraController.CameraPosition.Normal);
+            yield return new WaitForSeconds(cameraController.moveDuration);
+        }
+        Debug.Log($"[PRIVATE PREVIEW] Animasi untuk {sectorName} selesai.");
+    }
+
     [PunRPC]
     private void Rpc_MoveCamera(CameraController.CameraPosition targetPosition)
     {
@@ -330,6 +529,92 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         if (rumorCardTambang) rumorCardTambang.SetActive(false);
         if (rumorCardNetral) rumorCardNetral.SetActive(false);
     }
+
+    [PunRPC]
+    private void Rpc_AnimateInsiderTradePreview(int rumorIndex)
+    {
+        StartCoroutine(AnimateSingleRumorCard(rumorIndex));
+    }
+    // COROUTINE BARU: Ini adalah inti dari fitur baru Anda.
+    // Coroutine ini berjalan LOKAL di perangkat pemain untuk menjalankan semua animasi.
+    private IEnumerator AnimateSingleRumorCard(int rumorIndex)
+    {
+        // Validasi dasar
+        if (rumorIndex < 0 || rumorIndex >= allRumorEffects.Count) yield break;
+
+        RumorEffectData effectData = allRumorEffects[rumorIndex];
+        Debug.Log($"[INSIDER TRADE] Anda melihat preview animasi untuk: {effectData.description}");
+
+        // --- Bagian 1: Gerakkan Kamera ke Target ---
+        CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
+        switch (effectData.color)
+        {
+            case Sektor.Konsumer: targetPos = CameraController.CameraPosition.Konsumer; break;
+            case Sektor.Infrastruktur: targetPos = CameraController.CameraPosition.Infrastruktur; break;
+            case Sektor.Keuangan: targetPos = CameraController.CameraPosition.Keuangan; break;
+            case Sektor.Tambang: targetPos = CameraController.CameraPosition.Tambang; break;
+            case Sektor.Netral: targetPos = CameraController.CameraPosition.Center; break;
+        }
+
+        if (cameraController != null)
+        {
+            cameraController.MoveTo(targetPos);
+            yield return new WaitForSeconds(cameraController.moveDuration);
+        }
+
+        // --- Bagian 2: Tampilkan dan Animasikan Kartu 3D ---
+        HideAllCardObjects();
+
+        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == effectData.cardName)?.texture;
+        if (frontTexture != null)
+        {
+            GameObject cardToDisplay = null;
+            switch (effectData.color)
+            {
+                case Sektor.Konsumer: cardToDisplay = rumorCardKonsumer; break;
+                case Sektor.Infrastruktur: cardToDisplay = rumorCardInfrastruktur; break;
+                case Sektor.Keuangan: cardToDisplay = rumorCardKeuangan; break;
+                case Sektor.Tambang: cardToDisplay = rumorCardTambang; break;
+                case Sektor.Netral: cardToDisplay = rumorCardNetral; break;
+            }
+
+            if (cardToDisplay != null)
+            {
+                Renderer cardRenderer = cardToDisplay.GetComponent<Renderer>();
+                if (cardRenderer != null)
+                {
+                    cardRenderer.material.mainTexture = frontTexture;
+                    StartCoroutine(FlipCard(cardToDisplay));
+                    // TUNGGU SAMPAI ANIMASI KARTU SELESAI
+                    yield return StartCoroutine(MoveObjectToTargetAndBack(cardToDisplay));
+                }
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"[RumorPhase] Texture untuk '{effectData.cardName}' tidak ditemukan!");
+        }
+
+        // --- Bagian 3: Sembunyikan Kartu & Kembalikan Kamera ---
+        HideAllCardObjects();
+        yield return new WaitForSeconds(0.5f); // Beri jeda singkat
+
+        if (cameraController != null)
+        {
+            cameraController.MoveTo(CameraController.CameraPosition.Normal);
+            yield return new WaitForSeconds(cameraController.moveDuration);
+        }
+
+        // >> PINDAHKAN KE SINI <<
+        // --- Bagian 4: Kirim Sinyal Selesai ---
+        // Setelah SEMUA animasi lokal selesai, baru kirim sinyal ke MasterClient.
+        if (ActionPhaseManager.Instance != null)
+        {
+            ActionPhaseManager.Instance.photonView.RPC("Rpc_SignalInsiderTradeAnimationComplete", RpcTarget.MasterClient);
+        }
+
+        Debug.Log($"[INSIDER TRADE] Animasi preview selesai. Mengirim sinyal ke MasterClient.");
+    }
     #endregion
 
     // Fungsi ini HANYA berjalan di MasterClient untuk mengubah state game
@@ -344,13 +629,9 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         switch (effect.effectType)
         {
             case RumorType.ModifyIPO:
-                string ipoIndexKey = "ipo_index_" + effect.color;
-                int currentIndex = PhotonNetwork.CurrentRoom.CustomProperties.ContainsKey(ipoIndexKey) ? (int)PhotonNetwork.CurrentRoom.CustomProperties[ipoIndexKey] : 0;
-                int newIndex = currentIndex + effect.value;
-
-                roomPropsToSet[ipoIndexKey] = newIndex;
-                PhotonNetwork.CurrentRoom.SetCustomProperties(roomPropsToSet);
-                Debug.Log($"[RUMOR IPO] {effect.color} diubah sebesar {effect.value}. Indeks baru: {newIndex}");
+                // Cukup panggil fungsi terpusat. Tidak perlu logika tambahan.
+                SellingPhaseManagerMultiplayer.Instance.ModifyIPOIndex(effect.color.ToString(), effect.value);
+                Debug.Log($"[RUMOR IPO] Efek {effect.cardName} diterapkan pada {effect.color} sebesar {effect.value}.");
                 break;
 
             case RumorType.ResetAllIPO:
@@ -386,7 +667,7 @@ public class RumorPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 }
                 break;
 
-            case RumorType.PenaltyFinpoint:
+            case RumorType.PenaltyInvestPoin:
                 // --- PERBAIKAN DI SINI ---
                 string penaltyCardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(effect.color.ToString());
 
