@@ -59,6 +59,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     private int currentPlayerActorNumber = -1;
     private int cardsTaken = 0; // KEMBALI MENGGUNAKAN INI untuk melacak progres
     private int totalCardsOnTable = 0;
+    private int consecutiveSkipCount = 0;
 
     // Variabel Lokal UI & Data
     private int selectedCardId = -1;
@@ -229,6 +230,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
         Player activator = info.Sender;
         Player target = PhotonNetwork.CurrentRoom.GetPlayer(targetActorNumber);
+        consecutiveSkipCount = 0;
 
         if (activator == null || target == null) return;
 
@@ -353,6 +355,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
         Player activator = info.Sender;
         if (activator == null) return;
+        consecutiveSkipCount = 0;
 
         Debug.Log($"[Trade Fee] MasterClient memproses: {activator.NickName} menjual {quantity} kartu {color}.");
 
@@ -442,6 +445,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (currentInvestpoint >= totalCost)
         {
             Debug.Log($"[Flashbuy] MasterClient memproses pilihan {chosenCardIds.Length} kartu dari {activator.NickName} seharga {totalCost} InvestPoin.");
+            consecutiveSkipCount = 0;
             Hashtable playerPropsToUpdate = new Hashtable();
             playerPropsToUpdate[PlayerProfileMultiplayer.INVESTPOINT_KEY] = currentInvestpoint - totalCost;
 
@@ -612,7 +616,19 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (info.Sender.ActorNumber == this.currentPlayerActorNumber)
         {
             Debug.Log($"[Skip] {info.Sender.NickName} melewati gilirannya.");
-            // Cukup panggil giliran berikutnya
+            
+            consecutiveSkipCount++; // Tambahkan skip count
+            Debug.Log($"[Skip] Skip count: {consecutiveSkipCount}/{turnOrder.Count}");
+
+            // Cek apakah semua pemain sudah skip
+            if (consecutiveSkipCount >= turnOrder.Count)
+            {
+                Debug.Log($"[All Skip] Semua pemain telah skip secara berurutan. Mengakhiri fase aksi.");
+                consecutiveSkipCount = 0; // Reset
+                ClearAllRemainingCards(); // Hapus semua kartu
+            }
+
+            // Panggil giliran berikutnya (yang akan cek 'cardsTaken' dan end phase jika perlu)
             AdvanceToNextTurn();
         }
     }
@@ -792,6 +808,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
         if (currentInvestpoint >= totalCost)
         {
+            consecutiveSkipCount = 0;
             Hashtable propsToSet = new Hashtable();
             // Kurangi INVESTPOINT, bukan FINPOINT
             propsToSet.Add(PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint - totalCost);
@@ -839,6 +856,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
         if (currentInvestpoint >= totalCost)
         {
+            consecutiveSkipCount = 0;
             // Kurangi INVESTPOINT, bukan FINPOINT
             Hashtable props = new Hashtable { { PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint - totalCost } };
             requestingPlayer.SetCustomProperties(props);
@@ -919,6 +937,23 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     public CardMultiplayer GetCardFromTable(int cardId)
     {
         return cardsOnTable.ContainsKey(cardId) ? cardsOnTable[cardId] : null;
+    }
+    private void ClearAllRemainingCards()
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        Debug.Log("[MasterClient] Semua pemain skip. Menghapus semua kartu tersisa di meja...");
+        
+        // Salin keys untuk menghindari error modifikasi koleksi saat iterasi
+        List<int> remainingCardIds = cardsOnTable.Keys.ToList();
+        
+        foreach (int cardId in remainingCardIds)
+        {
+            photonView.RPC("Rpc_RemoveCardFromTable", RpcTarget.All, cardId);
+        }
+
+        // Atur 'cardsTaken' agar 'AdvanceToNextTurn' tahu fase harus berakhir
+        this.cardsTaken = this.totalCardsOnTable; 
     }
 
     private IEnumerator EndActionPhaseSequence()

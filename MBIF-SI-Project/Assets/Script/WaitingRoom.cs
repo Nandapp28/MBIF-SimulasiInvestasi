@@ -69,11 +69,11 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
         // Tombol Play hanya bisa diinteraksi oleh MasterClient
         if (PhotonNetwork.IsMasterClient)
         {
-            // Cek apakah jumlah pemain saat ini sudah sama dengan kapasitas maksimal room
-            bool isRoomFull = PhotonNetwork.CurrentRoom.PlayerCount == PhotonNetwork.CurrentRoom.MaxPlayers;
+            // Cek apakah jumlah pemain saat ini sudah minimal 2
+            bool hasEnoughPlayers = PhotonNetwork.CurrentRoom.PlayerCount >= 2;
             
-            // Aktifkan tombol HANYA jika room sudah penuh
-            playButton.interactable = isRoomFull;
+            // Aktifkan tombol HANYA jika pemain sudah cukup (minimal 2)
+            playButton.interactable = hasEnoughPlayers;
         }
         else
         {
@@ -118,13 +118,26 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
     private void OnPlayButtonClicked()
     {
         // Pengecekan ini tetap ada sebagai lapisan keamanan kedua
-        if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount == PhotonNetwork.CurrentRoom.MaxPlayers)
+        if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 2)
         {
-            PhotonNetwork.LoadLevel("Multiplayer");
+            // --- TAMBAHAN PENTING ---
+            // 1. Siapkan properti yang ingin diubah
+            var customProps = new ExitGames.Client.Photon.Hashtable();
+            customProps["started"] = true;
+            
+            // 2. Set properti room
+            PhotonNetwork.CurrentRoom.SetCustomProperties(customProps);
+
+            // 3. (Direkomendasikan) Tutup room agar tidak terlihat/bisa dijoini dari lobi
+            PhotonNetwork.CurrentRoom.IsOpen = false;
+            PhotonNetwork.CurrentRoom.IsVisible = false;
+            // -------------------------
+
+            PhotonNetwork.LoadLevel("Multiplayer"); // 4. Baru pindah scene
         }
         else
         {
-            Debug.Log("Game hanya bisa dimulai oleh Host saat room sudah penuh.");
+            Debug.Log("Game hanya bisa dimulai oleh Host jika minimal ada 2 pemain.");
         }
     }
 
