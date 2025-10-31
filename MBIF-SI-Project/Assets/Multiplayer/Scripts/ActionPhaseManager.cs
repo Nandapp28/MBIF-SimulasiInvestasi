@@ -29,6 +29,14 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     public Button activateButton; // Referensi untuk tombol Activate
     public Button skipButton;     // Referensi untuk tombol Skip
 
+    [Header("Turn Timer")]
+    public GameObject localTimerPanel;
+    public Image localTimerBar;
+    public TextMeshProUGUI localTimerText;
+    private Coroutine turnTimerCoroutine;
+    private const float TURN_DURATION = 10.0f;
+    private const float ACTION_DURATION = 15.0f;
+
     [Header("Layout")]
     public List<Transform> cardPositions;
 
@@ -77,6 +85,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     void Start()
     {
         if (actionButtonsPanel != null) actionButtonsPanel.SetActive(false);
+        if (localTimerPanel != null) localTimerPanel.SetActive(false);
+        if (tradeFeePanel != null) tradeFeePanel.SetActive(false);
     }
 
     public void StartActionPhase()
@@ -111,6 +121,25 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     #endregion
 
     #region Turn Management (Logika Baru)
+
+    public static void SetPublicTurnTimer(bool isActive, Player player = null, float duration = TURN_DURATION)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        Hashtable turnProps = new Hashtable();
+        if (isActive && player != null)
+        {
+            turnProps[PlayerProfileMultiplayer.TURN_START_TIME_KEY] = PhotonNetwork.Time;
+            turnProps[PlayerProfileMultiplayer.TURN_ACTOR_KEY] = player.ActorNumber;
+            // Tambahkan durasi ke properti
+            turnProps[PlayerProfileMultiplayer.TURN_DURATION_KEY] = duration;
+        }
+        else
+        {
+            turnProps[PlayerProfileMultiplayer.TURN_ACTOR_KEY] = -1;
+        }
+        PhotonNetwork.CurrentRoom.SetCustomProperties(turnProps);
+    }
     private void AdvanceToNextTurn()
     {
         if (!PhotonNetwork.IsMasterClient) return;
@@ -135,6 +164,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
             // --- PERBAIKAN: HANYA PANGGIL COROUTINE ---
             // Panggil coroutine untuk transisi yang mulus dan HENTIKAN eksekusi.
+            SetPublicTurnTimer(false);
             StartCoroutine(EndActionPhaseSequence());
             return;
             // Baris `return` ini penting untuk memastikan tidak ada kode lain yang berjalan.
@@ -143,6 +173,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         // Logika untuk memutar giliran (round-robin)
         currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
         Player nextPlayer = turnOrder[currentTurnIndex];
+
+        SetPublicTurnTimer(true, nextPlayer, TURN_DURATION);
 
         GameStatusUI.Instance.photonView.RPC("UpdateStatusText", RpcTarget.All, $"Giliran {nextPlayer.NickName} untuk memilih kartu.");
         photonView.RPC("Rpc_SyncCurrentPlayerTurn", RpcTarget.All, nextPlayer.ActorNumber);
@@ -155,6 +187,77 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient)
         {
             AdvanceToNextTurn();
+        }
+    }
+
+    public override void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)
+    {
+        // --- MODIFIKASI --- Gunakan konstanta dari PlayerProfile
+        if (propertiesThatChanged.ContainsKey(PlayerProfileMultiplayer.TURN_ACTOR_KEY))
+        {
+            StopLocalTimer();
+
+            int turnActorNumber = (int)propertiesThatChanged[PlayerProfileMultiplayer.TURN_ACTOR_KEY];
+
+            if (turnActorNumber == PhotonNetwork.LocalPlayer.ActorNumber)
+            {
+                float duration = propertiesThatChanged.ContainsKey(PlayerProfileMultiplayer.TURN_DURATION_KEY) 
+                    ? (float)propertiesThatChanged[PlayerProfileMultiplayer.TURN_DURATION_KEY] 
+                    : TURN_DURATION;
+                // --- MODIFIKASI --- Mulai timer dengan durasi normal
+                turnTimerCoroutine = StartCoroutine(StartLocalTurnTimer(duration));
+            }
+            else
+            {
+                if (localTimerPanel != null)
+                {
+                    localTimerPanel.SetActive(false);
+                }
+            }
+        }
+    }
+
+    private IEnumerator StartLocalTurnTimer(float duration)
+    {
+        if (localTimerPanel != null) localTimerPanel.SetActive(true);
+        
+        float timeLeft = duration;
+
+        while (timeLeft > 0)
+        {
+            timeLeft -= Time.deltaTime;
+
+            if (localTimerText != null)
+            {
+                localTimerText.text = Mathf.CeilToInt(timeLeft).ToString();
+            }
+            
+            if (localTimerBar != null)
+            {
+                // --- MODIFIKASI --- Bagi dengan durasi yang benar
+                localTimerBar.fillAmount = Mathf.Clamp01(timeLeft / duration);
+            }
+
+            yield return null; 
+        }
+
+        if (localTimerPanel != null) localTimerPanel.SetActive(false);
+        
+        Debug.Log("Waktu giliran habis! Otomatis skip.");
+        OnSkipTurnClicked(); // Panggil fungsi skip
+    }
+
+    // --- BARU --- Fungsi helper untuk menghentikan timer lokal
+    private void StopLocalTimer()
+    {
+        if (turnTimerCoroutine != null)
+        {
+            StopCoroutine(turnTimerCoroutine);
+            turnTimerCoroutine = null;
+        }
+        if (localTimerPanel != null)
+        {
+            localTimerPanel.SetActive(false);
         }
     }
 
@@ -211,10 +314,14 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             activateButton.gameObject.SetActive(false);
             skipButton.gameObject.SetActive(true);
         }
+
+        StopLocalTimer();
+        turnTimerCoroutine = StartCoroutine(StartLocalTurnTimer(ACTION_DURATION));
     }
 
     private void OnTenderOfferTargetClicked(Player targetPlayer)
     {
+        StopLocalTimer();
         // Kirim pilihan ke server
         photonView.RPC("Rpc_SubmitTenderOfferTarget", RpcTarget.MasterClient, targetPlayer.ActorNumber, tenderOfferCardColor);
 
@@ -337,11 +444,16 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         {
             OnTradeFeeConfirm(color, quantityToSell);
         });
+
+      StopLocalTimer();
+        turnTimerCoroutine = StartCoroutine(StartLocalTurnTimer(ACTION_DURATION));
     }
 
     // Fungsi ini dipanggil dari tombol konfirmasi di UI
     public void OnTradeFeeConfirm(string color, int quantity)
     {
+        StopLocalTimer();
+
         Debug.Log($"Anda memilih untuk menjual {quantity} kartu {color}. Mengirim keputusan ke MasterClient...");
         photonView.RPC("Rpc_SubmitTradeFeeDecision", RpcTarget.MasterClient, color, quantity);
         tradeFeePanel.SetActive(false);
@@ -380,6 +492,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         activator.SetCustomProperties(propsToSet);
         Debug.Log($"[Trade Fee] Transaksi berhasil. {activator.NickName} mendapatkan {totalEarnings} InvestPoin.");
         AdvanceToNextTurn();
+
+        
     }
 
     #endregion
@@ -403,6 +517,9 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             if (activateButton != null) activateButton.gameObject.SetActive(false);
             if (skipButton != null) skipButton.gameObject.SetActive(true);
             UpdateFlashbuyAffordability();
+
+            StopLocalTimer();
+            turnTimerCoroutine = StartCoroutine(StartLocalTurnTimer(ACTION_DURATION));
         }
         else
         {
@@ -585,6 +702,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     public void OnSkipTurnClicked()
     {
+        StopLocalTimer();
         if (activeTenderOfferButtons.Count > 0)
         {
             Debug.Log("[Tender Offer] Pemain memilih untuk skip.");
@@ -598,6 +716,12 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             // Kirim pilihan kosong ke MasterClient (Artinya tidak memilih kartu)
             photonView.RPC("Rpc_SubmitFlashbuyChoices", RpcTarget.MasterClient, new int[0]);
             ExitFlashbuyMode(); // Keluar dari mode di klien
+        }
+        else if (tradeFeePanel != null && tradeFeePanel.activeInHierarchy)
+        {
+            Debug.Log("[Trade Fee] Pemain memilih untuk skip (atau waktu habis).");
+            tradeFeePanel.SetActive(false); // Tutup panel
+            photonView.RPC("Rpc_RequestSkipTurn", RpcTarget.MasterClient); // Kirim skip normal
         }
         else // Skip normal
         {
@@ -732,6 +856,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     public void OnPrimaryActionButtonClicked()
     {
+        StopLocalTimer();
+
         if (isInFlashbuyMode)
         {
             OnConfirmFlashbuySelection();
@@ -749,6 +875,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     // Buat fungsi baru ini untuk menangani konfirmasi Flashbuy
     private void OnConfirmFlashbuySelection()
     {
+        StopLocalTimer();
+        
         if (!isInFlashbuyMode) return; // Pastikan kita memang dalam mode Flashbuy
         if (PhotonNetwork.LocalPlayer.ActorNumber != flashbuyActivatorActorNumber) return; // Hanya pengaktif yang bisa konfirmasi
 
@@ -763,7 +891,9 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     public void OnActivateButtonClicked()
     {
+        StopLocalTimer();
         if (selectedCardId == -1) return;
+        
 
         // Ambil data kartu yang dipilih untuk memeriksa namanya
         CardMultiplayer cardData = GetCardFromTable(selectedCardId);
@@ -831,6 +961,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         else
         {
             Debug.LogWarning($"[SAVE GAGAL] {requestingPlayer.NickName} tidak punya cukup InvestPoin (butuh {totalCost}).");
+            SetPublicTurnTimer(true, requestingPlayer, TURN_DURATION); // Reset timer publik
+            photonView.RPC("Rpc_ActionFailedToActivator", requestingPlayer);
         }
     }
 
@@ -842,13 +974,13 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (!PhotonNetwork.IsMasterClient || requestingPlayer.ActorNumber != this.currentPlayerActorNumber || isInFlashbuyMode) return;
 
         CardMultiplayer cardData = GetCardFromTable(cardId);
-        if (cardData == null) 
+        if (cardData == null)
         {
             Debug.LogWarning($"[ACTIVATE GAGAL] Kartu ID {cardId} tidak valid atau sudah diambil.");
             AdvanceToNextTurn(); // Majukan giliran jika kartu tidak valid agar permainan tidak macet.
             return;
         }
-        
+
         // --- PERUBAHAN LOGIKA BIAYA ---
         int fullPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardData.color.ToString());
         int totalCost = cardData.baseValue + fullPrice;
@@ -860,10 +992,23 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             // Kurangi INVESTPOINT, bukan FINPOINT
             Hashtable props = new Hashtable { { PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint - totalCost } };
             requestingPlayer.SetCustomProperties(props);
-        // --- AKHIR PERUBAHAN ---
-            
+            // --- AKHIR PERUBAHAN ---
+
             cardsTaken++;
+
+            string cardName = cardData.cardName;
             photonView.RPC("Rpc_RemoveCardFromTable", RpcTarget.All, cardId);
+
+            if (cardName == "StockSplit" || cardName == "InsiderTrade")
+            {
+                // Ini kartu "Event", hentikan timer publik
+                SetPublicTurnTimer(false);
+            }
+            else if (cardName == "Flashbuy" || cardName == "TenderOffer" || cardName == "TradeFee")
+            {
+                // Ini kartu "Aksi Tambahan", reset timer publik ke durasi aksi
+                SetPublicTurnTimer(true, requestingPlayer, ACTION_DURATION);
+            }
             StartCoroutine(CardEffectManagerMultiplayer.ApplyEffect(cardData.cardName, requestingPlayer, cardData.color));
         }
         else
@@ -871,6 +1016,24 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             Debug.LogWarning($"[ACTIVATE GAGAL] {requestingPlayer.NickName} tidak punya cukup InvestPoin (butuh {totalCost}).");
             AdvanceToNextTurn();
         }
+    }
+    
+    [PunRPC]
+    private void Rpc_ActionFailedToActivator()
+    {
+        // Tampilkan notifikasi
+        if (GameStatusUI.Instance != null)
+        {
+            GameStatusUI.Instance.ShowTemporaryNotification("Aksi Gagal! InvestPoin tidak cukup.", 3.0f);
+        }
+        
+        // Tampilkan kembali tombol aksi (jika ada kartu yang terseleksi)
+        if (selectedCardId != -1)
+        {
+            if (actionButtonsPanel != null) actionButtonsPanel.SetActive(true);
+        }
+        
+        // Timer lokal akan otomatis dimulai ulang oleh OnRoomPropertiesUpdate
     }
 
     [PunRPC]

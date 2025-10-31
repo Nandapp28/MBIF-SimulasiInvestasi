@@ -4,8 +4,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using Photon.Pun;
 using Photon.Realtime; // Diperlukan untuk mengakses Player dan callback
-using ExitGames.Client.Photon; // Diperlukan untuk Hashtable
+using ExitGames.Client.Photon;// Diperlukan untuk Hashtable
+using System.Collections;
 
+using Hashtable = ExitGames.Client.Photon.Hashtable;
 // Ganti warisan ke MonoBehaviourPunCallbacks untuk bisa menerima update properti
 public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
 {
@@ -18,6 +20,9 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     public Text blueCardText;   // Teks untuk jumlah kartu biru
     public Text greenCardText;  // Teks untuk jumlah kartu hijau
 
+    [Header("Public UI")]
+    public Image publicTimerBar;
+
     // Definisikan 'kunci' untuk Custom Properties agar tidak salah ketik
     public const string INVESTPOINT_KEY = "investpoint";
     public const string TURN_ORDER_KEY = "turn";
@@ -28,10 +33,20 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     public const string TESTING_CARD_USED_KEY = "testing_card_used";
     public const string TESTING_CARD_INDEX_KEY = "testing_card_index";
 
+    public const string TURN_START_TIME_KEY = "turnStartTime";
+    public const string TURN_ACTOR_KEY = "turnActor";
+    public const float TURN_DURATION = 10.0f;
+    public const string TURN_DURATION_KEY = "turnDuration";
+    private Coroutine publicTimerCoroutine;
+
     private MultiplayerManager multiplayerManager;
     void Awake()
     {
         multiplayerManager = MultiplayerManager.Instance;
+        if (publicTimerBar != null)
+        {
+            publicTimerBar.gameObject.SetActive(false);
+        }
     }
 
     void Start()
@@ -63,7 +78,67 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
             UpdateAllUI(targetPlayer);
         }
     }
+    public override void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)
+    {
+        // Cek apakah properti timer giliran berubah
+        if (propertiesThatChanged.ContainsKey(TURN_ACTOR_KEY))
+        {
+            // Hentikan timer lama jika ada
+            if (publicTimerCoroutine != null)
+            {
+                StopCoroutine(publicTimerCoroutine);
+                publicTimerCoroutine = null;
+            }
 
+            // Ambil data giliran baru
+            int turnActorNumber = (int)propertiesThatChanged[TURN_ACTOR_KEY];
+            
+            // Cek apakah giliran ini MILIK profil ini?
+            if (photonView.Owner != null && photonView.Owner.ActorNumber == turnActorNumber)
+            {
+                // Ya, ini giliran pemain ini. Mulai timer.
+                // Ambil waktu mulai dari properti
+                float duration = propertiesThatChanged.ContainsKey(TURN_DURATION_KEY) 
+                    ? (float)propertiesThatChanged[TURN_DURATION_KEY] 
+                    : TURN_DURATION;
+
+                if (propertiesThatChanged.ContainsKey(TURN_START_TIME_KEY))
+                {
+                    double startTime = (double)propertiesThatChanged[TURN_START_TIME_KEY];
+                    // Mulai timer dengan durasi yang benar
+                    publicTimerCoroutine = StartCoroutine(AnimatePublicTimer(startTime, duration));
+                }
+            }
+            else if (photonView.Owner == null || photonView.Owner.ActorNumber != turnActorNumber || turnActorNumber < 1)
+            {
+                if (publicTimerBar != null)
+                {
+                    publicTimerBar.gameObject.SetActive(false);
+                }
+            }
+        }
+    }
+
+    // --- BARU --- Coroutine untuk menganimasikan timer publik
+   private IEnumerator AnimatePublicTimer(double startTime, float duration)
+    {
+        if (publicTimerBar == null) yield break;
+
+        publicTimerBar.gameObject.SetActive(true);
+        double elapsed = 0;
+
+        while (elapsed < duration)
+        {
+            elapsed = PhotonNetwork.Time - startTime;
+            // Gunakan 'duration' yang diterima
+            float fillAmount = 1.0f - (float)(elapsed / duration);
+            publicTimerBar.fillAmount = Mathf.Clamp01(fillAmount); 
+
+            yield return null; 
+        }
+
+        publicTimerBar.gameObject.SetActive(false);
+    }
     #endregion
 
     #region UI Update
