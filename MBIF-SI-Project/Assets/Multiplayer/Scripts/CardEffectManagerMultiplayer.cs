@@ -159,9 +159,18 @@ public static class CardEffectManagerMultiplayer
 
             SellingPhaseManagerMultiplayer.Instance.ModifyIPOIndex(color.ToString(), -2);
             Debug.Log($"[Stock Split] Harga pasar {color} diturunkan 2 level.");
+            yield return new WaitForSeconds(3.0f); 
+            
+            // Panggil giliran berikutnya HANYA SETELAH jeda
             ActionPhaseManager.Instance.ForceNextTurn();
+            // --- AKHIR MODIFIKASI ---
         }
-        yield return new WaitForSeconds(1f);
+        else
+        {
+            // --- MODIFIKASI --- Pastikan coroutine non-MasterClient juga keluar
+            yield return null;
+        }
+        // Hapus 'yield return new WaitForSeconds(1f);' yang lama
     }
 
     private static IEnumerator InsiderTradeEffect(Player activator, Sektor color)
