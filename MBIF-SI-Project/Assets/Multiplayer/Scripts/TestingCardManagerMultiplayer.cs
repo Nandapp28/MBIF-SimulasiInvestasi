@@ -33,6 +33,14 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     public Button keuanganChoiceButton;
     public Button tambangChoiceButton;
 
+    [Header("Timer UI (Shared)")]
+    public GameObject timerPanel;
+    public Image timerBar;
+    public TextMeshProUGUI timerText;
+    public const float TESTING_TIME = 30.0f; // Waktu dalam detik
+    private Coroutine testingTimerCoroutine;
+    private const string TESTING_START_TIME_KEY = "testingStartTime";
+
     private bool playerHasMadeChoice = false;
     private GameObject instantiatedCard;
     private List<int> playersFinishedInteraction = new List<int>();
@@ -54,6 +62,55 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         if (interactiveButtonsPanel != null) interactiveButtonsPanel.SetActive(false);
         if (statusText != null) statusText.gameObject.SetActive(false);
         if (sectorChoicePanel != null) sectorChoicePanel.SetActive(false);
+        if (timerPanel != null) timerPanel.SetActive(false);
+    }
+    private IEnumerator StartTestingTimer(double startTime)
+    {
+        if (timerPanel != null) timerPanel.SetActive(true);
+        float timeLeft = TESTING_TIME;
+
+        while (timeLeft > 0)
+        {
+            // Hitung sisa waktu berdasarkan waktu server agar sinkron
+            double elapsed = PhotonNetwork.Time - startTime;
+            timeLeft = TESTING_TIME - (float)elapsed;
+
+            if (timeLeft < 0) timeLeft = 0;
+
+            if (timerText != null)
+            {
+                timerText.text = Mathf.CeilToInt(timeLeft).ToString();
+            }
+            if (timerBar != null)
+            {
+                timerBar.fillAmount = Mathf.Clamp01(timeLeft / TESTING_TIME);
+            }
+            
+            yield return null;
+        }
+
+        // Waktu habis
+        if (timerPanel != null) timerPanel.SetActive(false);
+
+        // Jika pemain ini belum memilih, paksa skip
+        if (!playerHasMadeChoice)
+        {
+            Debug.Log("Waktu Testing habis! Otomatis skip.");
+            OnSkipButtonClicked();
+        }
+    }
+
+    // --- BARU --- Mendengarkan Properti Ruangan untuk memulai timer
+    public override void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)
+    {
+        if (propertiesThatChanged.ContainsKey(TESTING_START_TIME_KEY))
+        {
+            // Hentikan timer lama jika ada
+            if (testingTimerCoroutine != null) StopCoroutine(testingTimerCoroutine);
+            
+            double startTime = (double)propertiesThatChanged[TESTING_START_TIME_KEY];
+            testingTimerCoroutine = StartCoroutine(StartTestingTimer(startTime));
+        }
     }
     
     [PunRPC]
@@ -205,7 +262,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     
     public void OnSkipButtonClicked()
     {
-        playerHasMadeChoice = true;
+        playerHasMadeChoice = true; 
         if (interactiveButtonsPanel != null) interactiveButtonsPanel.SetActive(false);
     }
 
@@ -217,6 +274,10 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             playersFinishedInteraction.Clear();
             Hashtable props = new Hashtable { { "AllPlayersFinishedTesting", false } };
             PhotonNetwork.CurrentRoom.SetCustomProperties(props);
+
+            Hashtable timerProps = new Hashtable { { TESTING_START_TIME_KEY, PhotonNetwork.Time } };
+            PhotonNetwork.CurrentRoom.SetCustomProperties(timerProps);
+            
             if (testingCardsPool == null || testingCardsPool.Count == 0) return;
             foreach (Player p in PhotonNetwork.PlayerList)
             {
@@ -271,10 +332,31 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         }
         if (playersFinishedInteraction.Count >= PhotonNetwork.CurrentRoom.PlayerCount)
         {
+            Debug.Log("MasterClient: Semua pemain telah selesai interaksi Testing Card.");
+
+            // Hentikan timer di semua klien
+            photonView.RPC("Rpc_StopTestingTimerAndPhase", RpcTarget.All);
+
+            // Lanjutkan ke fase berikutnya
             if (ActionPhaseManager.Instance != null)
             {
                 ActionPhaseManager.Instance.ProceedToSellingPhaseAfterTesting();
             }
+        }
+    }
+    [PunRPC]
+    private void Rpc_StopTestingTimerAndPhase()
+    {
+        // Hentikan coroutine timer lokal
+        if (testingTimerCoroutine != null)
+        {
+            StopCoroutine(testingTimerCoroutine);
+            testingTimerCoroutine = null;
+        }
+        // Sembunyikan panel timer
+        if (timerPanel != null)
+        {
+            timerPanel.SetActive(false);
         }
     }
     #endregion
