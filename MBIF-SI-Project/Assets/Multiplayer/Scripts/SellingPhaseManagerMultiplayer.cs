@@ -22,6 +22,15 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public AudioClip buttonClickSellSfx; // <-- BARIS INI ADA
     private AudioSource audioSource;
 
+    [Header("Timer UI (Shared)")]
+    public GameObject timerPanel;
+    public Image timerBar;
+    public TextMeshProUGUI timerText;
+    public const float SELLING_TIME = 30.0f; // Waktu dalam detik
+    private Coroutine sellingTimerCoroutine;
+    private const string SELLING_START_TIME_KEY = "sellingStartTime";
+    private bool localPlayerHasConfirmedSell = false;
+
     [System.Serializable]
     public class IPOIndicatorMapping
     {
@@ -84,9 +93,9 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         if (Instance != null) Destroy(gameObject);
         else Instance = this;
         if (PhotonNetwork.IsMasterClient)
-    {
-        // Di sinilah Anda menentukan nilai awal yang Anda inginkan!
-        Dictionary<string, int> startingIpoValues = new Dictionary<string, int>
+        {
+            // Di sinilah Anda menentukan nilai awal yang Anda inginkan!
+            Dictionary<string, int> startingIpoValues = new Dictionary<string, int>
         {
             { "Konsumer", 0 },
             { "Infrastruktur", 0 },
@@ -94,16 +103,20 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             { "Tambang", 0 } // Ingat, Tambang range-nya -2 sampai 2
         };
 
-        // Panggil fungsi yang ada di SellingPhaseManagerMultiplayer
-        if (SellingPhaseManagerMultiplayer.Instance != null)
-        {
-            SellingPhaseManagerMultiplayer.Instance.InitializeIpoState(startingIpoValues);
-        }
-        else
-        {
-            Debug.LogError("Instance SellingPhaseManagerMultiplayer tidak ditemukan!");
+            // Panggil fungsi yang ada di SellingPhaseManagerMultiplayer
+            if (SellingPhaseManagerMultiplayer.Instance != null)
+            {
+                SellingPhaseManagerMultiplayer.Instance.InitializeIpoState(startingIpoValues);
+            }
+            else
+            {
+                Debug.LogError("Instance SellingPhaseManagerMultiplayer tidak ditemukan!");
+            }
         }
     }
+    void Start()
+    {
+        if (timerPanel != null) timerPanel.SetActive(false);
     }
     public void InitializeIpoState(Dictionary<string, int> initialIndices)
 {
@@ -310,6 +323,58 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public override void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)
     {
         UpdateAllIpoVisuals();
+        if (propertiesThatChanged.ContainsKey(SELLING_START_TIME_KEY))
+        {
+            if (sellingTimerCoroutine != null) StopCoroutine(sellingTimerCoroutine);
+            double startTime = (double)propertiesThatChanged[SELLING_START_TIME_KEY];
+            sellingTimerCoroutine = StartCoroutine(StartSellingTimer(startTime));
+        }
+    }
+
+    private IEnumerator StartSellingTimer(double startTime)
+    {
+        if (timerPanel != null) timerPanel.SetActive(true);
+        float timeLeft = SELLING_TIME;
+
+        while (timeLeft > 0)
+        {
+            double elapsed = PhotonNetwork.Time - startTime;
+            timeLeft = SELLING_TIME - (float)elapsed;
+
+            if (timeLeft < 0) timeLeft = 0;
+
+            if (timerText != null)
+            {
+                timerText.text = Mathf.CeilToInt(timeLeft).ToString();
+            }
+            if (timerBar != null)
+            {
+                timerBar.fillAmount = Mathf.Clamp01(timeLeft / SELLING_TIME);
+            }
+            
+            yield return null;
+        }
+        
+        // Waktu habis, cek apakah pemain ini sudah submit
+        if (!localPlayerHasConfirmedSell)
+        {
+            Debug.Log("Waktu Selling habis! Otomatis submit 0 sales.");
+            OnConfirmSellButtonClicked(); // Otomatis submit
+        }
+        // Panel akan disembunyikan oleh Rpc_StopSellingTimer
+    }
+    
+    //RPC untuk menghentikan timer & UI
+    [PunRPC]
+    private void Rpc_StopSellingTimer()
+    {
+        if (sellingTimerCoroutine != null)
+        {
+            StopCoroutine(sellingTimerCoroutine);
+            sellingTimerCoroutine = null;
+        }
+        if (timerPanel != null) timerPanel.SetActive(false);
+        if (sellingPanel != null) sellingPanel.SetActive(false); // Sembunyikan panel utama di sini
     }
     #endregion
 
@@ -322,6 +387,9 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             allPlayerSellDecisions.Clear();
             // Kirim RPC ke semua pemain untuk memulai fase
             photonView.RPC("Rpc_ShowSellingUI", RpcTarget.All);
+
+            Hashtable timerProps = new Hashtable { { SELLING_START_TIME_KEY, PhotonNetwork.Time } };
+            PhotonNetwork.CurrentRoom.SetCustomProperties(timerProps);
         }
     }
 
@@ -349,17 +417,19 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
             Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
             Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
-            
+
             valueText.text = "0";
-            
-            plusButton.onClick.AddListener(() => {
+
+            plusButton.onClick.AddListener(() =>
+            {
                 if (localSellInputs[colorName] < ownedCards)
                 {
                     localSellInputs[colorName]++;
                     valueText.text = localSellInputs[colorName].ToString();
                 }
             });
-            minusButton.onClick.AddListener(() => {
+            minusButton.onClick.AddListener(() =>
+            {
                 if (localSellInputs[colorName] > 0)
                 {
                     localSellInputs[colorName]--;
@@ -367,6 +437,10 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 }
             });
         }
+        
+        localPlayerHasConfirmedSell = false; 
+        confirmSellButton.gameObject.SetActive(true); 
+        confirmSellButton.interactable = true;
 
         confirmSellButton.onClick.RemoveAllListeners();
         confirmSellButton.onClick.AddListener(OnConfirmSellButtonClicked);
@@ -375,6 +449,8 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
     public void OnConfirmSellButtonClicked()
     {
+        if (localPlayerHasConfirmedSell) return;
+        localPlayerHasConfirmedSell = true;
         // --- TAMBAHKAN BLOK KODE INI ---
         // Panggil SFX melalui instance singleton dari SfxManager
         if (SfxManager.Instance != null)
@@ -389,7 +465,12 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             if (entry.Value > 0) sellDecision.Add(entry.Key, entry.Value);
         }
         photonView.RPC("SubmitSellDecision", RpcTarget.MasterClient, sellDecision);
-        sellingPanel.SetActive(false);
+        confirmSellButton.gameObject.SetActive(false);
+        foreach (Transform row in colorSellRowContainer)
+        {
+            row.Find("PlusButton").GetComponent<Button>().interactable = false;
+            row.Find("MinusButton").GetComponent<Button>().interactable = false;
+        }
     }
 
     [PunRPC]
@@ -406,6 +487,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
         if (playersToWaitFor.Count == 0)
         {
+            photonView.RPC("Rpc_StopSellingTimer", RpcTarget.All);
             StartCoroutine(ProcessAllSales());
         }
     }
