@@ -75,7 +75,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     private Dictionary<string, int[]> ipoPriceMap = new Dictionary<string, int[]>
     {
         { "Konsumer", new int[] { 1, 2, 3, 5, 6, 7, 8 } },
-        { "Infrastruktur", new int[] { 1, 2, 4, 5, 6, 8, 9 } },
+        { "Infrastruktur", new int[] { 1, 2, 4, 5, 6, 7, 9 } },
         { "Keuangan", new int[] { 1, 3, 4, 5, 6, 7, 9 } },
         { "Tambang",  new int[] { 2, 4, 5, 7, 9 } }, // Hanya 5 nilai
     };

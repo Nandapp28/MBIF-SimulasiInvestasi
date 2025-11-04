@@ -133,7 +133,7 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
             PhotonNetwork.CurrentRoom.IsVisible = false;
             // -------------------------
 
-            PhotonNetwork.LoadLevel("LoadingSceneMP"); // 4. Baru pindah scene
+            PhotonNetwork.LoadLevel("Multiplayer"); // 4. Baru pindah scene
         }
         else
         {

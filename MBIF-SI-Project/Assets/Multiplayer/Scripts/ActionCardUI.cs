@@ -1,4 +1,4 @@
-// File: ActionCardUI.cs (Versi Final dengan Artwork)
+// File: ActionCardUI.cs (Versi Final dengan Artwork dan Harga Dinamis)
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -31,11 +31,36 @@ public class ActionCardUI : MonoBehaviour
             artworkImage.sprite = cardData.cardSprite;
         }
 
-        // Atur teks harga
+        // --- PERUBAHAN LOGIKA HARGA DIMULAI DI SINI ---
         if (costText != null)
         {
-            costText.text = cardData.value.ToString();
+            int sectorPrice = 0;
+            // 1. Dapatkan harga sektor (IPO) saat ini dari SellingPhaseManagerMultiplayer
+            if (SellingPhaseManagerMultiplayer.Instance != null)
+            {
+                sectorPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardData.color.ToString());
+            }
+            else
+            {
+                Debug.LogWarning("[ActionCardUI] Tidak dapat menemukan SellingPhaseManagerMultiplayer.Instance untuk mengambil harga sektor.");
+            }
+
+            // 2. Dapatkan harga efek (baseValue) dari data kartu
+            int effectPrice = cardData.baseValue; //
+
+            // 3. Terapkan logika format string
+            if (effectPrice > 0)
+            {
+                // Format: 5(+1)
+                costText.text = $"{sectorPrice}(+{effectPrice})";
+            }
+            else
+            {
+                // Format: 5
+                costText.text = sectorPrice.ToString();
+            }
         }
+        // --- PERUBAHAN LOGIKA HARGA SELESAI ---
         
         // Atur listener untuk tombol
         if (selectButton != null)

@@ -1089,10 +1089,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         switch (cardName)
         {
             case "TenderOffer": return 0;
-            case "TradeFee":
-            case "StockSplit": return 1;
-            case "InsiderTrade": return 2; // <-- TAMBAHKAN KEMBALI BARIS INI
-            case "Flashbuy": return 3;
+            case "TradeFee": return 1;
+            case "StockSplit": return 0;
+            case "InsiderTrade": return 0; // <-- TAMBAHKAN KEMBALI BARIS INI
+            case "Flashbuy": return 0;
             default: return 0;
         }
     }
