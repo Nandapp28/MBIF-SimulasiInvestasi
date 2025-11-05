@@ -44,6 +44,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     private bool playerHasMadeChoice = false;
     private GameObject instantiatedCard;
     private List<int> playersFinishedInteraction = new List<int>();
+    private Coroutine botTestingCoroutine;
 
     void Awake()
     {
@@ -96,6 +97,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         if (!playerHasMadeChoice)
         {
             Debug.Log("Waktu Testing habis! Otomatis skip.");
+            BotModeManager.SetBotMode(true);
             OnSkipButtonClicked();
         }
     }
@@ -262,8 +264,14 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     
     public void OnSkipButtonClicked()
     {
-        playerHasMadeChoice = true; 
+        playerHasMadeChoice = true;
         if (interactiveButtonsPanel != null) interactiveButtonsPanel.SetActive(false);
+        
+        if (botTestingCoroutine != null)
+        {
+            StopCoroutine(botTestingCoroutine);
+            botTestingCoroutine = null;
+        }
     }
 
     #region Interactive Flow (Semester 2, 3, 4)
@@ -306,12 +314,20 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         {
             if (statusText != null) { statusText.text = "Card Already Used"; statusText.gameObject.SetActive(true); }
             yield return new WaitForSeconds(2.0f);
-            playerHasMadeChoice = true; 
+            playerHasMadeChoice = true;
         }
         else
         {
             playerHasMadeChoice = false;
             interactiveButtonsPanel.SetActive(true);
+
+            if (botTestingCoroutine != null) StopCoroutine(botTestingCoroutine); // Hentikan sisa
+            if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY)
+                && (bool)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.IS_BOT_MODE_KEY])
+            {
+                botTestingCoroutine = StartCoroutine(BotTestingCoroutine());
+            }
+
             yield return new WaitUntil(() => playerHasMadeChoice);
         }
         photonView.RPC("Rpc_SignalInteractionComplete", RpcTarget.MasterClient, PhotonNetwork.LocalPlayer.ActorNumber);
@@ -321,6 +337,27 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         while (timer < fadeDuration) { containerCanvasGroup.alpha = Mathf.Lerp(1, 0, timer / fadeDuration); timer += Time.deltaTime; yield return null; }
         containerCanvasGroup.alpha = 0;
         if (instantiatedCard != null) Destroy(instantiatedCard);
+    }
+    
+    private IEnumerator BotTestingCoroutine()
+    {
+        Debug.Log("[Bot Mode] Testing: Menunggu 5 detik sebelum skip otomatis...");
+        yield return new WaitForSeconds(5.0f);
+
+        // Cek lagi setelah 5 detik
+        bool isStillBot = PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY) &&
+                          (bool)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.IS_BOT_MODE_KEY];
+
+        if (isStillBot && !playerHasMadeChoice) // Pastikan pemain belum memilih
+        {
+            Debug.Log("[Bot Mode] Testing: Waktu tunggu 5 detik selesai. Masih dalam mode bot. Otomatis skip.");
+            OnSkipButtonClicked(); // OnSkipButtonClicked akan set playerHasMadeChoice = true
+        }
+        else
+        {
+            Debug.Log("[Bot Mode] Testing: Dibatalkan. Pemain kembali ke mode manual atau sudah memilih.");
+        }
+        botTestingCoroutine = null;
     }
     [PunRPC]
     private void Rpc_SignalInteractionComplete(int actorNumber)

@@ -30,6 +30,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     private Coroutine sellingTimerCoroutine;
     private const string SELLING_START_TIME_KEY = "sellingStartTime";
     private bool localPlayerHasConfirmedSell = false;
+    private Coroutine botSellingCoroutine;
 
     [System.Serializable]
     public class IPOIndicatorMapping
@@ -359,6 +360,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         if (!localPlayerHasConfirmedSell)
         {
             Debug.Log("Waktu Selling habis! Otomatis submit 0 sales.");
+            BotModeManager.SetBotMode(true);
             OnConfirmSellButtonClicked(); // Otomatis submit
         }
         // Panel akan disembunyikan oleh Rpc_StopSellingTimer
@@ -400,7 +402,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         foreach (Transform child in colorSellRowContainer) Destroy(child.gameObject);
 
         Player localPlayer = PhotonNetwork.LocalPlayer;
-        
+
         string[] colors = { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
         for (int i = 0; i < colors.Length; i++)
@@ -437,14 +439,40 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 }
             });
         }
-        
-        localPlayerHasConfirmedSell = false; 
-        confirmSellButton.gameObject.SetActive(true); 
+
+        localPlayerHasConfirmedSell = false;
+        confirmSellButton.gameObject.SetActive(true);
         confirmSellButton.interactable = true;
 
         confirmSellButton.onClick.RemoveAllListeners();
         confirmSellButton.onClick.AddListener(OnConfirmSellButtonClicked);
         sellingPanel.SetActive(true);
+
+        if (botSellingCoroutine != null) StopCoroutine(botSellingCoroutine); // Hentikan jika ada sisa
+        if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY)
+            && (bool)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.IS_BOT_MODE_KEY])
+        {
+            botSellingCoroutine = StartCoroutine(BotSellingCoroutine());
+        }
+    }
+    private IEnumerator BotSellingCoroutine()
+    {
+        Debug.Log("[Bot Mode] Selling: Menunggu 5 detik sebelum konfirmasi otomatis...");
+        yield return new WaitForSeconds(5.0f);
+
+        // Cek lagi setelah 5 detik
+        bool isStillBot = PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY) &&
+                          (bool)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.IS_BOT_MODE_KEY];
+
+        if (isStillBot && !localPlayerHasConfirmedSell) // Pastikan pemain belum konfirmasi manual
+        {
+            Debug.Log("[Bot Mode] Selling: Waktu tunggu 5 detik selesai. Masih dalam mode bot. Konfirmasi 0 penjualan.");
+            OnConfirmSellButtonClicked(); // Fungsi ini sudah menangani 'localPlayerHasConfirmedSell = true' dan RPC
+        }
+        else
+        {
+            Debug.Log("[Bot Mode] Selling: Dibatalkan. Pemain kembali ke mode manual atau sudah konfirmasi.");
+        }
     }
 
     public void OnConfirmSellButtonClicked()
