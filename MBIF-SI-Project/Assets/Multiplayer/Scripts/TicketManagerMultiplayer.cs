@@ -35,6 +35,7 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
     private Dictionary<int, TicketButtonMultiplayer> localTicketButtons = new Dictionary<int, TicketButtonMultiplayer>();
     private List<int> availableTickets;
     private PhotonView gameStatusView;
+    private Coroutine botBiddingCoroutine;
 
     void Start()
     {
@@ -81,6 +82,7 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
     [PunRPC]
     void StartBiddingPhase(int[] ticketNumbers)
     {
+
         biddingPanel.SetActive(true);
         localTicketButtons.Clear();
         if (timerPanel != null) timerPanel.SetActive(true);
@@ -104,6 +106,42 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
                 ticketButton.Setup(ticketNumbers[i], this, defaultTicketSprite);
                 localTicketButtons.Add(ticketNumbers[i], ticketButton);
             }
+        }
+        if (botBiddingCoroutine != null) StopCoroutine(botBiddingCoroutine); // Hentikan jika ada sisa
+        if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY)
+            && (bool)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.IS_BOT_MODE_KEY])
+        {
+            botBiddingCoroutine = StartCoroutine(BotBiddingCoroutine());
+        }
+    }
+    private IEnumerator BotBiddingCoroutine()
+    {
+        Debug.Log("[Bot Mode] Bidding: Menunggu 5 detik sebelum memilih tiket acak...");
+        yield return new WaitForSeconds(5.0f);
+
+        // Cek lagi setelah 5 detik
+        bool isStillBot = PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY) &&
+                          (bool)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.IS_BOT_MODE_KEY];
+
+        if (isStillBot && !hasChosenTicket) // Pastikan pemain belum memilih secara manual
+        {
+            Debug.Log("[Bot Mode] Bidding: Waktu tunggu 5 detik selesai. Masih dalam mode bot. Meminta tiket acak.");
+            
+            // Hentikan timer utama karena bot mengambil alih
+            if (biddingTimerCoroutine != null)
+            {
+                StopCoroutine(biddingTimerCoroutine);
+                biddingTimerCoroutine = null;
+            }
+            if (timerPanel != null) timerPanel.SetActive(false);
+
+            DisableAllLocalButtons();
+            photonView.RPC("RequestRandomTicket", RpcTarget.MasterClient, PhotonNetwork.LocalPlayer);
+            // 'hasChosenTicket' akan di-set oleh OnPlayerPropertiesUpdate saat properti diperbarui
+        }
+        else
+        {
+            Debug.Log("[Bot Mode] Bidding: Dibatalkan. Pemain kembali ke mode manual atau sudah memilih tiket.");
         }
     }
     private IEnumerator BiddingTimer()
@@ -135,9 +173,18 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
             timerText.text = "0";
         }
         
-        Debug.Log("Waktu bidding habis! Meminta tiket acak...");
-        DisableAllLocalButtons(); // Nonaktifkan tombol agar tidak bisa diklik manual
-        photonView.RPC("RequestRandomTicket", RpcTarget.MasterClient, PhotonNetwork.LocalPlayer);
+        Debug.Log("Waktu bidding habis!");
+        if (!hasChosenTicket)
+        {
+            Debug.Log("Pemain belum memilih. Meminta tiket acak DAN MASUK BOT MODE...");
+            
+            // --- TAMBAHAN ---
+            BotModeManager.SetBotMode(true); // PICU MODE BOT
+            // --- AKHIR TAMBAHAN ---
+
+            DisableAllLocalButtons(); // Nonaktifkan tombol agar tidak bisa diklik manual
+            photonView.RPC("RequestRandomTicket", RpcTarget.MasterClient, PhotonNetwork.LocalPlayer);
+        }
     }
     private void DisableAllLocalButtons()
     {

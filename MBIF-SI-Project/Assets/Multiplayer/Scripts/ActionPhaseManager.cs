@@ -201,6 +201,14 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
             if (turnActorNumber == PhotonNetwork.LocalPlayer.ActorNumber)
             {
+                if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY)
+                    && (bool)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.IS_BOT_MODE_KEY])
+                {
+                    Debug.Log("[Bot Mode] Action: Otomatis skip giliran.");
+                    OnSkipTurnClicked(); // Langsung panggil skip
+                    return; // Lewati sisa fungsi (jangan mulai timer)
+                }
+
                 float duration = propertiesThatChanged.ContainsKey(PlayerProfileMultiplayer.TURN_DURATION_KEY) 
                     ? (float)propertiesThatChanged[PlayerProfileMultiplayer.TURN_DURATION_KEY] 
                     : TURN_DURATION;
@@ -242,8 +250,9 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         }
 
         if (localTimerPanel != null) localTimerPanel.SetActive(false);
-        
+
         Debug.Log("Waktu giliran habis! Otomatis skip.");
+        BotModeManager.SetBotMode(true);
         OnSkipTurnClicked(); // Panggil fungsi skip
     }
 
@@ -1089,10 +1098,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         switch (cardName)
         {
             case "TenderOffer": return 0;
-            case "TradeFee":
-            case "StockSplit": return 1;
-            case "InsiderTrade": return 2; // <-- TAMBAHKAN KEMBALI BARIS INI
-            case "Flashbuy": return 3;
+            case "TradeFee": return 1;
+            case "StockSplit": return 0;
+            case "InsiderTrade": return 0; // <-- TAMBAHKAN KEMBALI BARIS INI
+            case "Flashbuy": return 0;
             default: return 0;
         }
     }

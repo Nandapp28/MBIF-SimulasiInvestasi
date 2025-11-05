@@ -32,6 +32,7 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     public const string TAMBANG_CARDS_KEY = "tambang_cards";
     public const string TESTING_CARD_USED_KEY = "testing_card_used";
     public const string TESTING_CARD_INDEX_KEY = "testing_card_index";
+    public const string IS_BOT_MODE_KEY = "isBotMode";
 
     public const string TURN_START_TIME_KEY = "turnStartTime";
     public const string TURN_ACTOR_KEY = "turnActor";
@@ -62,7 +63,9 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
                 { KEUANGAN_CARDS_KEY, 0 },
                 { TAMBANG_CARDS_KEY, 0 },
                 { TESTING_CARD_USED_KEY, false },
-                { TESTING_CARD_INDEX_KEY, -1 } // Indeks awal untuk Testing Card
+                { TESTING_CARD_INDEX_KEY, -1 }, 
+                
+                { IS_BOT_MODE_KEY, false }// Indeks awal untuk Testing Card
             };
             PhotonNetwork.LocalPlayer.SetCustomProperties(initialProps);
         }

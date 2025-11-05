@@ -70,7 +70,7 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient)
         {
             // Cek apakah jumlah pemain saat ini sudah minimal 2
-            bool hasEnoughPlayers = PhotonNetwork.CurrentRoom.PlayerCount >= 2;
+            bool hasEnoughPlayers = PhotonNetwork.CurrentRoom.PlayerCount >= 1;
             
             // Aktifkan tombol HANYA jika pemain sudah cukup (minimal 2)
             playButton.interactable = hasEnoughPlayers;
@@ -118,7 +118,7 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
     private void OnPlayButtonClicked()
     {
         // Pengecekan ini tetap ada sebagai lapisan keamanan kedua
-        if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 2)
+        if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 1)
         {
             // --- TAMBAHAN PENTING ---
             // 1. Siapkan properti yang ingin diubah
@@ -133,7 +133,7 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
             PhotonNetwork.CurrentRoom.IsVisible = false;
             // -------------------------
 
-            PhotonNetwork.LoadLevel("Multiplayer"); // 4. Baru pindah scene
+            PhotonNetwork.LoadLevel("LoadingSceneMP"); // 4. Baru pindah scene
         }
         else
         {
