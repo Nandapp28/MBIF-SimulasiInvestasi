@@ -7,6 +7,8 @@ using Photon.Realtime;
 using ExitGames.Client.Photon;
 using System.Collections;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
+
+// [RequireComponent(typeof(PhotonView))] // <-- HAPUS BARIS INI, SUDAH TIDAK PERLU RPC
 public class MultiplayerLoadingManager : MonoBehaviourPunCallbacks
 {
     [Header("Visuals (dari LoadingManager.cs)")]
@@ -21,7 +23,7 @@ public class MultiplayerLoadingManager : MonoBehaviourPunCallbacks
     public float minLoadTime = 3.0f;
 
     // Variabel untuk proses loading
-    private AsyncOperation operation;
+    // private AsyncOperation operation; // <-- HAPUS BARIS INI
 
     void Start()
     {
@@ -31,18 +33,14 @@ public class MultiplayerLoadingManager : MonoBehaviourPunCallbacks
         if (statusText != null) statusText.text = "Loading...";
 
         // Mulai Coroutine untuk memuat scene game
-        StartCoroutine(LoadSceneAsync());
+        // StartCoroutine(LoadSceneAsync()); // <-- GANTI NAMA FUNGSI INI
+        StartCoroutine(FakeLoadingAndNotifyReady());
     }
 
-    IEnumerator LoadSceneAsync()
+    // --- INI FUNGSI BARU (PENGGANTI LoadSceneAsync) ---
+    IEnumerator FakeLoadingAndNotifyReady()
     {
-        // 1. Mulai memuat scene game secara asinkron
-        operation = SceneManager.LoadSceneAsync(sceneToLoad);
-        
-        // 2. Tahan scene agar tidak aktif otomatis setelah selesai 90%
-        operation.allowSceneActivation = false;
-
-        // 3. Update slider berdasarkan progress loading LOKAL
+        // 1. (SEPERTI LAMA) Update slider berdasarkan progress loading LOKAL
         float elapsed = 0f;
         while (elapsed < minLoadTime)
         {
@@ -55,25 +53,25 @@ public class MultiplayerLoadingManager : MonoBehaviourPunCallbacks
             yield return null;
         }
 
-        // 3. Pastikan slider 100% setelah waktu minimum selesai
+        // 2. (SEPERTI LAMA) Pastikan slider 100%
         if (slider != null) slider.value = 1f;
 
-        // 4. (PENTING) Sekarang, tunggu loading *asli* selesai
-        //    Ini untuk perangkat lambat yang mungkin butuh > 3 detik
-        while (operation.progress < 0.9f)
-        {
-            // Slider sudah 100%, kita hanya perlu menunggu
-            yield return null; 
-        }
-
-        // 5. Loading selesai. Ganti teks dan beritahu jaringan
+        // 3. (SEPERTI LAMA) Ganti teks dan beritahu jaringan
         if (statusText != null) statusText.text = "Menunggu pemain lain...";
+        
+        // 4. (SEPERTI LAMA) Set properti bahwa KITA sudah siap
         Hashtable props = new Hashtable { { "sceneReady", true } };
         PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+        
+        // 5. (PENTING) Jika kita MasterClient, kita harus cek
+        //    (Karena bisa jadi kita yang terakhir siap)
+        if (PhotonNetwork.IsMasterClient)
+        {
+            CheckAllPlayersReady();
+        }
     }
 
-    // 6. Callback ini akan dipanggil di SEMUA klien setiap kali 
-    //    ada pemain yang mengubah properties-nya (termasuk kita).
+    // 6. (TETAP SAMA) Callback ini akan dipanggil di SEMUA klien 
     public override void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps)
     {
         // Kita hanya peduli jika MasterClient (Host) yang mengecek
@@ -89,7 +87,7 @@ public class MultiplayerLoadingManager : MonoBehaviourPunCallbacks
         }
     }
 
-    // 7. (HANYA MASTER CLIENT) Mengecek apakah semua sudah siap
+    // 7. (MODIFIKASI PENTING)
     private void CheckAllPlayersReady()
     {
         // Pastikan ini HANYA MasterClient
@@ -107,26 +105,26 @@ public class MultiplayerLoadingManager : MonoBehaviourPunCallbacks
         }
 
         // Jika kita lolos dari loop, berarti SEMUA pemain sudah siap.
-        Debug.Log("Semua pemain siap! Mengirim RPC untuk pindah scene.");
+        Debug.Log("Semua pemain siap! MasterClient akan memuat scene 'Multiplayer'...");
         
-        // 8. Kirim perintah ke SEMUA pemain untuk mengaktifkan scene
-        photonView.RPC("ActivateScene", RpcTarget.All);
+        // 8. (INI ADALAH PERUBAHAN UTAMA)
+        // Hapus properti "sceneReady" agar tidak bentrok di kemudian hari
+        Hashtable props = new Hashtable { { "sceneReady", null } };
+        PhotonNetwork.CurrentRoom.SetCustomProperties(props);
+
+        // Panggil PhotonNetwork.LoadLevel.
+        // Karena AutomaticallySyncScene=true, semua klien akan ikut pindah.
+        PhotonNetwork.LoadLevel(sceneToLoad);
     }
 
-    // 9. (DITERIMA SEMUA PEMAIN) Perintah terakhir untuk pindah scene
+    // --- HAPUS FUNGSI RPC DI BAWAH INI KARENA TIDAK DIPERLUKAN LAGI ---
+    /*
     [PunRPC]
     public void ActivateScene()
     {
-        Debug.Log("Menerima RPC, mengaktifkan scene...");
-        if (statusText != null) statusText.text = "Memasuki game...";
-        
-        // Ini adalah perintah untuk melanjutkan loading dari 90% ke 100%
-        // dan pindah scene
-        if (operation != null)
-        {
-            operation.allowSceneActivation = true;
-        }
+        // ... (FUNGSI INI HAPUS) ...
     }
+    */
 
     // (PENTING) Jika Host keluar saat loading
     public override void OnMasterClientSwitched(Player newMasterClient)
