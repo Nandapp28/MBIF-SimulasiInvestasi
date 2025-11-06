@@ -447,6 +447,97 @@ public Sprite GetCardSprite2D(string cardName)
         cardObject.transform.position = finalPosition;
         cardObject.transform.rotation = finalRotation;
     }
+
+    private IEnumerator FlipAndMoveCard(GameObject cardObject, Vector3 startPos, Vector3 endPos)
+    {
+        // --- Persiapan ---
+        Quaternion startRotation = Quaternion.Euler(0, 180, 180); // Face down
+        Quaternion finalRotation = Quaternion.Euler(0, 180, 0);   // Face up
+
+        cardObject.transform.position = startPos; // Mulai dari posisi sektor
+        cardObject.transform.rotation = startRotation;
+        cardObject.SetActive(true);
+
+        float moveDuration = 0.7f; // Durasi animasi
+        float flipHeight = 0.5f; // Ketinggian lengkungan (hop)
+        float moveElapsed = 0f;
+
+        // --- Loop Animasi ---
+        while (moveElapsed < moveDuration)
+        {
+            float progress = moveElapsed / moveDuration;
+
+            // 1. Gerakkan posisi dari startPos ke endPos (linear)
+            Vector3 currentPos = Vector3.Lerp(startPos, endPos, progress);
+            
+            // 2. Tambahkan lengkungan (hop)
+            currentPos.y += Mathf.Sin(progress * Mathf.PI) * flipHeight;
+            cardObject.transform.position = currentPos;
+
+            // 3. Rotasikan kartu secara Slerp
+            cardObject.transform.rotation = Quaternion.Slerp(startRotation, finalRotation, progress);
+
+            moveElapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // --- Finalisasi ---
+        cardObject.transform.position = endPos;
+        cardObject.transform.rotation = finalRotation;
+    }
+
+    // --- BARU --- Coroutine animasi untuk flip DAN bergerak (Reverse: Center -> Sektor)
+    private IEnumerator AnimateFlipAndMoveReverse(GameObject cardObject, Vector3 startPos, Vector3 endPos)
+    {
+        // --- Persiapan ---
+        Quaternion startRotation = Quaternion.Euler(0, 180, 0);   // Face up (dari posisi akhir)
+        Quaternion finalRotation = Quaternion.Euler(0, 180, 180); // Face down (kembali ke awal)
+
+        cardObject.transform.position = startPos; // Mulai dari Center
+        cardObject.transform.rotation = startRotation;
+        cardObject.SetActive(true); // Pastikan masih aktif
+
+        float moveDuration = 0.7f; // Durasi animasi
+        float flipHeight = 0.5f; // Ketinggian lengkungan (hop)
+        float moveElapsed = 0f;
+
+        // --- Loop Animasi ---
+        while (moveElapsed < moveDuration)
+        {
+            float progress = moveElapsed / moveDuration;
+
+            // 1. Gerakkan posisi dari startPos ke endPos (linear)
+            Vector3 currentPos = Vector3.Lerp(startPos, endPos, progress);
+            
+            // 2. Tambahkan lengkungan (hop)
+            currentPos.y += Mathf.Sin(progress * Mathf.PI) * flipHeight;
+            cardObject.transform.position = currentPos;
+
+            // 3. Rotasikan kartu secara Slerp (reverse)
+            cardObject.transform.rotation = Quaternion.Slerp(startRotation, finalRotation, progress);
+
+            moveElapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // --- Finalisasi ---
+        cardObject.transform.position = endPos;
+        cardObject.transform.rotation = finalRotation;
+    }
+
+    // --- BARU --- Coroutine animasi untuk gerakan sederhana (Nudge)
+    private IEnumerator AnimateSimpleMove(GameObject cardObject, Vector3 startPos, Vector3 endPos, float duration)
+    {
+        float moveElapsed = 0f;
+        while (moveElapsed < duration)
+        {
+            float progress = moveElapsed / duration;
+            cardObject.transform.position = Vector3.Lerp(startPos, endPos, progress);
+            moveElapsed += Time.deltaTime;
+            yield return null;
+        }
+        cardObject.transform.position = endPos;
+    }
 private IEnumerator HideCard(GameObject cardObject)
 {
     // --- Persiapan ---
@@ -575,74 +666,129 @@ private IEnumerator HideCard(GameObject cardObject)
     // Coroutine ini berjalan LOKAL di perangkat pemain untuk menjalankan semua animasi.
     private IEnumerator AnimateSingleRumorCard(int rumorIndex)
     {
+        // --- Persiapan ---
         // Validasi dasar
         if (rumorIndex < 0 || rumorIndex >= allRumorEffects.Count) yield break;
 
         RumorEffectData effectData = allRumorEffects[rumorIndex];
         Debug.Log($"[INSIDER TRADE] Anda melihat preview animasi untuk: {effectData.description}");
 
-        // --- Bagian 1: Gerakkan Kamera ke Target ---
-        CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
-        switch (effectData.color)
-        {
-            case Sektor.Konsumer: targetPos = CameraController.CameraPosition.Konsumer; break;
-            case Sektor.Infrastruktur: targetPos = CameraController.CameraPosition.Infrastruktur; break;
-            case Sektor.Keuangan: targetPos = CameraController.CameraPosition.Keuangan; break;
-            case Sektor.Tambang: targetPos = CameraController.CameraPosition.Tambang; break;
-            case Sektor.Netral: targetPos = CameraController.CameraPosition.Center; break;
-        }
+        // Definisi parameter animasi
+        float holdDuration = 4f;         // Waktu tunggu di tengah (diminta "lebih lama")
+        float nudgeHorizontalOffset = -1.2f; // "geser ke kiri" (negatif)
+        float nudgeVerticalOffset = -0.01f;    // "posisi awal ... -0.01"
+        float nudgeDuration = 0.4f;          // Durasi geser ke kiri
 
+        // --- Bagian 1: Gerakkan Kamera ---
         if (cameraController != null)
         {
-            cameraController.MoveTo(targetPos);
+            cameraController.MoveTo(CameraController.CameraPosition.Center);
             yield return new WaitForSeconds(cameraController.moveDuration);
         }
 
-        // --- Bagian 2: Tampilkan dan Animasikan Kartu 3D ---
-        HideAllCardObjects();
-
-        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == effectData.cardName)?.texture;
-        if (frontTexture != null)
+        // --- Bagian 2: Tentukan Posisi & Objek ---
+        
+        // a. Tentukan GameObject di posisi Sektor (untuk referensi posisi)
+        GameObject sectorCardObject = null;
+        switch (effectData.color)
         {
-            GameObject cardToDisplay = null;
-            switch (effectData.color)
-            {
-                case Sektor.Konsumer: cardToDisplay = rumorCardKonsumer; break;
-                case Sektor.Infrastruktur: cardToDisplay = rumorCardInfrastruktur; break;
-                case Sektor.Keuangan: cardToDisplay = rumorCardKeuangan; break;
-                case Sektor.Tambang: cardToDisplay = rumorCardTambang; break;
-                case Sektor.Netral: cardToDisplay = rumorCardNetral; break;
-            }
+            case Sektor.Konsumer: sectorCardObject = rumorCardKonsumer; break;
+            case Sektor.Infrastruktur: sectorCardObject = rumorCardInfrastruktur; break;
+            case Sektor.Keuangan: sectorCardObject = rumorCardKeuangan; break;
+            case Sektor.Tambang: sectorCardObject = rumorCardTambang; break;
+            default: sectorCardObject = rumorCardNetral; break; // Fallback
+        }
 
-            if (cardToDisplay != null)
-            {
-                Renderer cardRenderer = cardToDisplay.GetComponent<Renderer>();
-                if (cardRenderer != null)
-                {
-                    cardRenderer.material.mainTexture = frontTexture;
-                    StartCoroutine(FlipCard(cardToDisplay));
+        // b. Tentukan Posisi Awal (Sektor) dan Akhir (Tengah/Netral)
+        Vector3 startPosition = (sectorCardObject != null) ? sectorCardObject.transform.position : rumorCardNetral.transform.position;
+        Vector3 endPosition = rumorCardNetral.transform.position; 
 
-                }
+        // c. Dapatkan tekstur yang benar
+        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == effectData.cardName)?.texture;
+        
+        // d. Terapkan tekstur ke rumorCardNetral (objek yang akan dianimasikan)
+        if (frontTexture != null && rumorCardNetral != null)
+        {
+            Renderer cardRenderer = rumorCardNetral.GetComponent<Renderer>();
+            if (cardRenderer != null)
+            {
+                cardRenderer.material.mainTexture = frontTexture;
             }
         }
         else
         {
-            Debug.LogWarning($"[RumorPhase] Texture untuk '{effectData.cardName}' tidak ditemukan!");
+            Debug.LogWarning($"[RumorPhase] Texture untuk '{effectData.cardName}' atau rumorCardNetral tidak ditemukan!");
+            // Hentikan jika data penting tidak ada
+            yield return StartCoroutine(FinalizeInsiderTradeAnimation());
+            yield break; 
         }
 
-        // --- Bagian 3: Sembunyikan Kartu & Kembalikan Kamera ---
-        HideAllCardObjects();
-        yield return new WaitForSeconds(0.5f); // Beri jeda singkat
+        // --- Bagian 3: Jalankan Skenario Animasi ---
+        // Pengecekan HANYA pada referensi posisi, BUKAN pada rumorCardNetral
+        if (sectorCardObject != null && sectorCardObject.activeInHierarchy)
+        {
+            // --- SKENARIO 2 (jika gameobject rumorcard dari sector tersebut sedang... active) ---
+            Debug.Log("[Insider Trade] Menjalankan Skenario 2 (Aktif)");
 
+            // 1. Tentukan posisi awal (sedikit di bawah) dan posisi geser
+            Vector3 scenario2StartPos = startPosition + (Vector3.up * nudgeVerticalOffset);
+            Vector3 nudgeTargetPos = scenario2StartPos + (Vector3.right * nudgeHorizontalOffset);
+
+            // 2. Set posisi awal & aktifkan
+            rumorCardNetral.transform.position = scenario2StartPos;
+            rumorCardNetral.SetActive(true);
+
+            // 3. Animasikan "geser ke kiri" (nudge)
+            yield return StartCoroutine(AnimateSimpleMove(rumorCardNetral, scenario2StartPos, nudgeTargetPos, nudgeDuration));
+            
+            // 4. Animasikan "Flip and Move" dari posisi geser ke tengah
+            yield return StartCoroutine(FlipAndMoveCard(rumorCardNetral, nudgeTargetPos, endPosition));
+            
+            // 5. Tahan "lebih lama"
+            yield return new WaitForSeconds(holdDuration);
+
+            // 6. Animasikan "Reverse" kembali ke posisi geser
+            yield return StartCoroutine(AnimateFlipAndMoveReverse(rumorCardNetral, endPosition, nudgeTargetPos));
+            yield return StartCoroutine(AnimateSimpleMove(rumorCardNetral, nudgeTargetPos, scenario2StartPos, nudgeDuration));
+
+            // 7. Sembunyikan kartu setelah kembali
+            rumorCardNetral.SetActive(false);
+            rumorCardNetral.transform.position = endPosition;
+        }
+        else
+        {
+            // --- SKENARIO 1 (jika gameobject rumorcard dari sector tersebut sedang tidak active) ---
+            Debug.Log("[Insider Trade] Menjalankan Skenario 1 (Tidak Aktif)");
+
+            // 1. Animasikan "Flip and Move" dari Sektor ke Tengah
+            yield return StartCoroutine(FlipAndMoveCard(rumorCardNetral, startPosition, endPosition));
+            
+            // 2. Tahan "lebih lama"
+            yield return new WaitForSeconds(holdDuration);
+            
+            // 3. Animasikan "Reverse" kembali ke Sektor
+            yield return StartCoroutine(AnimateFlipAndMoveReverse(rumorCardNetral, endPosition, startPosition));
+
+            // 4. Sembunyikan kartu setelah kembali
+            rumorCardNetral.SetActive(false);
+            rumorCardNetral.transform.position = endPosition;
+        }
+
+        // --- Bagian 4: Finalisasi ---
+        yield return StartCoroutine(FinalizeInsiderTradeAnimation());
+    }
+
+    // --- BARU --- Coroutine terpisah untuk finalisasi (kamera kembali & kirim sinyal)
+    private IEnumerator FinalizeInsiderTradeAnimation()
+    {
+        // Kembalikan kamera ke posisi Normal
         if (cameraController != null)
         {
             cameraController.MoveTo(CameraController.CameraPosition.Normal);
             yield return new WaitForSeconds(cameraController.moveDuration);
         }
 
-        // >> PINDAHKAN KE SINI <<
-        // --- Bagian 4: Kirim Sinyal Selesai ---
-        // Setelah SEMUA animasi lokal selesai, baru kirim sinyal ke MasterClient.
+        // Kirim sinyal ke MasterClient
         if (ActionPhaseManager.Instance != null)
         {
             ActionPhaseManager.Instance.photonView.RPC("Rpc_SignalInsiderTradeAnimationComplete", RpcTarget.MasterClient);
