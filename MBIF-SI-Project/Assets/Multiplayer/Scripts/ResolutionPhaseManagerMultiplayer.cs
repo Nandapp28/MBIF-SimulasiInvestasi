@@ -20,6 +20,8 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public List<GameObject> tokenObjectsInfrastruktur;
     public List<GameObject> tokenObjectsKeuangan;
     public List<GameObject> tokenObjectsTambang;
+    [Header("System References")] // <-- BARIS BARU
+    public CameraController cameraController;
 
     [Header("Audio Materials")]
     public AudioSource audioSource;
@@ -110,34 +112,60 @@ public class ResolutionPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
 
         int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties["currentSemester"];
         int tokenIndexToProcess = currentSemester - 1; // Menggunakan nama variabel yg lebih jelas
+        float waitDuration = (cameraController != null) ? cameraController.moveDuration : 0.8f;
 
         Debug.Log($"Memulai urutan proses resolusi untuk SEMESTER {currentSemester}. Memproses token di indeks {tokenIndexToProcess}.");
-        yield return new WaitForSeconds(2f);
+
+        // 1. Bergerak ke Normal (Posisi Awal)
+        photonView.RPC("Rpc_MoveCamera", RpcTarget.All, CameraController.CameraPosition.Normal);
+        yield return new WaitForSeconds(waitDuration + 0.5f); // Jeda + waktu kamera
 
         foreach (string color in resolutionOrder)
         {
-            // =========================================================================
-            // --- INTI PERUBAHAN ---
-            // HAPUS atau KOMENTARI baris RPC ini. Animasi sudah dilakukan di awal.
-            // photonView.RPC("Rpc_RevealSpecificToken", RpcTarget.All, color, tokenIndexToReveal);
-            // -------------------------------------------------------------------------
+            // 2. Tentukan posisi kamera tujuan berdasarkan warna
+            CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
+            switch (color)
+            {
+                case "Konsumer": targetPos = CameraController.CameraPosition.Konsumer; break;
+                case "Infrastruktur": targetPos = CameraController.CameraPosition.Infrastruktur; break;
+                case "Keuangan": targetPos = CameraController.CameraPosition.Keuangan; break;
+                case "Tambang": targetPos = CameraController.CameraPosition.Tambang; break;
+            }
 
-            // Sekarang kita hanya perlu memberi jeda agar pemain fokus pada token yang efeknya akan diaktifkan.
+            // 3. Perintahkan SEMUA client untuk menggerakkan kamera mereka ke target
+            photonView.RPC("Rpc_MoveCamera", RpcTarget.All, targetPos);
+            yield return new WaitForSeconds(waitDuration); // Tunggu animasi kamera selesai
+
+            // 4. Terapkan efek (Logika lama)
             Debug.Log($"[MasterClient] Memproses efek untuk token {color}...");
-            yield return new WaitForSeconds(2.5f); // Jeda tetap penting untuk flow permainan
-
-            // Logika untuk menerapkan efek tetap berjalan seperti biasa.
+            yield return new WaitForSeconds(1.0f); // Jeda singkat agar pemain fokus
             ApplyTokenEffect(color, tokenIndexToProcess);
-            yield return new WaitForSeconds(1.5f);
+            yield return new WaitForSeconds(1.5f); // Jeda agar pemain melihat pergerakan
         }
+
+        // 5. Kembali ke Normal setelah loop selesai
+        photonView.RPC("Rpc_MoveCamera", RpcTarget.All, CameraController.CameraPosition.Normal);
+        yield return new WaitForSeconds(waitDuration);
 
         Debug.Log("Semua efek token untuk semester ini telah diterapkan. Memproses pembayaran dividen...");
         ProcessDividendPayouts();
     }
-
     #endregion
 
     #region Visuals & RPCs
+    [PunRPC]
+    private void Rpc_MoveCamera(CameraController.CameraPosition targetPosition)
+    {
+        if (cameraController != null)
+        {
+            // Setiap client akan menggerakkan kamera lokalnya masing-masing
+            cameraController.MoveTo(targetPosition);
+        }
+        else
+        {
+            Debug.LogWarning("Referensi CameraController tidak ditemukan, kamera tidak akan bergerak.");
+        }
+    }
 
     private IEnumerator FlipToken(GameObject token, Material frontMaterial)
     {
