@@ -34,20 +34,18 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     public Image localTimerBar;
     public TextMeshProUGUI localTimerText;
     private Coroutine turnTimerCoroutine;
-    private const float TURN_DURATION = 10.0f;
-    private const float ACTION_DURATION = 15.0f;
+    private const float TURN_DURATION = 15.0f;
+    private const float ACTION_DURATION = 20.0f;
 
     [Header("Layout")]
     public List<Transform> cardPositions;
 
     [Header("Trade Fee UI")]
-    public GameObject tradeFeePanel;
-    public Text tradeFeeInfoText;
-    public Text tradeFeeQuantityText;
-    public Button tradeFeePlusButton;
-    public Button tradeFeeMinusButton;
-    public Button tradeFeeConfirmButton;
-
+    public GameObject tradeFeePanel; // Panel UI baru Anda
+    public Transform tradeFeeContainer; // Tempat untuk menampung baris (Vertical Layout)
+    public GameObject tradeFeeRowPrefab; // Prefab baris (SALINAN DARI SellingPhaseManager)
+    public Button tradeFeeConfirmButton; // Tombol konfirmasi di panel baru
+    private Dictionary<string, int> localTradeFeeInputs = new Dictionary<string, int>();
     // Di bagian State Variables:
     private bool isInFlashbuyMode = false;
     private int flashbuyActivatorActorNumber = -1; // Tambahkan ini untuk melacak siapa pengaktif
@@ -97,7 +95,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             turnOrder = players.OrderBy(p => (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY]).ToList();
 
             cardsTaken = 0; // Reset penghitung kartu yang diambil
-            totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 2;
+            totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 10;
             currentTurnIndex = -1;
 
             CreateDeck();
@@ -415,94 +413,129 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     #region Trade Fee Logic
 
     [PunRPC]
-    private void Rpc_RequestTradeFeeInput(string color, int maxQuantity)
+    private void Rpc_RequestTradeFeeInput()
     {
+        // 1. Setup Panel
         tradeFeePanel.SetActive(true);
+        localTradeFeeInputs.Clear();
+        foreach (Transform child in tradeFeeContainer) Destroy(child.gameObject);
 
-        // Konfigurasi UI
-        tradeFeeInfoText.text = $"Jual Kartu Sektor {color}?";
-        int quantityToSell = maxQuantity; // Defaultnya adalah menjual semua
-        tradeFeeQuantityText.text = quantityToSell.ToString();
+        Player localPlayer = PhotonNetwork.LocalPlayer;
+        string[] colors = { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
-        // Hapus listener lama untuk mencegah penumpukan
-        tradeFeePlusButton.onClick.RemoveAllListeners();
-        tradeFeeMinusButton.onClick.RemoveAllListeners();
+        // 2. Buat setiap baris (row)
+        for (int i = 0; i < colors.Length; i++)
+        {
+            string colorName = colors[i];
+            string colorKey = PlayerProfileMultiplayer.GetCardKeyFromColor(colorName);
+            int ownedCards = localPlayer.CustomProperties.ContainsKey(colorKey) ? (int)localPlayer.CustomProperties[colorKey] : 0;
+
+            localTradeFeeInputs[colorName] = 0; // Inisialisasi
+            GameObject row = Instantiate(tradeFeeRowPrefab, tradeFeeContainer);
+
+            // 3. Ambil referensi dari prefab (Gunakan Find, asumsi nama komponen sama dgn prefab penjualan)
+            Text colorLabel = row.transform.Find("ColorLabel").GetComponent<Text>();
+            Text priceLabel = row.transform.Find("PriceLabel").GetComponent<Text>();
+            Text valueText = row.transform.Find("ValueText").GetComponent<Text>();
+            Button plusButton = row.transform.Find("PlusButton").GetComponent<Button>();
+            Button minusButton = row.transform.Find("MinusButton").GetComponent<Button>();
+
+            // 4. Isi data
+            if (colorLabel) colorLabel.text = colorName;
+            if (priceLabel) priceLabel.text = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(colorName).ToString();
+            if (valueText) valueText.text = "0";
+
+            // 5. Atur Listeners
+            if (plusButton != null) plusButton.interactable = true;
+            if (minusButton != null) minusButton.interactable = true;
+            plusButton.onClick.AddListener(() =>
+            {
+                if (localTradeFeeInputs[colorName] < ownedCards)
+                {
+                    localTradeFeeInputs[colorName]++;
+                    if (valueText) valueText.text = localTradeFeeInputs[colorName].ToString();
+                }
+            });
+            minusButton.onClick.AddListener(() =>
+            {
+                if (localTradeFeeInputs[colorName] > 0)
+                {
+                    localTradeFeeInputs[colorName]--;
+                    if (valueText) valueText.text = localTradeFeeInputs[colorName].ToString();
+                }
+            });
+        }
+
+        // 6. Setup Tombol Konfirmasi
+        tradeFeeConfirmButton.gameObject.SetActive(true);
+        tradeFeeConfirmButton.interactable = true;
         tradeFeeConfirmButton.onClick.RemoveAllListeners();
+        tradeFeeConfirmButton.onClick.AddListener(OnTradeFeeConfirm); // Panggil fungsi di bawah
 
-        // Atur fungsi tombol + dan -
-        tradeFeePlusButton.onClick.AddListener(() =>
-        {
-            if (quantityToSell < maxQuantity)
-            {
-                quantityToSell++;
-                tradeFeeQuantityText.text = quantityToSell.ToString();
-            }
-        });
-
-        tradeFeeMinusButton.onClick.AddListener(() =>
-        {
-            if (quantityToSell > 0)
-            {
-                quantityToSell--;
-                tradeFeeQuantityText.text = quantityToSell.ToString();
-            }
-        });
-
-        // Atur fungsi tombol konfirmasi
-        tradeFeeConfirmButton.onClick.AddListener(() =>
-        {
-            OnTradeFeeConfirm(color, quantityToSell);
-        });
-
-      StopLocalTimer();
+        // 7. Mulai Timer
+        StopLocalTimer();
         turnTimerCoroutine = StartCoroutine(StartLocalTurnTimer(ACTION_DURATION));
     }
 
-    // Fungsi ini dipanggil dari tombol konfirmasi di UI
-    public void OnTradeFeeConfirm(string color, int quantity)
+    // Fungsi ini dipanggil dari tombol konfirmasi di UI baru
+    public void OnTradeFeeConfirm()
     {
         StopLocalTimer();
 
-        Debug.Log($"Anda memilih untuk menjual {quantity} kartu {color}. Mengirim keputusan ke MasterClient...");
-        photonView.RPC("Rpc_SubmitTradeFeeDecision", RpcTarget.MasterClient, color, quantity);
+        // Kumpulkan semua input dari dictionary
+        Hashtable sellDecision = new Hashtable();
+        foreach (var entry in localTradeFeeInputs)
+        {
+            if (entry.Value > 0) sellDecision.Add(entry.Key, entry.Value);
+        }
+
+        Debug.Log($"[Trade Fee] Mengkonfirmasi penjualan. Mengirim {sellDecision.Count} entri ke MasterClient...");
+        photonView.RPC("Rpc_SubmitTradeFeeDecision", RpcTarget.MasterClient, sellDecision);
+        
         tradeFeePanel.SetActive(false);
     }
 
     // RPC ini berjalan di MasterClient, menerima pilihan final dari pemain
     [PunRPC]
-    private void Rpc_SubmitTradeFeeDecision(string color, int quantity, PhotonMessageInfo info)
+    private void Rpc_SubmitTradeFeeDecision(Hashtable sellDecision, PhotonMessageInfo info)
     {
         if (!PhotonNetwork.IsMasterClient) return;
 
         Player activator = info.Sender;
         if (activator == null) return;
+        
         consecutiveSkipCount = 0;
+        Debug.Log($"[Trade Fee] MasterClient memproses: {activator.NickName} menjual {sellDecision.Count} jenis kartu.");
 
-        Debug.Log($"[Trade Fee] MasterClient memproses: {activator.NickName} menjual {quantity} kartu {color}.");
+        int totalEarnings = 0;
+        Hashtable propsToSet = new Hashtable();
 
-        // Dapatkan harga jual penuh saat ini
-        int pricePerCard = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(color);
-        int totalEarnings = quantity * pricePerCard;
-
-        // Ambil data pemain saat ini
-        string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(color);
-        int currentCards = (int)activator.CustomProperties[cardKey];
-        // --- PERBAIKAN NAMA VARIABEL ---
-        int currentInvestpoint = (int)activator.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
-
-            // Siapkan properti baru
-            Hashtable propsToSet = new Hashtable
+        // Loop melalui Hashtable keputusan
+        foreach (var entry in sellDecision)
         {
-            { cardKey, currentCards - quantity },
-            { PlayerProfileMultiplayer.INVESTPOINT_KEY, currentInvestpoint + totalEarnings }
-        };
+            string colorName = (string)entry.Key;
+            int quantityToSell = (int)entry.Value;
+            if (quantityToSell <= 0) continue;
 
-        // Kirim pembaruan
+            // Dapatkan harga jual penuh saat ini
+            int pricePerCard = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(colorName);
+            totalEarnings += quantityToSell * pricePerCard;
+
+            // Siapkan untuk mengurangi kartu
+            string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(colorName);
+            int currentCards = (int)activator.CustomProperties[cardKey];
+            propsToSet[cardKey] = currentCards - quantityToSell;
+        }
+
+        // Tambahkan pendapatan ke InvestPoin
+        int currentInvestpoint = (int)activator.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+        propsToSet[PlayerProfileMultiplayer.INVESTPOINT_KEY] = currentInvestpoint + totalEarnings;
+
+        // Kirim pembaruan ke jaringan
         activator.SetCustomProperties(propsToSet);
         Debug.Log($"[Trade Fee] Transaksi berhasil. {activator.NickName} mendapatkan {totalEarnings} InvestPoin.");
-        AdvanceToNextTurn();
-
         
+        AdvanceToNextTurn();
     }
 
     #endregion

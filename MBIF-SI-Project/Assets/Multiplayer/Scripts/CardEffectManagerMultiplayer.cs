@@ -90,28 +90,18 @@ public static class CardEffectManagerMultiplayer
     {
         if (PhotonNetwork.IsMasterClient)
         {
-            string colorCardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(color.ToString());
-            if (string.IsNullOrEmpty(colorCardKey)) yield break;
+            // --- PERUBAHAN DI SINI ---
+            // Kita tidak lagi peduli dengan 'color' atau 'cardsOwned' di sini.
+            // Kita hanya perintahkan klien pengaktif untuk membuka panel penjualan penuh.
             
-            // Cek berapa banyak kartu yang dimiliki pemain
-            int cardsOwned = activator.CustomProperties.ContainsKey(colorCardKey) ? (int)activator.CustomProperties[colorCardKey] : 0;
-            
-            if (cardsOwned > 0)
-            {
-                // Kirim RPC ke pemain untuk meminta input
-                ActionPhaseManager.Instance.photonView.RPC(
-                    "Rpc_RequestTradeFeeInput",
-                    activator, // Target RPC
-                    color.ToString(), // Data 1: Warna kartu
-                    cardsOwned      // Data 2: Jumlah maksimal yang bisa dijual
-                );
-            }
-            else
-            {
-                Debug.LogWarning($"[Trade Fee] {activator.NickName} tidak punya kartu sektor {color} untuk dijual.");
-                // Karena tidak ada aksi, majukan giliran secara manual
-                ActionPhaseManager.Instance.ForceNextTurn();
-            }
+            Debug.Log($"[Trade Fee] {activator.NickName} mengaktifkan. Memerintahkan klien untuk membuka panel penjualan.");
+
+            // Panggil RPC baru di ActionPhaseManager
+            ActionPhaseManager.Instance.photonView.RPC(
+                "Rpc_RequestTradeFeeInput", // RPC BARU
+                activator // Target RPC
+            );
+            // ---
         }
         yield return null;
     }
