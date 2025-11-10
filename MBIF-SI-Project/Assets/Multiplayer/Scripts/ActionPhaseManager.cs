@@ -95,7 +95,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             turnOrder = players.OrderBy(p => (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY]).ToList();
 
             cardsTaken = 0; // Reset penghitung kartu yang diambil
-            totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 10;
+            totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 3;
             currentTurnIndex = -1;
 
             CreateDeck();
@@ -207,6 +207,11 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
                     return; // Lewati sisa fungsi (jangan mulai timer)
                 }
 
+                // Tampilkan tombol Skip HANYA jika kita TIDAK sedang dalam mode Flashbuy
+                if (skipButton != null && !isInFlashbuyMode) 
+                {
+                    skipButton.gameObject.SetActive(true);
+                }
                 float duration = propertiesThatChanged.ContainsKey(PlayerProfileMultiplayer.TURN_DURATION_KEY) 
                     ? (float)propertiesThatChanged[PlayerProfileMultiplayer.TURN_DURATION_KEY] 
                     : TURN_DURATION;
@@ -218,6 +223,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
                 if (localTimerPanel != null)
                 {
                     localTimerPanel.SetActive(false);
+                }
+                if (skipButton != null)
+                {
+                    skipButton.gameObject.SetActive(false);
                 }
             }
         }
@@ -265,6 +274,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (localTimerPanel != null)
         {
             localTimerPanel.SetActive(false);
+        }
+        if (skipButton != null)
+        {
+            skipButton.gameObject.SetActive(false);
         }
     }
 
@@ -557,7 +570,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             if (actionButtonsPanel != null) actionButtonsPanel.SetActive(true);
             if (primaryActionButtonText != null) primaryActionButtonText.text = "Confirm Selection";
             if (activateButton != null) activateButton.gameObject.SetActive(false);
-            if (skipButton != null) skipButton.gameObject.SetActive(true);
+            if (skipButton != null)
+            {
+                skipButton.gameObject.SetActive(false); 
+            }
             UpdateFlashbuyAffordability();
 
             StopLocalTimer();
@@ -701,6 +717,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
                 int marketPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardData.color.ToString());
                 totalCost += cardData.baseValue + marketPrice;
             }
+        }
+        if (primaryActionButtonText != null)
+        {
+            primaryActionButtonText.text = $"Confirm Selection [{totalCost}]";
         }
 
         // Ambil InvestPoin pemain saat ini
@@ -1025,7 +1045,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
         // --- PERUBAHAN LOGIKA BIAYA ---
         int fullPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardData.color.ToString());
-        int totalCost = cardData.baseValue + fullPrice;
+        int totalCost = cardData.baseValue;
         int currentInvestpoint = (int)requestingPlayer.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
 
         if (currentInvestpoint >= totalCost)

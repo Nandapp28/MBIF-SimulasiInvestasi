@@ -132,7 +132,56 @@ public static class CardEffectManagerMultiplayer
         {
             Debug.Log($"[Stock Split] Menggandakan kartu dan menyesuaikan harga untuk sektor '{color}'.");
 
-            // --- Bagian 1: Duplikasi Kartu (Logika dari Multiplayer) ---
+            // --- LOGIKA KAMERA BARU (BAGIAN 1) ---
+            if (ActionPhaseManager.Instance != null)
+            {
+                ActionPhaseManager.Instance.photonView.RPC("Rpc_SetActionPhaseUIVisibility", RpcTarget.All, false);
+            }
+            
+            // 1. Tentukan target kamera berdasarkan Sektor
+            CameraController.CameraPosition targetPos = CameraController.CameraPosition.Normal;
+            try
+            {
+                // Coba konversi enum Sektor (Konsumer) ke enum CameraPosition (Konsumer)
+                targetPos = (CameraController.CameraPosition)System.Enum.Parse(typeof(CameraController.CameraPosition), color.ToString());
+            }
+            catch
+            {
+                Debug.LogWarning($"[Stock Split] Gagal mengonversi Sektor '{color}' ke CameraPosition. Kamera akan tetap di Normal.");
+                targetPos = CameraController.CameraPosition.Normal; // Fallback
+            }
+
+            // 2. Dapatkan durasi tunggu dan PhotonView dari manajer yang memiliki RPC kamera
+            float waitDuration = 0.8f; // Durasi default jika manajer tidak ditemukan
+            PhotonView cameraRpcView = null;
+
+            if (RumorPhaseManagerMultiplayer.Instance != null && RumorPhaseManagerMultiplayer.Instance.cameraController != null)
+            {
+                waitDuration = RumorPhaseManagerMultiplayer.Instance.cameraController.moveDuration;
+                cameraRpcView = RumorPhaseManagerMultiplayer.Instance.photonView;
+            }
+            else if (ResolutionPhaseManagerMultiplayer.Instance != null && ResolutionPhaseManagerMultiplayer.Instance.cameraController != null)
+            {
+                // Fallback jika RumorManager tidak ada
+                waitDuration = ResolutionPhaseManagerMultiplayer.Instance.cameraController.moveDuration;
+                cameraRpcView = ResolutionPhaseManagerMultiplayer.Instance.photonView;
+            }
+
+            if (cameraRpcView == null)
+            {
+                Debug.LogError("[Stock Split] Tidak dapat menemukan PhotonView (dari Rumor/Resolution Manager) untuk mengirim RPC Kamera! Efek akan tetap dijalankan tanpa kamera.");
+                // Jika tidak ada view, kita lewati ke logika lama
+            }
+            else
+            {
+                // 3. Kirim RPC ke SEMUA pemain untuk menggerakkan kamera KE SEKTOR
+                cameraRpcView.RPC("Rpc_MoveCamera", RpcTarget.All, targetPos);
+                yield return new WaitForSeconds(waitDuration); // Tunggu animasi kamera selesai
+            }
+            // --- AKHIR LOGIKA KAMERA (BAGIAN 1) ---
+
+
+            // --- Bagian Efek Inti (Logika Lama) ---
             string cardColorKey = PlayerProfileMultiplayer.GetCardKeyFromColor(color.ToString());
             if (string.IsNullOrEmpty(cardColorKey)) yield break;
 
@@ -149,18 +198,31 @@ public static class CardEffectManagerMultiplayer
 
             SellingPhaseManagerMultiplayer.Instance.ModifyIPOIndex(color.ToString(), -2);
             Debug.Log($"[Stock Split] Harga pasar {color} diturunkan 2 level.");
-            yield return new WaitForSeconds(3.0f); 
             
-            // Panggil giliran berikutnya HANYA SETELAH jeda
+            // Ganti jeda 3 detik menjadi 2 detik (karena sudah ada jeda dari pergerakan kamera)
+            yield return new WaitForSeconds(2.0f);
+
+            // --- LOGIKA KAMERA BARU (BAGIAN 2) ---
+            if (cameraRpcView != null)
+            {
+                // 4. Kirim RPC untuk KEMBALIKAN KAMERA ke Normal
+                cameraRpcView.RPC("Rpc_MoveCamera", RpcTarget.All, CameraController.CameraPosition.Normal);
+                yield return new WaitForSeconds(waitDuration); // Tunggu kamera kembali
+            }
+            // --- AKHIR LOGIKA KAMERA (BAGIAN 2) ---
+            
+            if (ActionPhaseManager.Instance != null)
+            {
+                ActionPhaseManager.Instance.photonView.RPC("Rpc_SetActionPhaseUIVisibility", RpcTarget.All, true);
+            }
+            
+            // Panggil giliran berikutnya HANYA SETELAH semua selesai
             ActionPhaseManager.Instance.ForceNextTurn();
-            // --- AKHIR MODIFIKASI ---
         }
         else
         {
-            // --- MODIFIKASI --- Pastikan coroutine non-MasterClient juga keluar
-            yield return null;
+            yield return null; // Coroutine non-MasterClient langsung keluar
         }
-        // Hapus 'yield return new WaitForSeconds(1f);' yang lama
     }
 
     private static IEnumerator InsiderTradeEffect(Player activator, Sektor color)
