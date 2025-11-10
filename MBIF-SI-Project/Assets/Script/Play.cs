@@ -209,5 +209,15 @@ public class GameModeSelector : MonoBehaviour
         SaveCurrentScene();
         SceneManager.LoadScene("TutorialScene");
     }
+    public void OnCreditPress()
+    {
+        if (SfxManager.Instance != null)
+        {
+            SfxManager.Instance.PlayButtonClick();
+        }
+
+        SaveCurrentScene();
+        SceneManager.LoadScene("Credit");
+    }
     
 }
