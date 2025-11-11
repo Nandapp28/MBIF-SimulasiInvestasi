@@ -52,11 +52,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     private List<int> flashbuySelectedCardIds = new List<int>(); // Kartu yang dipilih di sesi Flashbuy
     private Coroutine flashbuyTimerCoroutine; // Untuk manajemen timer (opsional tapi disarankan)
 
-    [Header("Tender Offer UI")]
-    public GameObject tenderOfferClickButtonPrefab; // Prefab tombol "klik" Anda
-
-    // Tambahkan variabel ini untuk melacak tombol yang aktif
-    private List<GameObject> activeTenderOfferButtons = new List<GameObject>();
+    
     private string tenderOfferCardColor; // Kita masih butuh ini
 
     // Variabel State
@@ -66,6 +62,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     private int cardsTaken = 0; // KEMBALI MENGGUNAKAN INI untuk melacak progres
     private int totalCardsOnTable = 0;
     private int consecutiveSkipCount = 0;
+    private bool isInTenderOfferMode = false;
 
     // Variabel Lokal UI & Data
     private int selectedCardId = -1;
@@ -95,7 +92,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             turnOrder = players.OrderBy(p => (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY]).ToList();
 
             cardsTaken = 0; // Reset penghitung kartu yang diambil
-            totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 3;
+            totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 5;
             currentTurnIndex = -1;
 
             CreateDeck();
@@ -291,135 +288,156 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     #region Tender Offer Logic
 
     [PunRPC]
-    private void Rpc_RequestTenderOfferTarget(int[] validTargetActorNumbers, string cardColorStr)
+    private void Rpc_RequestTenderOfferTarget(int[] validTargetActorNumbers, string cardColorStr, int activatorActorNumber)
     {
-        // Hanya pemain pengaktif yang memunculkan tombol
-        if (PhotonNetwork.LocalPlayer.ActorNumber != this.currentPlayerActorNumber) return;
+        // Logika lama memanggil animasi untuk SEMUA pemain di sini
 
-        tenderOfferCardColor = cardColorStr;
-        CleanupTenderOfferButtons(); // Bersihkan tombol lama jika ada
-
-        // Cari semua profil pemain yang ada di scene
-        PlayerProfileMultiplayer[] allPlayerProfiles = FindObjectsOfType<PlayerProfileMultiplayer>();
-        List<int> validTargetsList = new List<int>(validTargetActorNumbers);
-
-        foreach (PlayerProfileMultiplayer profile in allPlayerProfiles)
+        // Hanya pemain pengaktif yang memunculkan tombol DAN animasi
+        if (PhotonNetwork.LocalPlayer.ActorNumber == activatorActorNumber)
         {
-            // Cek apakah pemilik profil ini adalah target yang valid
-            if (profile.photonView.Owner != null && validTargetsList.Contains(profile.photonView.Owner.ActorNumber))
+            // --- PINDAHKAN LOGIKA ANIMASI KE SINI ---
+            if (MultiplayerManager.Instance != null)
             {
-                // Dapatkan posisi dari UI profil pemain target
-                Transform targetTransform = profile.transform;
-
-                // Buat tombol "klik" sebagai child dari transform target agar posisinya mengikuti
-                GameObject buttonObj = Instantiate(tenderOfferClickButtonPrefab, targetTransform);
-                buttonObj.transform.localPosition = Vector3.zero; // Atur posisi relatif ke tengah
-
-                Button clickButton = buttonObj.GetComponentInChildren<Button>();
-                if (clickButton != null)
-                {
-                    Player targetPlayer = profile.photonView.Owner;
-                    clickButton.onClick.AddListener(() => OnTenderOfferTargetClicked(targetPlayer));
-                }
-
-                activeTenderOfferButtons.Add(buttonObj);
+                MultiplayerManager.Instance.AnimatePlayerContainers(true);
             }
-        }
+            // --- AKHIR PEMINDAHAN ---
 
-        // Tampilkan tombol Skip untuk jaga-jaga
-        if (skipButton != null)
+            isInTenderOfferMode = true;
+            tenderOfferCardColor = cardColorStr; 
+            List<int> validTargetsList = new List<int>(validTargetActorNumbers);
+            
+            PlayerProfileMultiplayer[] allPlayerProfiles = FindObjectsOfType<PlayerProfileMultiplayer>();
+            foreach (PlayerProfileMultiplayer profile in allPlayerProfiles)
+            {
+                if (profile.photonView.Owner != null && validTargetsList.Contains(profile.photonView.Owner.ActorNumber))
+                {
+                    profile.SetupTenderOfferButton(true);
+                }
+            }
+
+            StopLocalTimer();
+            if (skipButton != null)
+            {
+                skipButton.gameObject.SetActive(true);
+            }
+            turnTimerCoroutine = StartCoroutine(StartLocalTurnTimer(ACTION_DURATION));
+        }
+        else
         {
-            actionButtonsPanel.SetActive(true);
-            primaryActionButton.gameObject.SetActive(false);
-            activateButton.gameObject.SetActive(false);
-            skipButton.gameObject.SetActive(true);
+            // Pemain lain tidak melakukan apa-apa (sesuai permintaan "hanya hidecard")
+            // "hidecard" sudah diurus oleh Rpc_SetActionPhaseUIVisibility(false) di CardEffectManagerMultiplayer
+            return;
         }
-
-        StopLocalTimer();
-        turnTimerCoroutine = StartCoroutine(StartLocalTurnTimer(ACTION_DURATION));
     }
-
-    private void OnTenderOfferTargetClicked(Player targetPlayer)
+    public void OnTenderOfferTargetClicked(Player targetPlayer)
     {
         StopLocalTimer();
+
         // Kirim pilihan ke server
         photonView.RPC("Rpc_SubmitTenderOfferTarget", RpcTarget.MasterClient, targetPlayer.ActorNumber, tenderOfferCardColor);
-
-        // Setelah memilih, bersihkan semua tombol "klik" dan tombol skip
-        CleanupTenderOfferButtons();
     }
-    
     // RPC ini berjalan di MasterClient, menerima pilihan final dari pemain
-    [PunRPC]
+   [PunRPC]
     private void Rpc_SubmitTenderOfferTarget(int targetActorNumber, string cardColor, PhotonMessageInfo info)
     {
         if (!PhotonNetwork.IsMasterClient) return;
 
         Player activator = info.Sender;
+        if (activator == null) return;
         Player target = PhotonNetwork.CurrentRoom.GetPlayer(targetActorNumber);
+        if (target == null)
+        {
+            Debug.Log($"[Tender Offer] {activator.NickName} skip (atau target tidak valid). Melanjutkan giliran.");
+            consecutiveSkipCount = 0; // Tetap reset skip count karena ini adalah "aksi"
+            photonView.RPC("Rpc_CleanupTenderOfferVisuals", RpcTarget.All);
+            AdvanceToNextTurn();
+            return; // Hentikan eksekusi di sini
+        }
         consecutiveSkipCount = 0;
 
-        if (activator == null || target == null) return;
-
-        Debug.Log($"[Tender Offer] MasterClient memproses: {activator.NickName} mengambil kartu {cardColor} dari {target.NickName}.");
+        // --- LOGIKA BARU: BELI DARI BANK ---
+        Debug.Log($"[Tender Offer] MasterClient memproses: {activator.NickName} membeli kartu {cardColor} (diaktifkan oleh {target.NickName}).");
 
         // 1. Hitung harga pembelian (setengah dari harga jual penuh)
-        // Asumsi SellingPhaseManagerMultiplayer sudah ada di scene
         int fullPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(cardColor);
         int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f);
 
-        // 2. Ambil data Investpoint dan kartu saat ini dari kedua pemain
+        // 2. Ambil data Investpoint dan kartu aktivator
         int activatorInvestPoin = (int)activator.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
-        int targetInvestPoin = (int)target.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
-
         string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(cardColor);
         int activatorCardCount = activator.CustomProperties.ContainsKey(cardKey) ? (int)activator.CustomProperties[cardKey] : 0;
         int targetCardCount = target.CustomProperties.ContainsKey(cardKey) ? (int)target.CustomProperties[cardKey] : 0;
-
-        // 3. Validasi sekali lagi jika pengaktif mampu membayar
+        // Ambil juga InvestPoin target
+        int targetInvestPoin = (int)target.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+        // 3. Validasi jika pengaktif mampu membayar
         if (activatorInvestPoin >= purchasePrice)
         {
-            // 4. Siapkan properti baru untuk kedua pemain
+            // 4. Siapkan properti baru untuk AKTIVATOR SAJA
             Hashtable activatorProps = new Hashtable
             {
                 { PlayerProfileMultiplayer.INVESTPOINT_KEY, activatorInvestPoin - purchasePrice },
-                { cardKey, activatorCardCount + 1 }
-            };
-
-            Hashtable targetProps = new Hashtable
-            {
-                { PlayerProfileMultiplayer.INVESTPOINT_KEY, targetInvestPoin + purchasePrice },
-                { cardKey, targetCardCount - 1 }
+                { cardKey, activatorCardCount + 1 } // Dapat 1 kartu baru
             };
 
             // 5. Kirim pembaruan ke jaringan
             activator.SetCustomProperties(activatorProps);
-            target.SetCustomProperties(targetProps);
 
-            Debug.Log($"[Tender Offer] Transaksi berhasil. {activator.NickName} membayar {purchasePrice} InvestPoin ke {target.NickName}.");
+            Hashtable targetProps = new Hashtable
+            {
+                { PlayerProfileMultiplayer.INVESTPOINT_KEY, targetInvestPoin + purchasePrice }, // Target menerima uang
+                { cardKey, targetCardCount - 1 } // Kehilangan 1 kartu
+            };
+            target.SetCustomProperties(targetProps);
+            Debug.Log($"[Tender Offer] Transaksi berhasil. {activator.NickName} membayar {purchasePrice} InvestPoin dan mendapat 1 kartu {cardColor}.");
         }
         else
         {
             Debug.LogWarning($"[Tender Offer] Transaksi dibatalkan oleh server, Investpoint {activator.NickName} tidak cukup.");
         }
+
+        // 6. Perintahkan SEMUA klien untuk membersihkan visual
+        photonView.RPC("Rpc_CleanupTenderOfferVisuals", RpcTarget.All);
+
         AdvanceToNextTurn();
     }
-
     private void CleanupTenderOfferButtons()
     {
-        // Hancurkan semua tombol "klik" yang aktif
-        foreach (GameObject btn in activeTenderOfferButtons)
+        // --- INI LOGIKA BARUNYA ---
+        // Temukan semua profil dan nonaktifkan tombol mereka
+        PlayerProfileMultiplayer[] allPlayerProfiles = FindObjectsOfType<PlayerProfileMultiplayer>();
+        foreach (PlayerProfileMultiplayer profile in allPlayerProfiles)
         {
-            if (btn != null) Destroy(btn);
+            // Suruh profil untuk MENONAKTIFKAN tombolnya
+            profile.SetupTenderOfferButton(false);
         }
-        activeTenderOfferButtons.Clear();
+        // --- AKHIR LOGIKA BARU ---
+    }
+    [PunRPC]
+    private void Rpc_CleanupTenderOfferVisuals()
+    {
+        // Logika lama memanggil animasi untuk SEMUA pemain
 
-        // Sembunyikan kembali panel tombol aksi (yang berisi tombol skip)
-        actionButtonsPanel.SetActive(false);
-        // Kembalikan visibilitas tombol normal
-        primaryActionButton.gameObject.SetActive(true);
-        activateButton.gameObject.SetActive(true);
-        skipButton.gameObject.SetActive(false);
+        // --- PERUBAHAN LOGIKA ---
+        // Hanya pemain LOKAL yang sedang dalam mode Tender Offer yang mengembalikan animasi
+        // (yaitu, si pengaktif)
+        if (isInTenderOfferMode)
+        {
+            if (MultiplayerManager.Instance != null)
+            {
+                MultiplayerManager.Instance.AnimatePlayerContainers(false);
+            }
+        }
+
+        isInTenderOfferMode = false; // Reset state untuk semua pemain
+
+        // SEMUA pemain (termasuk non-aktivator) memunculkan kembali container kartu
+        if (cardContainer != null)
+        {
+            cardContainer.gameObject.SetActive(true);
+        }
+
+        // Hanya pemain LOKAL yang secara fisik memiliki tombol yang membersihkannya
+        CleanupTenderOfferButtons();
     }
     #endregion
 
@@ -765,14 +783,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     public void OnSkipTurnClicked()
     {
         StopLocalTimer();
-        if (activeTenderOfferButtons.Count > 0)
-        {
-            Debug.Log("[Tender Offer] Pemain memilih untuk skip.");
-            CleanupTenderOfferButtons(); // Bersihkan UI
-            photonView.RPC("Rpc_RequestSkipTurn", RpcTarget.MasterClient); // Tetap kirim skip normal
-        }
-        // Jika dalam mode Flashbuy dan ini pemain pengaktif
-        else if (isInFlashbuyMode && PhotonNetwork.LocalPlayer.ActorNumber == flashbuyActivatorActorNumber)
+        if (isInFlashbuyMode && PhotonNetwork.LocalPlayer.ActorNumber == flashbuyActivatorActorNumber)
         {
             Debug.Log("[Flashbuy] Pemain mengklik Skip di mode Flashbuy.");
             // Kirim pilihan kosong ke MasterClient (Artinya tidak memilih kartu)
@@ -783,7 +794,16 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         {
             Debug.Log("[Trade Fee] Pemain memilih untuk skip (atau waktu habis).");
             tradeFeePanel.SetActive(false); // Tutup panel
-            photonView.RPC("Rpc_RequestSkipTurn", RpcTarget.MasterClient); // Kirim skip normal
+            OnTradeFeeConfirm(); // Kirim skip normal
+        }
+// --- PERBAIKAN BUG 2: TAMBAHKAN BLOK INI ---
+        else if (isInTenderOfferMode)
+        {
+            Debug.Log("[Tender Offer] Pemain memilih untuk skip (atau waktu habis).");
+            
+            // Kirim RPC dengan target -1 untuk menandakan "skip"
+            // Server (yang sudah kita ubah) akan menanganinya dengan benar.
+            photonView.RPC("Rpc_SubmitTenderOfferTarget", RpcTarget.MasterClient, -1, tenderOfferCardColor);
         }
         else // Skip normal
         {
@@ -802,6 +822,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (info.Sender.ActorNumber == this.currentPlayerActorNumber)
         {
             Debug.Log($"[Skip] {info.Sender.NickName} melewati gilirannya.");
+
+            
             
             consecutiveSkipCount++; // Tambahkan skip count
             Debug.Log($"[Skip] Skip count: {consecutiveSkipCount}/{turnOrder.Count}");
