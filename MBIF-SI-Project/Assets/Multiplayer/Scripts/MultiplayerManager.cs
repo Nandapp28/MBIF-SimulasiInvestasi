@@ -35,6 +35,15 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
     public Transform localPlayerContainer;  // Kontainer untuk UI pemain lokal
     public Transform onlinePlayerContainer;
 
+    [Header("Tender Offer Animation")]
+    public Transform playerContainersParent; // Buat GameObject kosong baru di Unity, masukkan Local & Online Container ke dalamnya
+    public Vector3 tenderOfferAnimPosition = new Vector3(0, 100, 0); // Posisi tengah (sesuaikan di Inspector)
+    public Vector3 tenderOfferAnimScale = new Vector3(1.5f, 1.5f, 1.5f);
+
+    private Vector3 originalContainerParentPos;
+    private Vector3 originalContainerParentScale;
+    private Coroutine animationCoroutine;
+
 
 
     [Header("Transisi UI")] // <-- TAMBAHKAN HEADER INI
@@ -103,6 +112,12 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
 
         if (playerPrefab == null) return;
         PhotonNetwork.Instantiate(playerPrefab.name, Vector3.zero, Quaternion.identity);
+
+        if (playerContainersParent != null)
+        {
+            originalContainerParentPos = playerContainersParent.localPosition;
+            originalContainerParentScale = playerContainersParent.localScale;
+        }
 
         // Setelah membuat prefab, jika kita adalah MasterClient,
         // langsung mulai fase bidding.
@@ -542,6 +557,50 @@ private void Rpc_ArrangePlayerUIs()
         });
 
         Debug.Log($"RPC diterima: Menambahkan {finPoinToAdd} FinPoin ke user {playerAuthId}");
+    }
+    // Fungsi ini akan dipanggil oleh ActionPhaseManager
+    public void AnimatePlayerContainers(bool animateToCenter)
+    {
+        if (playerContainersParent == null) return;
+
+        if (animationCoroutine != null)
+        {
+            StopCoroutine(animationCoroutine);
+        }
+
+        if (animateToCenter)
+        {
+            animationCoroutine = StartCoroutine(AnimateContainersCoroutine(tenderOfferAnimPosition, tenderOfferAnimScale, 0.5f));
+        }
+        else
+        {
+            // Kembali ke posisi & skala semula
+            animationCoroutine = StartCoroutine(AnimateContainersCoroutine(originalContainerParentPos, originalContainerParentScale, 0.5f));
+        }
+    }
+
+    private IEnumerator AnimateContainersCoroutine(Vector3 targetPos, Vector3 targetScale, float duration)
+    {
+        Vector3 startPos = playerContainersParent.localPosition;
+        Vector3 startScale = playerContainersParent.localScale;
+        float time = 0;
+
+        while (time < duration)
+        {
+            float t = time / duration;
+            // Gunakan 'EaseOut' sederhana untuk membuatnya lebih mulus
+            t = 1 - Mathf.Pow(1 - t, 3); 
+
+            playerContainersParent.localPosition = Vector3.Lerp(startPos, targetPos, t);
+            playerContainersParent.localScale = Vector3.Lerp(startScale, targetScale, t);
+            
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        playerContainersParent.localPosition = targetPos;
+        playerContainersParent.localScale = targetScale;
+        animationCoroutine = null;
     }
 
     public void OnExitGameButtonClicked()

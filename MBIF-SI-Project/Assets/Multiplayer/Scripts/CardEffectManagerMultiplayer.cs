@@ -46,7 +46,12 @@ public static class CardEffectManagerMultiplayer
         {
             Debug.Log($"[Tender Offer] {activator.NickName} mengaktifkan untuk sektor {color}. Mencari target...");
 
-            // --- PERBAIKAN 1: Menggunakan nama fungsi yang benar ---
+            // Sembunyikan kartu aksi
+            if (ActionPhaseManager.Instance != null)
+            {
+                ActionPhaseManager.Instance.photonView.RPC("Rpc_SetActionPhaseUIVisibility", RpcTarget.All, false);
+            }
+
             string colorCardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(color.ToString());
             if (string.IsNullOrEmpty(colorCardKey)) yield break;
             
@@ -55,37 +60,45 @@ public static class CardEffectManagerMultiplayer
             List<Player> validTargets = new List<Player>();
             foreach (Player p in PhotonNetwork.PlayerList)
             {
-                if (p == activator) continue; // Tidak bisa menargetkan diri sendiri
+                if (p == activator) continue; 
 
                 int targetCardCount = p.CustomProperties.ContainsKey(colorCardKey) ? (int)p.CustomProperties[colorCardKey] : 0;
 
-                if (targetCardCount > 0)
+                if (targetCardCount < activatorCardCount && targetCardCount > 0)
                 {
                     validTargets.Add(p);
                 }
             }
 
-            if (validTargets.Count > 0)
+            // --- INI ADALAH PERUBAHANNYA ---
+            
+            // Kita tidak lagi menggunakan 'if (validTargets.Count > 0)'
+            // Kita selalu mengirim RPC, meskipun 'validTargets' kosong.
+
+            if (validTargets.Count == 0)
             {
-                int[] validTargetActorNumbers = validTargets.Select(p => p.ActorNumber).ToArray();
-                
-                // Kirim RPC ke pengaktif untuk meminta mereka memilih target
-                ActionPhaseManager.Instance.photonView.RPC(
-                    "Rpc_RequestTenderOfferTarget", 
-                    activator, 
-                    validTargetActorNumbers, 
-                    color.ToString() // <-- TAMBAHKAN INI: Kirim warna kartunya
-                );
+                Debug.LogWarning($"[Tender Offer] Tidak ada target yang valid. Tetap melanjutkan ke pemilihan 'Skip'.");
             }
-            else
-            {
-                Debug.LogWarning($"[Tender Offer] Tidak ada target yang valid untuk {activator.NickName}.");
-                ActionPhaseManager.Instance.ForceNextTurn();
-            }
+
+            int[] validTargetActorNumbers = validTargets.Select(p => p.ActorNumber).ToArray();
+            
+            // Kirim RPC ke semua pemain untuk memulai animasi.
+            // 'validTargetActorNumbers' akan menjadi array kosong jika tidak ada target,
+            // yang secara otomatis akan mencegah tombol target muncul di klien.
+            ActionPhaseManager.Instance.photonView.RPC(
+                "Rpc_RequestTenderOfferTarget", 
+                RpcTarget.All, 
+                validTargetActorNumbers, 
+                color.ToString(),
+                activator.ActorNumber 
+            );
+            
+            // Blok 'else' yang sebelumnya ada di sini (yang membatalkan aksi) telah dihapus.
+            
+            // --- AKHIR PERUBAHAN ---
         }
         yield return null;
     }
-
     private static IEnumerator TradeFeeEffect(Player activator, Sektor color)
     {
         if (PhotonNetwork.IsMasterClient)

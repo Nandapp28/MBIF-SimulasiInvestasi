@@ -22,6 +22,9 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
 
     [Header("Public UI")]
     public Image publicTimerBar;
+    public GameObject tenderOfferTargetButton; 
+    
+    private Button _tenderButtonComponent;
 
     // Definisikan 'kunci' untuk Custom Properties agar tidak salah ketik
     public const string INVESTPOINT_KEY = "investpoint";
@@ -63,11 +66,16 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
                 { KEUANGAN_CARDS_KEY, 0 },
                 { TAMBANG_CARDS_KEY, 0 },
                 { TESTING_CARD_USED_KEY, false },
-                { TESTING_CARD_INDEX_KEY, -1 }, 
-                
+                { TESTING_CARD_INDEX_KEY, -1 },
+
                 { IS_BOT_MODE_KEY, false }// Indeks awal untuk Testing Card
             };
             PhotonNetwork.LocalPlayer.SetCustomProperties(initialProps);
+        }
+        if (tenderOfferTargetButton != null)
+        {
+            _tenderButtonComponent = tenderOfferTargetButton.GetComponent<Button>();
+            tenderOfferTargetButton.SetActive(false); // Sembunyikan saat mulai
         }
     }
 
@@ -123,7 +131,7 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     }
 
     // --- BARU --- Coroutine untuk menganimasikan timer publik
-   private IEnumerator AnimatePublicTimer(double startTime, float duration)
+    private IEnumerator AnimatePublicTimer(double startTime, float duration)
     {
         if (publicTimerBar == null) yield break;
 
@@ -135,12 +143,41 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
             elapsed = PhotonNetwork.Time - startTime;
             // Gunakan 'duration' yang diterima
             float fillAmount = 1.0f - (float)(elapsed / duration);
-            publicTimerBar.fillAmount = Mathf.Clamp01(fillAmount); 
+            publicTimerBar.fillAmount = Mathf.Clamp01(fillAmount);
 
-            yield return null; 
+            yield return null;
         }
 
         publicTimerBar.gameObject.SetActive(false);
+    }
+    
+    public void SetupTenderOfferButton(bool isTarget)
+    {
+        if (tenderOfferTargetButton == null || _tenderButtonComponent == null) return;
+
+        tenderOfferTargetButton.SetActive(isTarget);
+
+        // Hapus listener lama untuk menghindari panggilan ganda
+        _tenderButtonComponent.onClick.RemoveAllListeners();
+
+        if (isTarget)
+        {
+            // Jika diaktifkan, tambahkan listener baru
+            _tenderButtonComponent.onClick.AddListener(OnTenderTargetClicked);
+        }
+    }
+
+    /// <summary>
+    /// Saat tombol target di-klik, tombol ini akan memberi tahu ActionPhaseManager
+    /// dan mengirimkan "Owner" (Pemain) dari profil ini sebagai target.
+    /// </summary>
+    private void OnTenderTargetClicked()
+    {
+        if (ActionPhaseManager.Instance != null && photonView.Owner != null)
+        {
+            // Panggil fungsi publik di ActionPhaseManager (yang akan kita buat di Langkah 2)
+            ActionPhaseManager.Instance.OnTenderOfferTargetClicked(photonView.Owner);
+        }
     }
     #endregion
 
