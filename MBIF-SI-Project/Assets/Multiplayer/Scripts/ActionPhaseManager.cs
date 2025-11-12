@@ -22,6 +22,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     public GameObject actionCardPrefab;
     public Transform cardContainer;
     public GameObject actionButtonsPanel;
+    public Button toggleCardContainerButton;
 
     [Header("Action Buttons References")]
     public Button primaryActionButton;
@@ -82,7 +83,13 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         if (actionButtonsPanel != null) actionButtonsPanel.SetActive(false);
         if (localTimerPanel != null) localTimerPanel.SetActive(false);
         if (tradeFeePanel != null) tradeFeePanel.SetActive(false);
+        if (toggleCardContainerButton != null)
+        {
+            toggleCardContainerButton.gameObject.SetActive(false); // Sembunyikan di awal
+            toggleCardContainerButton.onClick.AddListener(OnToggleCardContainerClicked);
+        }
     }
+    
 
     public void StartActionPhase()
     {
@@ -851,6 +858,10 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         {
             cardContainer.gameObject.SetActive(isVisible);
         }
+        if (toggleCardContainerButton != null)
+        {
+            toggleCardContainerButton.gameObject.SetActive(isVisible);
+        }
 
         // Jika UI disembunyikan, pastikan panel tombol juga ikut tersembunyi.
         if (!isVisible && actionButtonsPanel != null)
@@ -914,6 +925,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             return;
         }
 
+
         // Pastikan ini adalah giliran pemain lokal
         if (PhotonNetwork.LocalPlayer.ActorNumber == this.currentPlayerActorNumber)
         {
@@ -938,6 +950,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         }
     }
 
+
     public void OnPrimaryActionButtonClicked()
     {
         StopLocalTimer();
@@ -949,11 +962,25 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         else
         {
             // Logika save kartu normal
-            if (selectedCardId != -1 && PhotonNetwork.LocalPlayer.ActorNumber == currentPlayerActorNumber) {
+            if (selectedCardId != -1 && PhotonNetwork.LocalPlayer.ActorNumber == currentPlayerActorNumber)
+            {
                 photonView.RPC("RequestSaveCard", RpcTarget.MasterClient, selectedCardId, PhotonNetwork.LocalPlayer);
                 HideAndResetSelection(); // Reset UI setelah mengirim permintaan
             }
         }
+    }
+    public void OnToggleCardContainerClicked()
+    {
+        if (cardContainer == null) return;
+
+        // 1. Toggle (membalik) visibilitas panel kartu
+        bool isCurrentlyVisible = cardContainer.gameObject.activeInHierarchy;
+        cardContainer.gameObject.SetActive(!isCurrentlyVisible);
+
+        // 2. Reset seleksi kartu (sesuai permintaan)
+        // Ini akan menyembunyikan panel tombol "Save/Activate" dan
+        // mengembalikan ukuran kartu yang terseleksi.
+        HideAndResetSelection();
     }
 
     // Buat fungsi baru ini untuk menangani konfirmasi Flashbuy
@@ -1139,6 +1166,11 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         instantiatedCards.Clear();
         cardsOnTable.Clear();
 
+        if (toggleCardContainerButton != null)
+        {
+            toggleCardContainerButton.gameObject.SetActive(true);
+        }
+
         for (int i = 0; i < cardIndices.Length; i++)
         {
             if (i >= cardPositions.Count || cardPositions[i] == null) continue;
@@ -1205,6 +1237,8 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     private IEnumerator EndActionPhaseSequence()
     {
+        photonView.RPC("Rpc_SetActionPhaseUIVisibility", RpcTarget.All, false);
+        // --- AKHIR TAMBAHAN ---
         int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerManager.SEMESTER_KEY];
 
         if (currentSemester > 1)
