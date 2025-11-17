@@ -121,6 +121,8 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 1)
         {
             // --- TAMBAHAN PENTING ---
+            PhotonNetwork.CurrentRoom.PlayerTtl = -1;
+            Debug.Log("PlayerTTL diubah menjadi -1 (In-Game).");
             // 1. Siapkan properti yang ingin diubah
             var customProps = new ExitGames.Client.Photon.Hashtable();
             customProps["started"] = true;

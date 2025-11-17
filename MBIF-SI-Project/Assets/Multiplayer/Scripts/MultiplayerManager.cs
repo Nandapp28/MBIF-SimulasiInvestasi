@@ -391,6 +391,8 @@ private void Rpc_ArrangePlayerUIs()
         // Hanya MasterClient yang memicu penjualan akhir
         if (PhotonNetwork.IsMasterClient)
         {
+            PhotonNetwork.CurrentRoom.PlayerTtl = 0;
+            Debug.Log("PlayerTTL dikembalikan ke 0 (Game Over).");
             SellingPhaseManagerMultiplayer.Instance.ForceSellAllCardsForLeaderboard();
         }
     }
@@ -623,5 +625,41 @@ private void Rpc_ArrangePlayerUIs()
         Debug.Log("Berhasil meninggalkan ruangan Photon. Memuat scene lobi...");
         // Setelah berhasil meninggalkan ruangan, kembali ke scene lobi
         SceneManager.LoadScene("MainMenu"); // Ganti "MainMenu" dengan nama scene lobi Anda
+    }
+    public override void OnPlayerLeftRoom(Player otherPlayer)
+    {
+        base.OnPlayerLeftRoom(otherPlayer);
+
+        Debug.Log($"[MultiplayerManager] Pemain {otherPlayer.NickName} telah disconnect.");
+
+        // Hanya MasterClient yang boleh menangani logika ini
+        if (PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log($"[MasterClient] Menangani disconnect untuk {otherPlayer.NickName}...");
+            
+            // Panggil handler di setiap manajer fase.
+            // Setiap manajer akan memeriksa apakah fase mereka sedang aktif
+            // dan apakah pemain yang disconnect itu relevan.
+
+            if (ticketManager != null)
+        {
+            ticketManager.HandlePlayerDisconnect(otherPlayer);
+        }
+            
+            if (ActionPhaseManager.Instance != null)
+            {
+                ActionPhaseManager.Instance.HandlePlayerDisconnect(otherPlayer);
+            }
+            
+            if (SellingPhaseManagerMultiplayer.Instance != null)
+            {
+                SellingPhaseManagerMultiplayer.Instance.HandlePlayerDisconnect(otherPlayer);
+            }
+            
+            if (TestingCardManagerMultiplayer.Instance != null)
+            {
+                TestingCardManagerMultiplayer.Instance.HandlePlayerDisconnect(otherPlayer);
+            }
+        }
     }
 }

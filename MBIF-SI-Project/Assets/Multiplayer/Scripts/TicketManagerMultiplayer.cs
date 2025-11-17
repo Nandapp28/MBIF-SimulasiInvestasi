@@ -369,4 +369,33 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
         }
         localTicketButtons.Clear();
     }
+    public void HandlePlayerDisconnect(Player disconnectedPlayer)
+    {
+        // Hanya MasterClient & hanya jika bidding panel sedang aktif (secara lokal di MasterClient)
+        if (!PhotonNetwork.IsMasterClient || !biddingPanel.activeInHierarchy)
+        {
+            return;
+        }
+
+        Debug.Log($"[TicketManager] Menangani disconnect {disconnectedPlayer.NickName}...");
+
+        // Cek apakah pemain ini SUDAH punya tiket
+        if (disconnectedPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY) && (int)disconnectedPlayer.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY] > 0)
+        {
+            Debug.Log($"[TicketManager] {disconnectedPlayer.NickName} sudah punya tiket. Tidak ada aksi.");
+            return;
+        }
+
+        // Jika tiket masih tersedia, berikan satu secara acak
+        if (availableTickets != null && availableTickets.Count > 0)
+        {
+            Debug.Log($"[TicketManager] {disconnectedPlayer.NickName} belum punya tiket. Menetapkan tiket acak...");
+            int randomIndex = Random.Range(0, availableTickets.Count);
+            int randomTicket = availableTickets[randomIndex];
+            
+            // Panggil helper internal yang sudah ada (AssignTicketToPlayer)
+            // Ini akan menghapus tiket, mengirim RPC visual, dan mengecek akhir fase.
+            AssignTicketToPlayer(randomTicket, disconnectedPlayer, true);
+        }
+    }
 }

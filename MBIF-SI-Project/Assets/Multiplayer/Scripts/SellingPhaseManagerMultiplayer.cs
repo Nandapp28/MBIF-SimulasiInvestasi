@@ -629,4 +629,28 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         yield return new WaitForSeconds(2f);
         MultiplayerManager.Instance.ShowLeaderboard();
     }
+    public void HandlePlayerDisconnect(Player disconnectedPlayer)
+    {
+        // Hanya MasterClient & hanya jika kita sedang menunggu pemain
+        if (!PhotonNetwork.IsMasterClient || playersToWaitFor == null || playersToWaitFor.Count == 0)
+        {
+            return;
+        }
+
+        if (playersToWaitFor.Contains(disconnectedPlayer))
+        {
+            Debug.Log($"[SellingPhaseManager] {disconnectedPlayer.NickName} disconnect. Mensubmit 0 penjualan untuknya.");
+            
+            // Ini adalah logika yang sama dari Rpc_SubmitSellDecision
+            allPlayerSellDecisions[disconnectedPlayer.ActorNumber] = new Hashtable(); // Submit 0 sales
+            playersToWaitFor.Remove(disconnectedPlayer);
+
+            // Cek apakah semua pemain (yang tersisa) sudah selesai
+            if (playersToWaitFor.Count == 0)
+            {
+                photonView.RPC("Rpc_StopSellingTimer", RpcTarget.All);
+                StartCoroutine(ProcessAllSales());
+            }
+        }
+    }
 }

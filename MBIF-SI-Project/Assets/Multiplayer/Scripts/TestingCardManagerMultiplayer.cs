@@ -435,4 +435,53 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         if (instantiatedCard != null) Destroy(instantiatedCard);
     }
     #endregion
+    public void HandlePlayerDisconnect(Player disconnectedPlayer)
+    {
+        // Cek apakah fase testing sedang aktif dengan melihat properti timer
+        object testingTimerProp;
+        if (!PhotonNetwork.IsMasterClient || 
+            !PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue(TESTING_START_TIME_KEY, out testingTimerProp) ||
+            testingTimerProp == null)
+        {
+            // Fase testing tidak sedang aktif
+            return;
+        }
+        
+        // Cek apakah properti "AllPlayersFinishedTesting" sudah true
+        if (PhotonNetwork.CurrentRoom.CustomProperties.ContainsKey("AllPlayersFinishedTesting") &&
+            (bool)PhotonNetwork.CurrentRoom.CustomProperties["AllPlayersFinishedTesting"] == true)
+        {
+            return; // Fase sudah selesai diproses
+        }
+
+        int actorNumber = disconnectedPlayer.ActorNumber;
+        
+        // Cek apakah pemain ini sudah selesai SEBELUM disconnect
+        if (playersFinishedInteraction == null || playersFinishedInteraction.Contains(actorNumber))
+        {
+            return; // Sudah selesai, tidak perlu ditangani
+        }
+        
+        Debug.Log($"[TestingCardManager] {disconnectedPlayer.NickName} disconnect. Menandai sebagai selesai.");
+
+        // Ini adalah logika yang sama dari Rpc_SignalInteractionComplete
+        playersFinishedInteraction.Add(actorNumber);
+        
+        // Cek apakah semua pemain (termasuk yang disconnect) sudah selesai
+        if (playersFinishedInteraction.Count >= PhotonNetwork.CurrentRoom.PlayerCount)
+        {
+            Debug.Log("MasterClient: Semua pemain (termasuk disconnect) telah selesai.");
+            
+            // Tandai fase selesai di properti ruangan
+            Hashtable props = new Hashtable { { "AllPlayersFinishedTesting", true } };
+            PhotonNetwork.CurrentRoom.SetCustomProperties(props);
+
+            photonView.RPC("Rpc_StopTestingTimerAndPhase", RpcTarget.All);
+            
+            if (ActionPhaseManager.Instance != null)
+            {
+                ActionPhaseManager.Instance.ProceedToSellingPhaseAfterTesting();
+            }
+        }
+    }
 }

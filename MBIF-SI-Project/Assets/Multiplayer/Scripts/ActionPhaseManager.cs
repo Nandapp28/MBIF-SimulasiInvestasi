@@ -37,6 +37,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     private Coroutine turnTimerCoroutine;
     private const float TURN_DURATION = 15.0f;
     private const float ACTION_DURATION = 20.0f;
+    
 
     [Header("Layout")]
     public List<Transform> cardPositions;
@@ -64,6 +65,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     private int totalCardsOnTable = 0;
     private int consecutiveSkipCount = 0;
     private bool isInTenderOfferMode = false;
+    private HashSet<int> disconnectedPlayerActorNumbers = new HashSet<int>();
 
     // Variabel Lokal UI & Data
     private int selectedCardId = -1;
@@ -71,6 +73,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     private List<GameObject> instantiatedCards = new List<GameObject>();
     private GameObject currentlySelectedCardObject = null;
     private Vector3 defaultCardScale;
+    
 
     #region Unity & Setup Methods
     void Awake()
@@ -101,6 +104,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             cardsTaken = 0; // Reset penghitung kartu yang diambil
             totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 5;
             currentTurnIndex = -1;
+            disconnectedPlayerActorNumbers.Clear();
 
             CreateDeck();
             AdvanceToNextTurn();
@@ -143,44 +147,103 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         PhotonNetwork.CurrentRoom.SetCustomProperties(turnProps);
     }
     private void AdvanceToNextTurn()
+{
+    if (!PhotonNetwork.IsMasterClient) return;
+    HideAndResetSelection(); // Sembunyikan tombol normal jika ada
+
+    // Pastikan tidak ada mode Flashbuy yang masih aktif di MasterClient
+    if (isInFlashbuyMode && flashbuyActivatorActorNumber != -1) {
+        Player activator = PhotonNetwork.CurrentRoom.GetPlayer(flashbuyActivatorActorNumber);
+        // Cek apakah pengaktif flashbuy masih ada DAN tidak disconnect
+        if (activator != null && !disconnectedPlayerActorNumbers.Contains(activator.ActorNumber)) {
+            Debug.LogWarning($"[Flashbuy] MasterClient memajukan giliran karena Flashbuy belum selesai oleh {activator.NickName}.");
+            photonView.RPC("Rpc_SubmitFlashbuyChoices", RpcTarget.MasterClient, new int[0]); // Paksa submit pilihan kosong
+        }
+    }
+
+    // Fase berakhir jika semua kartu di meja sudah diambil
+    if (cardsTaken >= totalCardsOnTable)
     {
-        if (!PhotonNetwork.IsMasterClient) return;
-        HideAndResetSelection(); // Sembunyikan tombol normal jika ada
+        Debug.Log("✅ Semua kartu telah diambil. Transisi ke Fase Penjualan dalam 1.5 detik...");
+        GameStatusUI.Instance.photonView.RPC("UpdateStatusText", RpcTarget.All, "Fase Aksi Selesai! Mempersiapkan Penjualan...");
+        SetPublicTurnTimer(false);
+        StartCoroutine(EndActionPhaseSequence());
+        return;
+    }
 
-        // Pastikan tidak ada mode Flashbuy yang masih aktif di MasterClient
-        // Ini penting jika pemain pengaktif Flashbuy keluar atau koneksi terputus.
-        if (isInFlashbuyMode && flashbuyActivatorActorNumber != -1) {
-            Player activator = PhotonNetwork.CurrentRoom.GetPlayer(flashbuyActivatorActorNumber);
-            if (activator != null) {
-                Debug.LogWarning($"[Flashbuy] MasterClient memajukan giliran karena Flashbuy belum selesai oleh {activator.NickName}.");
-                // Mungkin kirim pilihan kosong atau paksa ExitFlashbuyMode() di semua klien
-                photonView.RPC("Rpc_SubmitFlashbuyChoices", RpcTarget.MasterClient, new int[0]); // Paksa submit pilihan kosong
-            }
-        }
+    // --- LOGIKA "SEMUA SKIP" YANG DIPERBAIKI ---
+    // Hitung jumlah pemain yang masih aktif
+    int activePlayers = turnOrder.Count - disconnectedPlayerActorNumbers.Count;
+    
+    // Jika tidak ada pemain aktif (semua disconnect), akhiri fase
+    if (activePlayers <= 0 && turnOrder.Count > 0)
+    {
+         Debug.Log($"[All Disconnect] Semua pemain telah disconnect. Mengakhiri fase aksi.");
+         consecutiveSkipCount = 0; 
+         ClearAllRemainingCards(); 
+         AdvanceToNextTurn(); // Panggil lagi untuk memicu 'cardsTaken'
+         return;
+    }
 
-        // Fase berakhir jika semua kartu di meja sudah diambil
-        if (cardsTaken >= totalCardsOnTable)
-        {
-            Debug.Log("✅ Semua kartu telah diambil. Transisi ke Fase Penjualan dalam 1.5 detik...");
-            GameStatusUI.Instance.photonView.RPC("UpdateStatusText", RpcTarget.All, "Fase Aksi Selesai! Mempersiapkan Penjualan...");
+    // Jika jumlah skip >= jumlah pemain aktif (dan ada pemain aktif)
+    // Ini hanya akan dipicu oleh Rpc_RequestSkipTurn (skip manual)
+    if (consecutiveSkipCount >= activePlayers && activePlayers > 0)
+    {
+         Debug.Log($"[All Skip] Semua pemain aktif ({activePlayers} pemain) telah skip. Mengakhiri fase aksi.");
+         consecutiveSkipCount = 0; 
+         ClearAllRemainingCards(); 
+         AdvanceToNextTurn(); // Panggil lagi untuk memicu 'cardsTaken'
+         return;
+    }
 
-            // --- PERBAIKAN: HANYA PANGGIL COROUTINE ---
-            // Panggil coroutine untuk transisi yang mulus dan HENTIKAN eksekusi.
-            SetPublicTurnTimer(false);
-            StartCoroutine(EndActionPhaseSequence());
-            return;
-            // Baris `return` ini penting untuk memastikan tidak ada kode lain yang berjalan.
-        }
+    // --- AKHIR LOGIKA "SEMUA SKIP" ---
 
-        // Logika untuk memutar giliran (round-robin)
+    Player nextPlayer = null; // Inisialisasi ke null untuk perbaikan error CS0165
+    int safetyBreak = 0; // Menghindari infinite loop
+    
+    do
+    {
         currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-        Player nextPlayer = turnOrder[currentTurnIndex];
+        if (turnOrder.Count == 0) {
+            Debug.LogError("[ActionPhaseManager] TurnOrder kosong! Mengakhiri fase.");
+            safetyBreak = 999;
+            break;
+        }
+        nextPlayer = turnOrder[currentTurnIndex];
+        safetyBreak++;
+        
+        // Jika pemain berikutnya adalah pemain yang disconnect
+        if (disconnectedPlayerActorNumbers.Contains(nextPlayer.ActorNumber))
+        {
+            Debug.Log($"[ActionPhaseManager] Melompati giliran {nextPlayer.NickName} (disconnect)...");
+            
+            // (Logika 'consecutiveSkipCount++' telah dihapus dari sini untuk memperbaiki bug)
+        }
 
+        if (safetyBreak > turnOrder.Count * 2)
+        {
+            Debug.LogError("[ActionPhaseManager] Terjebak di loop AdvanceToNextTurn! Mengakhiri fase paksa.");
+            cardsTaken = totalCardsOnTable; // Paksa akhir fase
+            AdvanceToNextTurn(); // Panggil lagi untuk memicu akhir
+            return;
+        }
+        
+    } while (disconnectedPlayerActorNumbers.Contains(nextPlayer.ActorNumber)); // Ulangi HANYA jika pemain disconnect
+    // --- AKHIR LOGIKA LOOP ---
+
+    // Cek null untuk keamanan jika 'break' terjadi
+    if (nextPlayer != null)
+    {
         SetPublicTurnTimer(true, nextPlayer, TURN_DURATION);
-
         GameStatusUI.Instance.photonView.RPC("UpdateStatusText", RpcTarget.All, $"Giliran {nextPlayer.NickName} untuk memilih kartu.");
         photonView.RPC("Rpc_SyncCurrentPlayerTurn", RpcTarget.All, nextPlayer.ActorNumber);
     }
+    else
+    {
+        Debug.LogError("[ActionPhaseManager] GAGAL menemukan nextPlayer yang valid. Fase aksi mungkin macet.");
+        // (Ini seharusnya tidak terjadi kecuali 'turnOrder' kosong)
+    }
+}
 
     public void ForceNextTurn()
     {
@@ -1297,6 +1360,60 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
         List<int> possibleIndices = Enumerable.Range(0, allCardsPool.Count).ToList();
         System.Random rnd = new System.Random();
         return possibleIndices.OrderBy(x => rnd.Next()).Take(count).ToList();
+    }
+    public void HandlePlayerDisconnect(Player disconnectedPlayer)
+    {
+        // Hanya MasterClient & hanya jika fase aksi sedang berjalan
+        if (!PhotonNetwork.IsMasterClient || turnOrder == null || turnOrder.Count == 0)
+        {
+            return;
+        }
+
+        // Cek apakah pemain ini ada di daftar giliran fase ini
+        if (turnOrder.Contains(disconnectedPlayer))
+        {
+            int actorNum = disconnectedPlayer.ActorNumber;
+            Debug.Log($"[ActionPhaseManager] Menandai {disconnectedPlayer.NickName} (Actor {actorNum}) sebagai disconnect.");
+            
+            if (!disconnectedPlayerActorNumbers.Contains(actorNum))
+            {
+                 disconnectedPlayerActorNumbers.Add(actorNum);
+            }
+
+            // Cek apakah ini giliran mereka SEKARANG?
+            if (actorNum == this.currentPlayerActorNumber)
+            {
+                Debug.Log($"[ActionPhaseManager] Itu adalah giliran pemain yang disconnect. Memajukan paksa...");
+                
+                // Hentikan timer publik
+                SetPublicTurnTimer(false); 
+                
+                // Cek mode khusus (Flashbuy/TenderOffer)
+                if (isInFlashbuyMode && actorNum == flashbuyActivatorActorNumber)
+                {
+                     // Panggil logika dari Rpc_SubmitFlashbuyChoices untuk pilihan kosong (0 kartu)
+                     Debug.Log($"[ActionPhaseManager] {disconnectedPlayer.NickName} disconnect saat Flashbuy. Submit 0 kartu.");
+                     consecutiveSkipCount = 0; // Memilih 0 kartu dihitung sbg aksi, bukan skip
+                     this.isInFlashbuyMode = false;
+                     this.flashbuyActivatorActorNumber = -1;
+                     AdvanceToNextTurn();
+                }
+                else if (isInTenderOfferMode)
+                {
+                     Debug.Log($"[ActionPhaseManager] {disconnectedPlayer.NickName} disconnect saat Tender Offer. Submit 'skip'.");
+                     consecutiveSkipCount = 0; // Aksi skip di Tender Offer dihitung sbg aksi
+                     photonView.RPC("Rpc_CleanupTenderOfferVisuals", RpcTarget.All);
+                     AdvanceToNextTurn();
+                }
+                // (Kita tidak perlu cek TradeFee karena itu di-handle oleh timer skip biasa)
+                else
+                {
+                    // Giliran normal, panggil AdvanceToNextTurn.
+                    // AdvanceToNextTurn akan otomatis melompati pemain ini.
+                    AdvanceToNextTurn();
+                }
+            }
+        }
     }
     #endregion
 }

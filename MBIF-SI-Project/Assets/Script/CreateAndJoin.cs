@@ -351,6 +351,8 @@ public class CreateAndJoin : MonoBehaviourPunCallbacks
 
         RoomOptions options = new RoomOptions();
         options.MaxPlayers = (byte)selectedMaxPlayers;
+        options.PlayerTtl = 0; // Pemain di lobi/waiting room akan langsung dihapus jika diskonek
+        options.EmptyRoomTtl = 60000; // 5 menit (5 * 60 * 1000)
 
         // Simpan password di custom properties
         options.CustomRoomProperties = new ExitGames.Client.Photon.Hashtable()
