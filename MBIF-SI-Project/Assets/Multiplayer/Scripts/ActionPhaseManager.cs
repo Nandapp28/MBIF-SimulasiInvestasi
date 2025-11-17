@@ -1036,14 +1036,26 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     {
         if (cardContainer == null) return;
 
-        // 1. Toggle (membalik) visibilitas panel kartu
-        bool isCurrentlyVisible = cardContainer.gameObject.activeInHierarchy;
-        cardContainer.gameObject.SetActive(!isCurrentlyVisible);
+        // 1. Dapatkan status visibilitas BARU (apa yang akan terjadi)
+        bool isNowVisible = !cardContainer.gameObject.activeInHierarchy;
+        cardContainer.gameObject.SetActive(isNowVisible);
 
         // 2. Reset seleksi kartu (sesuai permintaan)
-        // Ini akan menyembunyikan panel tombol "Save/Activate" dan
-        // mengembalikan ukuran kartu yang terseleksi.
+        // Ini akan selalu menyembunyikan panel tombol, sesuai logika lama.
         HideAndResetSelection();
+
+        // --- TAMBAHAN SOLUSI ---
+        // 3. Jika panel kartu baru saja DITAMPILKAN (isNowVisible == true)
+        //    DAN kita sedang dalam mode Flashbuy...
+        if (isNowVisible && isInFlashbuyMode && actionButtonsPanel != null)
+        {
+            // ...kita harus paksa panel tombol aksi untuk muncul kembali,
+            //    khusus untuk pemain yang sedang giliran.
+            if (PhotonNetwork.LocalPlayer.ActorNumber == flashbuyActivatorActorNumber)
+            {
+                actionButtonsPanel.SetActive(true);
+            }
+        }
     }
 
     // Buat fungsi baru ini untuk menangani konfirmasi Flashbuy
@@ -1300,6 +1312,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
 
     private IEnumerator EndActionPhaseSequence()
     {
+        this.currentPlayerActorNumber = -1;
         photonView.RPC("Rpc_SetActionPhaseUIVisibility", RpcTarget.All, false);
         // --- AKHIR TAMBAHAN ---
         int currentSemester = (int)PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerManager.SEMESTER_KEY];
@@ -1364,14 +1377,15 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     public void HandlePlayerDisconnect(Player disconnectedPlayer)
     {
         // Hanya MasterClient & hanya jika fase aksi sedang berjalan
-        if (!PhotonNetwork.IsMasterClient || turnOrder == null || turnOrder.Count == 0)
-        {
-            return;
-        }
-
+        if (!PhotonNetwork.IsMasterClient || currentPlayerActorNumber == -1)
+    {
+        // currentPlayerActorNumber == -1 berarti Fase Aksi tidak sedang berjalan.
+        // Jangan lakukan apa-apa.
+        return;
+    }
         // Cek apakah pemain ini ada di daftar giliran fase ini
         if (turnOrder.Contains(disconnectedPlayer))
-        {
+        {   
             int actorNum = disconnectedPlayer.ActorNumber;
             Debug.Log($"[ActionPhaseManager] Menandai {disconnectedPlayer.NickName} (Actor {actorNum}) sebagai disconnect.");
             
