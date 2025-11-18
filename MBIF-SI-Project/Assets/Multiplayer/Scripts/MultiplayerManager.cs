@@ -331,7 +331,7 @@ public class MultiplayerManager : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient)
         {
             // Tetap panggil RPC untuk mengatur UI di semua klien
-            photonView.RPC("Rpc_ArrangePlayerUIs", RpcTarget.All);
+           
 
             // TAMBAHKAN INI: MasterClient memulai coroutine untuk transisi
             StartCoroutine(TransitionToActionPhase());

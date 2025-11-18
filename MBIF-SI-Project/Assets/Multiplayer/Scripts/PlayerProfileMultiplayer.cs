@@ -43,10 +43,10 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     public const string TURN_DURATION_KEY = "turnDuration";
     private Coroutine publicTimerCoroutine;
 
-    private MultiplayerManager multiplayerManager;
+    
     void Awake()
     {
-        multiplayerManager = MultiplayerManager.Instance;
+        
         if (publicTimerBar != null)
         {
             publicTimerBar.gameObject.SetActive(false);
@@ -55,6 +55,7 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
 
     void Start()
     {
+        PlaceProfileInContainer();
         if (photonView.IsMine)
         {
             Hashtable initialProps = new Hashtable
@@ -78,6 +79,50 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
             tenderOfferTargetButton.SetActive(false); // Sembunyikan saat mulai
         }
     }
+    private void PlaceProfileInContainer()
+{
+    // 1. Temukan MultiplayerManager
+    MultiplayerManager manager = MultiplayerManager.Instance;
+    if (manager == null)
+    {
+        // Tampilkan error dengan nama pemilik jika ada, jika tidak, tampilkan "Owner N/A"
+        string ownerName = (photonView.Owner != null) ? photonView.Owner.NickName : "Owner N/A";
+        Debug.LogError($"[PlayerProfile] Gagal menemukan MultiplayerManager.Instance untuk {ownerName}");
+        return;
+    }
+
+    Transform targetContainer;
+
+    // --- PERBAIKAN LOGIKA INTI ---
+    // Jangan gunakan "IsMine". Cek apakah "Owner" dari prefab ini
+    // adalah "LocalPlayer" (pemain yang menjalankan game di komputer ini).
+    if (photonView.Owner != null && photonView.Owner == PhotonNetwork.LocalPlayer)
+    {
+        targetContainer = manager.localPlayerContainer;
+    }
+    else
+    {
+        targetContainer = manager.onlinePlayerContainer;
+    }
+    // --- AKHIR PERBAIKAN ---
+
+    // 3. Pindahkan prefab ini (transform) ke dalam kontainer tersebut
+    if (targetContainer != null)
+    {
+        transform.SetParent(targetContainer, false);
+        transform.localScale = Vector3.one; // Pastikan skala tidak berubah
+        gameObject.SetActive(true); // Pastikan objeknya aktif
+        
+        // Tambahkan pengecekan null untuk NickName saat logging
+        string ownerName = (photonView.Owner != null) ? photonView.Owner.NickName : "Disconnecting Player";
+        Debug.Log($"[PlayerProfile] {ownerName} telah ditempatkan di kontainer UI.");
+    }
+    else
+    {
+        string ownerName = (photonView.Owner != null) ? photonView.Owner.NickName : "Owner N/A";
+        Debug.LogWarning($"[PlayerProfile] Gagal menemukan targetContainer untuk {ownerName}");
+    }
+}
 
     #region Photon Callbacks
 

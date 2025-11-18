@@ -289,6 +289,10 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             if (testingCardsPool == null || testingCardsPool.Count == 0) return;
             foreach (Player p in PhotonNetwork.PlayerList)
             {
+                if (p.IsInactive)
+                {
+                    StartCoroutine(HandleDisconnectedPlayerTesting(p));
+                }
                 if (p.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY))
                 {
                     int savedCardIndex = (int)p.CustomProperties[PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY];
@@ -483,5 +487,23 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
                 ActionPhaseManager.Instance.ProceedToSellingPhaseAfterTesting();
             }
         }
+    }
+    private IEnumerator HandleDisconnectedPlayerTesting(Player disconnectedPlayer)
+    {
+        Debug.Log($"[TestingCardManager] Player {disconnectedPlayer.NickName} sudah disconnect. Menunggu 5 detik (Bot Mode) sebelum menandai selesai...");
+        yield return new WaitForSeconds(5.0f);
+
+        int actorNumber = disconnectedPlayer.ActorNumber;
+
+        // Cek lagi jika MasterClient masih aktif dan pemain belum diproses
+        if (!PhotonNetwork.IsMasterClient || playersFinishedInteraction == null || playersFinishedInteraction.Contains(actorNumber))
+        {
+            yield break; // Batalkan jika fase selesai atau sudah diproses
+        }
+        
+        Debug.Log($"[TestingCardManager] Menandai {disconnectedPlayer.NickName} sebagai selesai (Disconnect Bot Mode).");
+        
+        // Panggil RPC yang sama dengan yang dipanggil oleh Bot Mode (OnSkipButtonClicked)
+        photonView.RPC("Rpc_SignalInteractionComplete", RpcTarget.MasterClient, actorNumber);
     }
 }

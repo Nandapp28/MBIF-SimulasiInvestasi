@@ -105,6 +105,14 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 5;
             currentTurnIndex = -1;
             disconnectedPlayerActorNumbers.Clear();
+            foreach (Player p in turnOrder)
+            {
+                if (p.IsInactive)
+                {
+                    Debug.Log($"[ActionPhase] Deteksi Awal: {p.NickName} sudah disconnect. Menandai untuk auto-skip.");
+                    disconnectedPlayerActorNumbers.Add(p.ActorNumber);
+                }
+            }
 
             CreateDeck();
             AdvanceToNextTurn();

@@ -387,6 +387,13 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             Debug.Log("MasterClient memulai Fase Penjualan dan mengatur IPO awal...");
             playersToWaitFor = new List<Player>(turnOrder);
             allPlayerSellDecisions.Clear();
+            foreach (Player p in turnOrder) 
+            {
+                if (p.IsInactive)
+                {
+                    StartCoroutine(HandleDisconnectedPlayerSelling(p));
+                }
+            }
             // Kirim RPC ke semua pemain untuk memulai fase
             photonView.RPC("Rpc_ShowSellingUI", RpcTarget.All);
 
@@ -505,12 +512,34 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     private void SubmitSellDecision(Hashtable decision, PhotonMessageInfo info)
     {
         if (!PhotonNetwork.IsMasterClient) return;
-        Player sender = info.Sender;
+        // Panggil helper baru
+        ProcessPlayerSellDecision(decision, info.Sender.ActorNumber);
+    }
+
+    // --- FUNGSI HELPER BARU (untuk dipanggil oleh RPC dan Coroutine) ---
+    private void ProcessPlayerSellDecision(Hashtable decision, int actorNumber)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        // Cari player berdasarkan actorNumber
+        Player sender = PhotonNetwork.CurrentRoom.GetPlayer(actorNumber);
+        if (sender == null)
+        {
+            Debug.LogWarning($"[SellingPhase] SubmitSellDecision gagal: Player dengan ActorNumber {actorNumber} tidak ditemukan.");
+            return;
+        }
+
         allPlayerSellDecisions[sender.ActorNumber] = decision;
 
         if (playersToWaitFor.Contains(sender))
         {
             playersToWaitFor.Remove(sender);
+        }
+        else
+        {
+             // Jika 'sender' tidak ada di 'playersToWaitFor', mungkin karena dia disconnect
+             // dan coroutine HandleDisconnectedPlayerSelling memanggil ini.
+             // Kita tidak perlu log warning, cukup pastikan dia tidak ada di list.
         }
 
         if (playersToWaitFor.Count == 0)
@@ -652,5 +681,21 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
                 StartCoroutine(ProcessAllSales());
             }
         }
+    }
+    private IEnumerator HandleDisconnectedPlayerSelling(Player disconnectedPlayer)
+    {
+        Debug.Log($"[SellingPhaseManager] Player {disconnectedPlayer.NickName} sudah disconnect. Menunggu 5 detik (Bot Mode) sebelum submit 0 sales...");
+        yield return new WaitForSeconds(5.0f);
+
+        // Cek lagi jika MasterClient masih aktif dan fase masih berjalan
+        if (!PhotonNetwork.IsMasterClient || playersToWaitFor == null || !playersToWaitFor.Contains(disconnectedPlayer))
+        {
+            yield break; // Batalkan jika fase sudah selesai atau pemain sudah diproses
+        }
+
+        Debug.Log($"[SellingPhaseManager] Mensubmit 0 penjualan untuk {disconnectedPlayer.NickName} (Disconnect Bot Mode).");
+        
+        // Panggil fungsi helper yang baru kita buat
+        ProcessPlayerSellDecision(new Hashtable(), disconnectedPlayer.ActorNumber);
     }
 }

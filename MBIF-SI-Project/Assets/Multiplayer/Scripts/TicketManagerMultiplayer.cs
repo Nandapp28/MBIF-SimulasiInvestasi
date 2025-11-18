@@ -59,11 +59,16 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient)
         {
             Debug.Log("MasterClient me-reset TURN_ORDER_KEY semua pemain dan menyiapkan tiket...");
-
-            // 3. (PERBAIKAN) Reset TURN_ORDER_KEY semua pemain ke 0
-            Hashtable resetProp = new Hashtable { { PlayerProfileMultiplayer.TURN_ORDER_KEY, 0 } };
             foreach (Player p in PhotonNetwork.PlayerList)
             {
+                if (p.IsInactive) // p.IsInactive adalah cara Photon menandai disconnect
+                {
+                    // Mulai coroutine 5 detik untuk pemain ini
+                    StartCoroutine(HandleDisconnectedPlayerBidding(p));
+                }
+            
+                // 3. (PERBAIKAN) Reset TURN_ORDER_KEY semua pemain ke 0
+                Hashtable resetProp = new Hashtable { { PlayerProfileMultiplayer.TURN_ORDER_KEY, 0 } };
                 p.SetCustomProperties(resetProp);
             }
 
@@ -397,5 +402,26 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
             // Ini akan menghapus tiket, mengirim RPC visual, dan mengecek akhir fase.
             AssignTicketToPlayer(randomTicket, disconnectedPlayer, true);
         }
+    }
+    private IEnumerator HandleDisconnectedPlayerBidding(Player disconnectedPlayer)
+    {
+        Debug.Log($"[TicketManager] Player {disconnectedPlayer.NickName} sudah disconnect. Menunggu 5 detik (Bot Mode) sebelum auto-assign tiket...");
+        yield return new WaitForSeconds(5.0f);
+
+        // Cek lagi jika MasterClient masih aktif dan fase masih berjalan
+        if (!PhotonNetwork.IsMasterClient || !biddingPanel.activeInHierarchy || availableTickets == null || availableTickets.Count == 0)
+        {
+            yield break; // Batalkan jika fase sudah selesai
+        }
+        
+        // Cek apakah pemain ini (secara ajaib) sudah punya tiket
+        if (disconnectedPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY) && (int)disconnectedPlayer.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY] > 0)
+        {
+            yield break; 
+        }
+
+        Debug.Log($"[TicketManager] Menetapkan tiket acak untuk {disconnectedPlayer.NickName} (Disconnect Bot Mode).");
+        // Panggil RPC yang sama dengan yang dipanggil oleh Bot Mode
+        photonView.RPC("RequestRandomTicket", RpcTarget.MasterClient, disconnectedPlayer);
     }
 }
