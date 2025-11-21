@@ -48,6 +48,7 @@ public class HelpCardPhaseManager : MonoBehaviour
     //public GameObject playerButtonPrefab;
 
     private List<PlayerProfile> turnOrder;
+    private bool isPhaseRunning = false;
     private void Awake()
     {
         // Ubah List menjadi Dictionary agar pencarian gambar lebih cepat
@@ -65,11 +66,30 @@ public class HelpCardPhaseManager : MonoBehaviour
     // Fungsi utama yang dipanggil untuk memulai fase ini
     public void StartHelpCardPhase(List<PlayerProfile> players, int resetCount)
     {
+        // --- PERBAIKAN 1: Cek apakah fase sedang berjalan ---
+        if (isPhaseRunning) 
+        {
+            Debug.LogWarning("[HelpCardPhase] Fase sudah berjalan, mengabaikan pemanggilan ganda.");
+            return;
+        }
+        
+        isPhaseRunning = true; // Tandai fase dimulai
         Debug.Log("--- Memulai Fase Kartu Bantuan ---");
+        
         this.turnOrder = players.OrderBy(p => p.ticketNumber).ToList();
 
+        // --- PERBAIKAN 2: Cek apakah ada pemain yang punya kartu bantuan ---
+        bool anyPlayerHasCards = this.turnOrder.Any(p => p.helpCards != null && p.helpCards.Count > 0);
 
-        StartCoroutine(ActivationSequence());
+        if (!anyPlayerHasCards)
+        {
+            Debug.Log("🚫 Tidak ada pemain yang memiliki Kartu Bantuan. Langsung melompat ke Fase Penjualan.");
+            StartCoroutine(SkipToSellingPhase());
+        }
+        else
+        {
+            StartCoroutine(ActivationSequence());
+        }
     }
 
     public void DistributeHelpCards(List<PlayerProfile> playersToDistribute)
@@ -86,6 +106,11 @@ public class HelpCardPhaseManager : MonoBehaviour
             Debug.Log($"{player.playerName} mendapatkan kartu: '{card.cardName}'");
         }
     }
+    private IEnumerator SkipToSellingPhase()
+    {
+        yield return new WaitForSeconds(1f); 
+        yield return StartCoroutine(EndHelpCardPhase());
+    }   
 
     private IEnumerator ActivationSequence()
     {
@@ -93,12 +118,11 @@ public class HelpCardPhaseManager : MonoBehaviour
 
         foreach (var player in turnOrder)
         {
-            if (player.helpCards.Count == 0)
+            if (player.helpCards == null || player.helpCards.Count == 0)
             {
-                Debug.Log($"{player.playerName} tidak memiliki Kartu Bantuan untuk diaktifkan.");
+                // Debug.Log($"{player.playerName} tidak memiliki Kartu Bantuan untuk diaktifkan.");
                 continue;
             }
-
             Debug.Log($"Giliran {player.playerName} untuk mengaktifkan kartu bantuannya.");
 
             for (int i = player.helpCards.Count - 1; i >= 0; i--)
@@ -121,12 +145,30 @@ public class HelpCardPhaseManager : MonoBehaviour
             }
         }
 
+        yield return StartCoroutine(EndHelpCardPhase());
+
+    }
+    private IEnumerator EndHelpCardPhase()
+    {
         Debug.Log("--- Fase Kartu Bantuan Selesai ---");
-        UITransitionAnimator.Instance.StartTransition("Selling Phase");
+        
+        if (UITransitionAnimator.Instance != null)
+        {
+            UITransitionAnimator.Instance.StartTransition("Selling Phase");
+        }
+        
         yield return new WaitForSeconds(4f);
-        sellingManager.StartSellingPhase(turnOrder, gameManager.resetCount, gameManager.maxResetCount, gameManager.resetSemesterButton);
-
-
+        
+        isPhaseRunning = false; // Reset flag agar bisa dijalankan lagi di semester berikutnya
+        
+        if (sellingManager != null)
+        {
+            sellingManager.StartSellingPhase(turnOrder, gameManager.resetCount, gameManager.maxResetCount, gameManager.resetSemesterButton);
+        }
+        else
+        {
+            Debug.LogError("SellingPhaseManager reference is missing!");
+        }
     }
 
 
