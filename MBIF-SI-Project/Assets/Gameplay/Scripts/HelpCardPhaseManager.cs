@@ -32,6 +32,11 @@ public class HelpCardPhaseManager : MonoBehaviour
     public UnityEngine.UI.Text effectPlayerNameText;
     public UnityEngine.UI.Image effectCardImage;
     public UnityEngine.UI.Text effectTargetText;
+    [Header("Player Selection Settings")] // <-- TAMBAHKAN HEADER INI
+    public RectTransform selectionUIContainer; // Container list pemain yang akan dianimasikan      
+    public float animationDuration = 0.5f;
+    private Vector2 originalPosition;
+    private Vector3 originalScale;
     [Header("Game Assets")] // Header baru untuk aset gambar
     public List<HelpCardArt> cardArtList;
     private Dictionary<HelpCardEffect, Sprite> cardArtDictionary;
@@ -528,21 +533,59 @@ public class HelpCardPhaseManager : MonoBehaviour
     // Fungsi baru untuk menampilkan UI pemilihan pemain
     public IEnumerator ShowPlayerSelectionUI(List<PlayerProfile> players, Action<PlayerProfile> onPlayerSelected)
     {
-        // Pastikan panel lama (jika masih ada) tidak aktif
-    
+        // 1. Simpan kondisi awal UI Container
+        if (selectionUIContainer != null)
+        {
+            originalPosition = selectionUIContainer.anchoredPosition;
+            originalScale = selectionUIContainer.localScale;
+            Vector2 targetCustomPosition = new Vector2(-40f, 100f);
+            
+            // Animasi Masuk: Bergerak ke Tengah (0,0) dan Skala 1.5x
+            StartCoroutine(AnimateUI(selectionUIContainer, targetCustomPosition, Vector3.one * 0.8f));
+        }
 
         bool selectionMade = false;
 
-        // Panggil fungsi baru di GameManager untuk mengaktifkan tombol target di UI pemain
+        // 3. Panggil fungsi GameManager untuk setup tombol target di list pemain
         gameManager.StartPlayerTargeting(players, selectedPlayer =>
         {
-            // Callback ini akan dijalankan oleh GameManager saat target sudah diklik
             onPlayerSelected?.Invoke(selectedPlayer);
             selectionMade = true;
         });
 
-        // Coroutine ini akan berhenti di sini sampai 'selectionMade' menjadi true
+        // Tunggu sampai pemain memilih target ATAU menekan skip
         yield return new WaitUntil(() => selectionMade);
+
+
+        if (selectionUIContainer != null)
+        {
+            // Animasi Keluar: Kembali ke posisi dan skala awal
+            StartCoroutine(AnimateUI(selectionUIContainer, originalPosition, originalScale));
+        }
+    }
+
+    // --- TAMBAHKAN HELPER COROUTINE INI ---
+    private IEnumerator AnimateUI(RectTransform target, Vector2 targetPos, Vector3 targetScale)
+    {
+        float elapsed = 0f;
+        Vector2 startPos = target.anchoredPosition;
+        Vector3 startScale = target.localScale;
+
+        while (elapsed < animationDuration)
+        {
+            float t = elapsed / animationDuration;
+            // Menggunakan SmoothStep untuk gerakan yang lebih luwes
+            t = t * t * (3f - 2f * t); 
+
+            target.anchoredPosition = Vector2.Lerp(startPos, targetPos, t);
+            target.localScale = Vector3.Lerp(startScale, targetScale, t);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        target.anchoredPosition = targetPos;
+        target.localScale = targetScale;
     }
     private IEnumerator ShowEffectResult(PlayerProfile player, HelpCard card, string targetInfo)
     {
