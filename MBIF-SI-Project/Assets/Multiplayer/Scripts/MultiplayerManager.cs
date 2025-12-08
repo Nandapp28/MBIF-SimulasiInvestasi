@@ -662,4 +662,48 @@ private void Rpc_ArrangePlayerUIs()
             }
         }
     }
+    public override void OnMasterClientSwitched(Player newMasterClient)
+{
+    base.OnMasterClientSwitched(newMasterClient);
+
+    Debug.LogWarning($"[HOST MIGRATION] MasterClient lama disconnect. MasterClient baru adalah: {newMasterClient.NickName}");
+
+    // Jika SAYA adalah MasterClient yang baru, saya harus mengambil alih kendali permainan
+    if (PhotonNetwork.IsMasterClient)
+    {
+        TakeOverGameLogic();
+    }
+}
+
+private void TakeOverGameLogic()
+{
+    // 1. Cek Fase Bidding
+    if (ticketManager != null && ticketManager.biddingPanel.activeInHierarchy)
+    {
+        Debug.Log("[HOST MIGRATION] Melanjutkan Fase Bidding...");
+        ticketManager.ResumeBiddingPhase();
+    }
+    // 2. Cek Fase Action
+    else if (ActionPhaseManager.Instance != null && ActionPhaseManager.Instance.IsActionPhaseActive())
+    {
+        Debug.Log("[HOST MIGRATION] Melanjutkan Fase Action...");
+        ActionPhaseManager.Instance.ResumeActionPhase();
+    }
+    // 3. Cek Fase Selling
+    else if (SellingPhaseManagerMultiplayer.Instance != null && SellingPhaseManagerMultiplayer.Instance.sellingPanel.activeInHierarchy)
+    {
+        Debug.Log("[HOST MIGRATION] Melanjutkan Fase Selling...");
+        SellingPhaseManagerMultiplayer.Instance.ResumeSellingPhase();
+    }
+    // 4. Cek Fase Testing (Semester 2-4)
+    else if (TestingCardManagerMultiplayer.Instance != null && TestingCardManagerMultiplayer.Instance.interactiveButtonsPanel.activeInHierarchy)
+    {
+         Debug.Log("[HOST MIGRATION] Melanjutkan Fase Testing...");
+         TestingCardManagerMultiplayer.Instance.ResumeTestingPhase();
+    }
+    
+    // Untuk Fase Rumor dan Resolusi, karena sifatnya animasi linear, 
+    // biasanya cukup aman dibiarkan sampai animasi selesai, 
+    // atau Anda bisa menambahkan logika serupa jika perlu.
+}
 }

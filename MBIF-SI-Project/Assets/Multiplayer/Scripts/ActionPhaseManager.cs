@@ -1437,5 +1437,57 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             }
         }
     }
+    public bool IsActionPhaseActive()
+{
+    // Jika currentPlayerActorNumber tidak -1, berarti fase aksi sedang jalan
+    return currentPlayerActorNumber != -1;
+}
+
+public void ResumeActionPhase()
+{
+    if (!PhotonNetwork.IsMasterClient) return;
+
+    // 1. Ambil data giliran saat ini dari Room Properties
+    if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue(PlayerProfileMultiplayer.TURN_START_TIME_KEY, out object startTimeObj) &&
+        PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue(PlayerProfileMultiplayer.TURN_DURATION_KEY, out object durationObj))
+    {
+        double startTime = (double)startTimeObj;
+        float duration = (float)durationObj;
+        
+        // Hitung sisa waktu
+        double elapsed = PhotonNetwork.Time - startTime;
+        float remainingTime = duration - (float)elapsed;
+
+        if (remainingTime > 0)
+        {
+            // Mulai coroutine pemantau waktu di sisi MasterClient baru
+            StartCoroutine(MasterClientTurnMonitor(remainingTime));
+        }
+        else
+        {
+            // Waktu sudah habis saat host pindah, paksa ganti giliran
+            ForceNextTurn();
+        }
+    }
+    else
+    {
+        // Data korup atau hilang, paksa lanjut ke giliran berikutnya untuk keamanan
+        ForceNextTurn();
+    }
+}
+
+// Coroutine khusus MasterClient untuk memantau waktu (Logic Only, No UI)
+private IEnumerator MasterClientTurnMonitor(float duration)
+{
+    yield return new WaitForSeconds(duration);
+    
+    // Jika setelah waktu habis giliran belum berubah, paksa skip
+    if (PhotonNetwork.IsMasterClient) // Cek lagi untuk keamanan
+    {
+        Debug.Log("[HOST MIGRATION] Waktu giliran habis (Recovered). Memaksa giliran selanjutnya.");
+        // Kita panggil logika yang sama seperti tombol Skip
+        photonView.RPC("Rpc_RequestSkipTurn", RpcTarget.MasterClient);
+    }
+}
     #endregion
 }

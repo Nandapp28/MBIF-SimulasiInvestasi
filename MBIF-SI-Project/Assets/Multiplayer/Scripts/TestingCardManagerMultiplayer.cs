@@ -506,4 +506,44 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         // Panggil RPC yang sama dengan yang dipanggil oleh Bot Mode (OnSkipButtonClicked)
         photonView.RPC("Rpc_SignalInteractionComplete", RpcTarget.MasterClient, actorNumber);
     }
+    public void ResumeTestingPhase()
+{
+    if (!PhotonNetwork.IsMasterClient) return;
+
+    // Rekonstruksi siapa yang belum selesai
+    if (playersFinishedInteraction == null) playersFinishedInteraction = new List<int>();
+    
+    // Kita tidak bisa tahu persis siapa yang sudah selesai hanya dari list lokal Host baru,
+    // tapi kita bisa mengandalkan timer global.
+    
+    if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("testingStartTime", out object startTimeObj))
+    {
+        double startTime = (double)startTimeObj;
+        double elapsed = PhotonNetwork.Time - startTime;
+        float remainingTime = TESTING_TIME - (float)elapsed;
+
+        if (remainingTime > 0)
+        {
+            StartCoroutine(MasterClientTestingMonitor(remainingTime));
+        }
+        else
+        {
+            // Waktu habis, anggap semua selesai
+            Rpc_SignalInteractionComplete(0); // Trigger check completion
+        }
+    }
+}
+
+private IEnumerator MasterClientTestingMonitor(float duration)
+{
+    yield return new WaitForSeconds(duration);
+    if (PhotonNetwork.IsMasterClient)
+    {
+        photonView.RPC("Rpc_StopTestingTimerAndPhase", RpcTarget.All);
+        if (ActionPhaseManager.Instance != null)
+        {
+            ActionPhaseManager.Instance.ProceedToSellingPhaseAfterTesting();
+        }
+    }
+}
 }

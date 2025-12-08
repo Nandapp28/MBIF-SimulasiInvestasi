@@ -424,4 +424,40 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
         // Panggil RPC yang sama dengan yang dipanggil oleh Bot Mode
         photonView.RPC("RequestRandomTicket", RpcTarget.MasterClient, disconnectedPlayer);
     }
+    public void ResumeBiddingPhase()
+{
+    if (!PhotonNetwork.IsMasterClient) return;
+
+    // 1. Rekonstruksi tiket yang tersedia
+    if (availableTickets == null) availableTickets = new List<int>();
+    availableTickets.Clear();
+
+    // Buat daftar semua kemungkinan tiket (1 sampai jumlah pemain)
+    List<int> allPossibleTickets = Enumerable.Range(1, PhotonNetwork.CurrentRoom.PlayerCount).ToList();
+    
+    // Cek tiket mana yang SUDAH diambil oleh pemain
+    foreach (Player p in PhotonNetwork.PlayerList)
+    {
+        if (p.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY))
+        {
+            int takenTicket = (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY];
+            if (takenTicket > 0)
+            {
+                // Jika tiket sudah diambil, hapus dari daftar kemungkinan
+                allPossibleTickets.Remove(takenTicket);
+            }
+        }
+    }
+
+    // Sisanya adalah tiket yang tersedia (available)
+    availableTickets = allPossibleTickets;
+    Debug.Log($"[HOST MIGRATION] Bidding dipulihkan. Tiket tersisa: {availableTickets.Count}");
+
+    // 2. Jika timer berhenti karena host lama keluar, kita harus memulainya lagi atau memaksa selesai
+    // Opsi sederhana: Jika semua tiket habis, akhiri fase. Jika belum, biarkan pemain lanjut memilih.
+    if (availableTickets.Count == 0)
+    {
+        EndBiddingRPC();
+    }
+}
 }

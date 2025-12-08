@@ -698,4 +698,54 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         // Panggil fungsi helper yang baru kita buat
         ProcessPlayerSellDecision(new Hashtable(), disconnectedPlayer.ActorNumber);
     }
+    public void ResumeSellingPhase()
+{
+    if (!PhotonNetwork.IsMasterClient) return;
+
+    // 1. Ambil kembali list pemain yang belum submit (playersToWaitFor)
+    if (playersToWaitFor == null) playersToWaitFor = new List<Player>();
+    playersToWaitFor.Clear();
+
+    // Cek siapa saja yang BELUM ada di allPlayerSellDecisions
+    foreach (Player p in PhotonNetwork.PlayerList)
+    {
+        if (!allPlayerSellDecisions.ContainsKey(p.ActorNumber))
+        {
+            playersToWaitFor.Add(p);
+        }
+    }
+
+    // 2. Cek Timer
+    if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("sellingStartTime", out object startTimeObj))
+    {
+        double startTime = (double)startTimeObj;
+        double elapsed = PhotonNetwork.Time - startTime;
+        float remainingTime = SELLING_TIME - (float)elapsed;
+
+        if (remainingTime > 0)
+        {
+            // Jalankan timer recovery
+            StartCoroutine(MasterClientSellingMonitor(remainingTime));
+        }
+        else
+        {
+            // Waktu sudah habis, proses yang ada
+            StartCoroutine(ProcessAllSales());
+        }
+    }
+}
+
+private IEnumerator MasterClientSellingMonitor(float duration)
+{
+    yield return new WaitForSeconds(duration);
+    
+    if (PhotonNetwork.IsMasterClient)
+    {
+        Debug.Log("[HOST MIGRATION] Waktu Selling habis (Recovered).");
+        // Hentikan timer UI di semua klien
+        photonView.RPC("Rpc_StopSellingTimer", RpcTarget.All);
+        // Proses penjualan (otomatis handle pemain yang belum submit sebagai 0)
+        StartCoroutine(ProcessAllSales());
+    }
+}
 }
