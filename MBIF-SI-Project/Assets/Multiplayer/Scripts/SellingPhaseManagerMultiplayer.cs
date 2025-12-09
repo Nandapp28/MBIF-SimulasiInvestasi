@@ -21,6 +21,9 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public GameObject colorSellRowPrefab;
     public AudioClip buttonClickSellSfx; // <-- BARIS INI ADA
     private AudioSource audioSource;
+    [Header("Toggle UI (BARU)")]
+    public Button togglePanelButton; // <-- Masukkan tombol baru di sini
+    public TextMeshProUGUI toggleButtonText;
 
     [Header("Timer UI (Shared)")]
     public GameObject timerPanel;
@@ -118,6 +121,20 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     void Start()
     {
         if (timerPanel != null) timerPanel.SetActive(false);
+        if (togglePanelButton != null) togglePanelButton.gameObject.SetActive(false);
+    }
+    public void OnTogglePanelClicked()
+    {
+        if (sellingPanel == null) return;
+
+        bool isVisible = !sellingPanel.activeSelf;
+        sellingPanel.SetActive(isVisible);
+
+        // Update teks tombol jika ada
+        if (toggleButtonText != null)
+        {
+            toggleButtonText.text = isVisible ? "Close" : "Open";
+        }
     }
     public void InitializeIpoState(Dictionary<string, int> initialIndices)
 {
@@ -377,6 +394,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         }
         if (timerPanel != null) timerPanel.SetActive(false);
         if (sellingPanel != null) sellingPanel.SetActive(false); // Sembunyikan panel utama di sini
+        if (togglePanelButton != null) togglePanelButton.gameObject.SetActive(false);
     }
     #endregion
 
@@ -454,6 +472,14 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         confirmSellButton.onClick.RemoveAllListeners();
         confirmSellButton.onClick.AddListener(OnConfirmSellButtonClicked);
         sellingPanel.SetActive(true);
+
+        if (togglePanelButton != null)
+        {
+            togglePanelButton.gameObject.SetActive(true);
+            togglePanelButton.onClick.RemoveAllListeners();
+            togglePanelButton.onClick.AddListener(OnTogglePanelClicked);
+            if(toggleButtonText != null) toggleButtonText.text = "Close";
+        }
 
         if (botSellingCoroutine != null) StopCoroutine(botSellingCoroutine); // Hentikan jika ada sisa
         if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY)
