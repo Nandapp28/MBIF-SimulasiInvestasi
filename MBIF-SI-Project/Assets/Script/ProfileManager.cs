@@ -49,8 +49,32 @@ public class ProfileManager : MonoBehaviour
     {
         auth = FirebaseAuth.DefaultInstance;
         dbRef = FirebaseDatabase.DefaultInstance.RootReference;
+        if (GlobalUserData.HasData)
+        {
+            Debug.Log("Menggunakan data cache untuk tampilan instan.");
+            UpdateUIFromData(GlobalUserData.cachedData);
+        }
 
         StartCoroutine(LoadUserData()); // Muat data pengguna saat script aktif
+    }
+    private void UpdateUIFromData(DataToSave data)
+    {
+        // Update Nickname
+        nicknameText.text = !string.IsNullOrEmpty(data.userName) ? data.userName : "Guest";
+
+        // Update Avatar (Gunakan cache nama file)
+        if (!string.IsNullOrEmpty(data.avatarName))
+        {
+            Sprite avatarSprite = Resources.Load<Sprite>("Avatars/" + data.avatarName);
+            if (avatarSprite != null) profilePicture.sprite = avatarSprite;
+        }
+
+        // Update Border
+        if (!string.IsNullOrEmpty(data.borderName))
+        {
+            Sprite borderSprite = Resources.Load<Sprite>("Borders/" + data.borderName);
+            if (borderSprite != null) profileBorder.sprite = borderSprite;
+        }
     }
 
     // Coroutine untuk memuat data pengguna dari Firebase
@@ -69,9 +93,17 @@ public class ProfileManager : MonoBehaviour
 
         yield return new WaitUntil(() => userTask.IsCompleted); // Tunggu task selesai
 
-        if (userTask.Exception == null)
+        if (userTask.Exception == null && userTask.Result.Exists)
         {
             DataSnapshot snapshot = userTask.Result;
+            DataToSave newData = JsonUtility.FromJson<DataToSave>(snapshot.GetRawJsonValue());
+
+            // --- SIMPAN KE CACHE GLOBAL ---
+            GlobalUserData.cachedData = newData; 
+            // ------------------------------
+
+            // Update UI dengan data terbaru (jika ada perubahan dari server)
+            UpdateUIFromData(newData);
             if (snapshot.Exists)
             {
                 // Muat Username

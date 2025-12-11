@@ -327,6 +327,7 @@ public class PlayerDatabase : MonoBehaviour
 
     public void ConfirmLogoutYes()
     {   
+        GlobalUserData.cachedData = null;
         PlayerPrefs.DeleteKey(GuestUserIdKey); // Hapus Guest ID lokal
         PlayerPrefs.Save();
         FirebaseAuth.DefaultInstance.SignOut(); // Logout dari Firebase Auth

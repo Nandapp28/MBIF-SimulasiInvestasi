@@ -165,6 +165,7 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         player = new PlayerProfile("You");
+        player.finpoint = GameSettings.StartingFinpoints;
         if (resetSemesterButton != null)
             resetSemesterButton.SetActive(false); // ganti dengan nama canvas kamu
         skipButton.SetActive(false);
@@ -217,12 +218,18 @@ public class GameManager : MonoBehaviour
         bots.Clear();
         for (int i = 0; i < count; i++)
         {
-            bots.Add(new PlayerProfile("Bot " + (i + 1)));
+            PlayerProfile newBot = new PlayerProfile("Bot " + (i + 1));
+            
+            // --- PERBAIKAN: Set Finpoin Bot agar ikut Hard Mode ---
+            newBot.finpoint = GameSettings.StartingFinpoints; 
+            // -----------------------------------------------------
+
+            bots.Add(newBot);
         }
 
         // --- PERUBAHAN DIMULAI DI SINI ---
         // Gabungkan pemain utama dan bot ke dalam turnOrder untuk pertama kalinya
-        turnOrder.Clear();
+        turnOrder.Clear();  
         turnOrder.Add(player);
         turnOrder.AddRange(bots);
 
