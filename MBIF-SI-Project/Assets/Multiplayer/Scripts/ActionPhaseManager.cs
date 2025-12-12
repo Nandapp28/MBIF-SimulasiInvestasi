@@ -102,7 +102,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
             turnOrder = players.OrderBy(p => (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY]).ToList();
 
             cardsTaken = 0; // Reset penghitung kartu yang diambil
-            totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 5;
+            totalCardsOnTable = PhotonNetwork.CurrentRoom.PlayerCount * 2;
             currentTurnIndex = -1;
             disconnectedPlayerActorNumbers.Clear();
             foreach (Player p in turnOrder)
