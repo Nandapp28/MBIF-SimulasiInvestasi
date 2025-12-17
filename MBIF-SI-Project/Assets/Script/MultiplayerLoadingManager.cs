@@ -90,30 +90,31 @@ public class MultiplayerLoadingManager : MonoBehaviourPunCallbacks
     // 7. (MODIFIKASI PENTING)
     private void CheckAllPlayersReady()
     {
-        // Pastikan ini HANYA MasterClient
         if (!PhotonNetwork.IsMasterClient) return; 
 
         foreach (Player p in PhotonNetwork.PlayerList)
         {
+            // TAMBAHAN: Abaikan pemain yang statusnya 'IsInactive' (sedang putus tapi belum timeout)
+            if (p.IsInactive) 
+            {
+                Debug.Log($"Pemain {p.NickName} inaktif, diabaikan.");
+                continue;
+            }
+
             // Cek apakah pemain punya properti 'sceneReady' dan nilainya 'true'
             if (!p.CustomProperties.ContainsKey("sceneReady") || !(bool)p.CustomProperties["sceneReady"])
             {
-                // Jika ada SATU saja yang belum siap, berhenti mengecek.
                 Debug.Log($"Pemain {p.NickName} belum siap.");
                 return;
             }
         }
 
-        // Jika kita lolos dari loop, berarti SEMUA pemain sudah siap.
         Debug.Log("Semua pemain siap! MasterClient akan memuat scene 'Multiplayer'...");
         
-        // 8. (INI ADALAH PERUBAHAN UTAMA)
         // Hapus properti "sceneReady" agar tidak bentrok di kemudian hari
         Hashtable props = new Hashtable { { "sceneReady", null } };
         PhotonNetwork.CurrentRoom.SetCustomProperties(props);
 
-        // Panggil PhotonNetwork.LoadLevel.
-        // Karena AutomaticallySyncScene=true, semua klien akan ikut pindah.
         PhotonNetwork.LoadLevel(sceneToLoad);
     }
 

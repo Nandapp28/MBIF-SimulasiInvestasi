@@ -97,20 +97,81 @@ public class HelpCardPhaseManager : MonoBehaviour
         }
     }
 
-    public void DistributeHelpCards(List<PlayerProfile> playersToDistribute)
+   public IEnumerator DistributeHelpCards(List<PlayerProfile> playersToDistribute)
+{
+    Debug.Log("Membagikan Kartu Bantuan kepada semua pemain...");
+    foreach (var player in playersToDistribute)
     {
-        Debug.Log("Membagikan Kartu Bantuan kepada semua pemain...");
-        foreach (var player in playersToDistribute)
+        var card = GetRandomHelpCard();
+        if (player.helpCards == null)
         {
-            var card = GetRandomHelpCard();
-            if (player.helpCards == null)
+            player.helpCards = new List<HelpCard>();
+        }
+        player.helpCards.Add(card);
+        Debug.Log($"{player.playerName} mendapatkan kartu: '{card.cardName}'");
+
+        // --- LOGIKA TAMPILAN PEMAIN (YOU) ---
+        if (player.playerName.Contains("You"))
+        {
+            if (helpCardActivationPanel != null)
             {
-                player.helpCards = new List<HelpCard>();
+                // 1. Setup Data UI (Gambar & Teks)
+                // Pastikan variabel Text di Inspector sudah di-assign
+                if (cardNameText != null) cardNameText.text = "ANDA MENDAPATKAN:\n" + card.cardName;
+                if (cardDescriptionText != null) cardDescriptionText.text = card.description;
+                if (cardImageUI != null) cardImageUI.sprite = card.cardImage;
+
+                // 2. Sembunyikan Tombol agar hanya jadi "Viewer"
+                if (activateButton != null) activateButton.gameObject.SetActive(false);
+                if (skipButton != null) skipButton.gameObject.SetActive(false);
+
+                // 3. Pastikan ada CanvasGroup untuk efek Fade
+                CanvasGroup cg = helpCardActivationPanel.GetComponent<CanvasGroup>();
+                if (cg == null) cg = helpCardActivationPanel.AddComponent<CanvasGroup>();
+
+                // 4. Reset kondisi awal & Aktifkan Panel
+                cg.alpha = 0f; 
+                helpCardActivationPanel.SetActive(true);
+
+                // 5. Animasi FADE IN (0.5 detik)
+                yield return StartCoroutine(FadeCanvasGroup(cg, 0f, 1f, 0.5f));
+
+                // 6. Tahan tampilan (2 detik)
+                yield return new WaitForSeconds(2f);
+
+                // 7. Animasi FADE OUT (0.5 detik)
+                yield return StartCoroutine(FadeCanvasGroup(cg, 1f, 0f, 0.5f));
+
+                // 8. Matikan panel dan KEMBALIKAN tombol (PENTING!)
+                helpCardActivationPanel.SetActive(false);
+                
+                // Kembalikan tombol agar bisa dipakai di fase aktivasi nanti
+                if (activateButton != null) activateButton.gameObject.SetActive(true);
+                if (skipButton != null) skipButton.gameObject.SetActive(true);
+                
+                // Reset alpha ke 1 jaga-jaga jika panel dibuka tanpa animasi nanti
+                cg.alpha = 1f; 
             }
-            player.helpCards.Add(card);
-            Debug.Log($"{player.playerName} mendapatkan kartu: '{card.cardName}'");
         }
     }
+}
+
+// --- FUNGSI TAMBAHAN UNTUK ANIMASI HALUS ---
+private IEnumerator FadeCanvasGroup(CanvasGroup cg, float startAlpha, float endAlpha, float duration)
+{
+    float elapsedTime = 0f;
+    cg.alpha = startAlpha;
+
+    while (elapsedTime < duration)
+    {
+        elapsedTime += Time.deltaTime;
+        // Mengubah alpha secara bertahap
+        cg.alpha = Mathf.Lerp(startAlpha, endAlpha, elapsedTime / duration);
+        yield return null;
+    }
+
+    cg.alpha = endAlpha;
+}
     private IEnumerator SkipToSellingPhase()
     {
         yield return new WaitForSeconds(1f); 
@@ -179,8 +240,13 @@ public class HelpCardPhaseManager : MonoBehaviour
 
     private IEnumerator HandlePlayerChoice(PlayerProfile player, HelpCard card)
     {
+        CanvasGroup cg = helpCardActivationPanel.GetComponent<CanvasGroup>();
+    if (cg != null) cg.alpha = 1f;
+
         helpCardActivationPanel.SetActive(true);
         cardImageUI.sprite = card.cardImage;
+        if (cardNameText != null) cardNameText.text = card.cardName;
+    if (cardDescriptionText != null) cardDescriptionText.text = card.description;
 
         bool choiceMade = false;
         bool wantsToActivate = false;

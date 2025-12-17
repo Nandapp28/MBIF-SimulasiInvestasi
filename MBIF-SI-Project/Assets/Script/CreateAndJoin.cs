@@ -141,7 +141,7 @@ public class CreateAndJoin : MonoBehaviourPunCallbacks
         foreach (RoomInfo room in roomList)
         {
             // Hapus dari cache jika room dihapus, tertutup, atau tidak terlihat
-            if (room.RemovedFromList || !room.IsOpen || !room.IsVisible)
+            if (room.RemovedFromList || !room.IsVisible)
             {
                 if (cachedRoomList.ContainsKey(room.Name))
                 {
