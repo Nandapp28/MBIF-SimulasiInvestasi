@@ -249,15 +249,25 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     
     private void OnSectorChosenForPreview(string sectorName)
     {
-        if (sectorChoicePanel != null) sectorChoicePanel.SetActive(false);
+        if (sectorChoicePanel != null) sectorChoicePanel.SetActive(false); 
         StartCoroutine(PrivateRumorPreviewAnimation(sectorName));
     }
 
     private IEnumerator PrivateRumorPreviewAnimation(string sectorName)
     {
+        if (containerCanvasGroup != null)
+        {
+            containerCanvasGroup.alpha = 0f; 
+            containerCanvasGroup.blocksRaycasts = false; // Matikan interaksi
+        }
         if (RumorPhaseManagerMultiplayer.Instance != null)
         {
             yield return StartCoroutine(RumorPhaseManagerMultiplayer.Instance.AnimatePrivateRumorPreview(sectorName));
+        }
+        if (containerCanvasGroup != null)
+        {
+            containerCanvasGroup.alpha = 1f;
+            containerCanvasGroup.blocksRaycasts = true; // Hidupkan kembali interaksi
         }
         playerHasMadeChoice = true;
     }
@@ -411,7 +421,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             {
                 foreach (Player p in PhotonNetwork.PlayerList)
                 {
-                    int randomIndex = Random.Range(0, testingCardsPool.Count);
+                    int randomIndex = 0;
                     Hashtable props = new Hashtable { { PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY, randomIndex } };
                     p.SetCustomProperties(props);
                     photonView.RPC("Rpc_ShowMyTestingCard", p, randomIndex);
