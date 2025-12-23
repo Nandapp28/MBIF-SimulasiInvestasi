@@ -41,6 +41,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     private Coroutine testingTimerCoroutine;
     private const string TESTING_START_TIME_KEY = "testingStartTime";
 
+    private bool isAnimating = false;
     private bool playerHasMadeChoice = false;
     private GameObject instantiatedCard;
     private List<int> playersFinishedInteraction = new List<int>();
@@ -255,6 +256,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
 
     private IEnumerator PrivateRumorPreviewAnimation(string sectorName)
     {
+        isAnimating = true;
         if (containerCanvasGroup != null)
         {
             containerCanvasGroup.alpha = 0f; 
@@ -269,11 +271,27 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             containerCanvasGroup.alpha = 1f;
             containerCanvasGroup.blocksRaycasts = true; // Hidupkan kembali interaksi
         }
+        isAnimating = false;
         playerHasMadeChoice = true;
     }
     
     public void OnSkipButtonClicked()
     {
+        // PERBAIKAN 1: Cegah skip paksa jika animasi sedang berjalan
+        // Jika waktu habis tapi animasi masih jalan, biarkan animasi menyelesaikannya nanti.
+        if (isAnimating) 
+        {
+            Debug.Log("Sedang animasi, menunggu selesai sebelum skip.");
+            return;
+        }
+
+        // PERBAIKAN 2: Pastikan panel pilihan sektor tertutup jika waktu habis saat memilih
+        if (sectorChoicePanel != null && sectorChoicePanel.activeSelf)
+        {
+            sectorChoicePanel.SetActive(false);
+        }
+
+        // Logika standar
         playerHasMadeChoice = true;
         if (interactiveButtonsPanel != null) interactiveButtonsPanel.SetActive(false);
         
