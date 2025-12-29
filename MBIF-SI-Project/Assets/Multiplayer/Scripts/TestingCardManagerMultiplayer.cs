@@ -87,7 +87,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             {
                 timerBar.fillAmount = Mathf.Clamp01(timeLeft / TESTING_TIME);
             }
-            
+
             yield return null;
         }
 
@@ -110,12 +110,12 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         {
             // Hentikan timer lama jika ada
             if (testingTimerCoroutine != null) StopCoroutine(testingTimerCoroutine);
-            
+
             double startTime = (double)propertiesThatChanged[TESTING_START_TIME_KEY];
             testingTimerCoroutine = StartCoroutine(StartTestingTimer(startTime));
         }
     }
-    
+
     [PunRPC]
     private void Rpc_ShowMyTestingCard(int cardIndex)
     {
@@ -132,7 +132,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
 
     // --- PERBAIKAN: Logika efek untuk Cardtest2 ditambahkan di sini ---
     [PunRPC]
-    private void Rpc_ApplyTestingCardEffect(PhotonMessageInfo info)
+    private void Rpc_ApplyTestingCardEffect(string chosenSector, PhotonMessageInfo info)
     {
         if (!PhotonNetwork.IsMasterClient) return;
         Player activator = info.Sender;
@@ -178,19 +178,24 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
                 break;
             case TestingCardType.Cardtest3:
             case TestingCardType.Cardtest4:
-                // 1. Siapkan daftar sektor yang bisa menjadi target
-                string[] sectors = { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
 
-                // 2. Pilih satu sektor secara acak
-                string randomSector = sectors[Random.Range(0, sectors.Length)];
+                string targetSector = chosenSector;
 
-                // 3. Pilih nilai penurunan IPO secara acak (-1, -2, atau -3)
-                int randomDecrease = Random.Range(1, 4) * -1; // Menghasilkan 1,2,3 lalu dikali -1
+            if (string.IsNullOrEmpty(targetSector))
+            {
+                Debug.LogWarning("TargetSector kosong! Fallback ke Konsumer.");
+                targetSector = "";
+            }
 
-                Debug.Log($"[{cardData.cardType} Effect] Menurunkan IPO Sektor '{randomSector}' sebesar {randomDecrease}.");
+                // Pilih nilai penurunan IPO secara acak (-1, -2, atau -3)
+                // (Efeknya tetap acak, tapi targetnya sekarang dipilih pemain)
+                int randomDecrease = -2;
 
-                // 4. Panggil fungsi di SellingPhaseManager untuk menerapkan perubahan
-                SellingPhaseManagerMultiplayer.Instance.ModifyIPOIndex(randomSector, randomDecrease);
+                Debug.Log($"[{cardData.cardType} Effect] Pemain {activator.NickName} memilih sektor '{targetSector}'. Menurunkan IPO sebesar {randomDecrease}.");
+
+                // Panggil fungsi di SellingPhaseManager untuk menerapkan perubahan
+                SellingPhaseManagerMultiplayer.Instance.ModifyIPOIndex(targetSector, randomDecrease);
+
                 break;
             case TestingCardType.Cardtest5:
                 Debug.Log($"[{cardData.cardType} Effect] Mereset semua harga IPO ke posisi awal (5).");
@@ -211,7 +216,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
                 break;
         }
     }
-    
+
     // --- PERBAIKAN: Fungsi ini sekarang menangani Cardtest1 dan Cardtest2 ---
     public void OnActivateButtonClicked()
     {
@@ -222,44 +227,63 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         TestingCardData cardData = testingCardsPool[cardIndex];
 
         if (interactiveButtonsPanel != null) interactiveButtonsPanel.SetActive(false);
-        
+
         switch (cardData.cardType)
         {
             case TestingCardType.Cardtest1:
                 if (sectorChoicePanel != null) sectorChoicePanel.SetActive(true);
                 break;
-            
+
             case TestingCardType.Cardtest2:
                 playerHasMadeChoice = true;
+                photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient);
                 break;
             case TestingCardType.Cardtest3:
             case TestingCardType.Cardtest4:
-                playerHasMadeChoice = true;
+                if (sectorChoicePanel != null) sectorChoicePanel.SetActive(true);
+                // Kita TIDAK memanggil Rpc_ApplyTestingCardEffect di sini lagi untuk kartu ini,
+                // karena harus menunggu pemain memilih sektor dulu.
                 break;
             case TestingCardType.Cardtest5:
                 playerHasMadeChoice = true;
+                photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient);
                 break;
-            
+
             default:
                 playerHasMadeChoice = true;
+                photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient);
                 break;
         }
-        
-        photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient);
-    }
-    
-    private void OnSectorChosenForPreview(string sectorName)
-    {
-        if (sectorChoicePanel != null) sectorChoicePanel.SetActive(false); 
-        StartCoroutine(PrivateRumorPreviewAnimation(sectorName));
     }
 
+    private void OnSectorChosenForPreview(string sectorName)
+    {
+        if (sectorChoicePanel != null) sectorChoicePanel.SetActive(false);
+
+        // Cek kartu apa yang sedang aktif
+        int cardIndex = (int)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY];
+        TestingCardData cardData = testingCardsPool[cardIndex];
+
+        if (cardData.cardType == TestingCardType.Cardtest1)
+        {
+            // Logika Lama: Jalankan Animasi Preview
+            StartCoroutine(PrivateRumorPreviewAnimation(sectorName));
+        }
+        else if (cardData.cardType == TestingCardType.Cardtest3 || cardData.cardType == TestingCardType.Cardtest4)
+        {
+
+            playerHasMadeChoice = true;
+
+            // INILAH saat yang tepat memanggil RPC, setelah sektor dipilih
+            photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient, sectorName);
+        }
+    }
     private IEnumerator PrivateRumorPreviewAnimation(string sectorName)
     {
         isAnimating = true;
         if (containerCanvasGroup != null)
         {
-            containerCanvasGroup.alpha = 0f; 
+            containerCanvasGroup.alpha = 0f;
             containerCanvasGroup.blocksRaycasts = false; // Matikan interaksi
         }
         if (RumorPhaseManagerMultiplayer.Instance != null)
@@ -274,12 +298,12 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         isAnimating = false;
         playerHasMadeChoice = true;
     }
-    
+
     public void OnSkipButtonClicked()
     {
         // PERBAIKAN 1: Cegah skip paksa jika animasi sedang berjalan
         // Jika waktu habis tapi animasi masih jalan, biarkan animasi menyelesaikannya nanti.
-        if (isAnimating) 
+        if (isAnimating)
         {
             Debug.Log("Sedang animasi, menunggu selesai sebelum skip.");
             return;
@@ -294,7 +318,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         // Logika standar
         playerHasMadeChoice = true;
         if (interactiveButtonsPanel != null) interactiveButtonsPanel.SetActive(false);
-        
+
         if (botTestingCoroutine != null)
         {
             StopCoroutine(botTestingCoroutine);
@@ -313,7 +337,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
 
             Hashtable timerProps = new Hashtable { { TESTING_START_TIME_KEY, PhotonNetwork.Time } };
             PhotonNetwork.CurrentRoom.SetCustomProperties(timerProps);
-            
+
             if (testingCardsPool == null || testingCardsPool.Count == 0) return;
             foreach (Player p in PhotonNetwork.PlayerList)
             {
@@ -370,7 +394,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         containerCanvasGroup.alpha = 0;
         if (instantiatedCard != null) Destroy(instantiatedCard);
     }
-    
+
     private IEnumerator BotTestingCoroutine()
     {
         Debug.Log("[Bot Mode] Testing: Menunggu 5 detik sebelum skip otomatis...");
@@ -439,7 +463,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             {
                 foreach (Player p in PhotonNetwork.PlayerList)
                 {
-                    int randomIndex = 0;
+                    int randomIndex = 2;
                     Hashtable props = new Hashtable { { PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY, randomIndex } };
                     p.SetCustomProperties(props);
                     photonView.RPC("Rpc_ShowMyTestingCard", p, randomIndex);
@@ -471,14 +495,14 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     {
         // Cek apakah fase testing sedang aktif dengan melihat properti timer
         object testingTimerProp;
-        if (!PhotonNetwork.IsMasterClient || 
+        if (!PhotonNetwork.IsMasterClient ||
             !PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue(TESTING_START_TIME_KEY, out testingTimerProp) ||
             testingTimerProp == null)
         {
             // Fase testing tidak sedang aktif
             return;
         }
-        
+
         // Cek apakah properti "AllPlayersFinishedTesting" sudah true
         if (PhotonNetwork.CurrentRoom.CustomProperties.ContainsKey("AllPlayersFinishedTesting") &&
             (bool)PhotonNetwork.CurrentRoom.CustomProperties["AllPlayersFinishedTesting"] == true)
@@ -487,29 +511,29 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         }
 
         int actorNumber = disconnectedPlayer.ActorNumber;
-        
+
         // Cek apakah pemain ini sudah selesai SEBELUM disconnect
         if (playersFinishedInteraction == null || playersFinishedInteraction.Contains(actorNumber))
         {
             return; // Sudah selesai, tidak perlu ditangani
         }
-        
+
         Debug.Log($"[TestingCardManager] {disconnectedPlayer.NickName} disconnect. Menandai sebagai selesai.");
 
         // Ini adalah logika yang sama dari Rpc_SignalInteractionComplete
         playersFinishedInteraction.Add(actorNumber);
-        
+
         // Cek apakah semua pemain (termasuk yang disconnect) sudah selesai
         if (playersFinishedInteraction.Count >= PhotonNetwork.CurrentRoom.PlayerCount)
         {
             Debug.Log("MasterClient: Semua pemain (termasuk disconnect) telah selesai.");
-            
+
             // Tandai fase selesai di properti ruangan
             Hashtable props = new Hashtable { { "AllPlayersFinishedTesting", true } };
             PhotonNetwork.CurrentRoom.SetCustomProperties(props);
 
             photonView.RPC("Rpc_StopTestingTimerAndPhase", RpcTarget.All);
-            
+
             if (ActionPhaseManager.Instance != null)
             {
                 ActionPhaseManager.Instance.ProceedToSellingPhaseAfterTesting();
@@ -528,50 +552,50 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         {
             yield break; // Batalkan jika fase selesai atau sudah diproses
         }
-        
+
         Debug.Log($"[TestingCardManager] Menandai {disconnectedPlayer.NickName} sebagai selesai (Disconnect Bot Mode).");
-        
+
         // Panggil RPC yang sama dengan yang dipanggil oleh Bot Mode (OnSkipButtonClicked)
         photonView.RPC("Rpc_SignalInteractionComplete", RpcTarget.MasterClient, actorNumber);
     }
     public void ResumeTestingPhase()
-{
-    if (!PhotonNetwork.IsMasterClient) return;
-
-    // Rekonstruksi siapa yang belum selesai
-    if (playersFinishedInteraction == null) playersFinishedInteraction = new List<int>();
-    
-    // Kita tidak bisa tahu persis siapa yang sudah selesai hanya dari list lokal Host baru,
-    // tapi kita bisa mengandalkan timer global.
-    
-    if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("testingStartTime", out object startTimeObj))
     {
-        double startTime = (double)startTimeObj;
-        double elapsed = PhotonNetwork.Time - startTime;
-        float remainingTime = TESTING_TIME - (float)elapsed;
+        if (!PhotonNetwork.IsMasterClient) return;
 
-        if (remainingTime > 0)
+        // Rekonstruksi siapa yang belum selesai
+        if (playersFinishedInteraction == null) playersFinishedInteraction = new List<int>();
+
+        // Kita tidak bisa tahu persis siapa yang sudah selesai hanya dari list lokal Host baru,
+        // tapi kita bisa mengandalkan timer global.
+
+        if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("testingStartTime", out object startTimeObj))
         {
-            StartCoroutine(MasterClientTestingMonitor(remainingTime));
-        }
-        else
-        {
-            // Waktu habis, anggap semua selesai
-            Rpc_SignalInteractionComplete(0); // Trigger check completion
+            double startTime = (double)startTimeObj;
+            double elapsed = PhotonNetwork.Time - startTime;
+            float remainingTime = TESTING_TIME - (float)elapsed;
+
+            if (remainingTime > 0)
+            {
+                StartCoroutine(MasterClientTestingMonitor(remainingTime));
+            }
+            else
+            {
+                // Waktu habis, anggap semua selesai
+                Rpc_SignalInteractionComplete(0); // Trigger check completion
+            }
         }
     }
-}
 
-private IEnumerator MasterClientTestingMonitor(float duration)
-{
-    yield return new WaitForSeconds(duration);
-    if (PhotonNetwork.IsMasterClient)
+    private IEnumerator MasterClientTestingMonitor(float duration)
     {
-        photonView.RPC("Rpc_StopTestingTimerAndPhase", RpcTarget.All);
-        if (ActionPhaseManager.Instance != null)
+        yield return new WaitForSeconds(duration);
+        if (PhotonNetwork.IsMasterClient)
         {
-            ActionPhaseManager.Instance.ProceedToSellingPhaseAfterTesting();
+            photonView.RPC("Rpc_StopTestingTimerAndPhase", RpcTarget.All);
+            if (ActionPhaseManager.Instance != null)
+            {
+                ActionPhaseManager.Instance.ProceedToSellingPhaseAfterTesting();
+            }
         }
     }
-}
 }

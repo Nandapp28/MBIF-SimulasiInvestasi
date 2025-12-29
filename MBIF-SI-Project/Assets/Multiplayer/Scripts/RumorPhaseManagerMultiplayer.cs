@@ -71,7 +71,7 @@ public List<CardVisuals2D> cardVisuals2D = new List<CardVisuals2D>();
             //ANDA BISA MENGUBAH EFFECTTYPE, VALUE, DAN DESCRIPTION DI BAWAH INI
             new RumorEffectData { cardName = "Resesi_Ekonomi",    description = "Sentimen pasar negatif, harga sedikit turun.",  effectType = RumorType.ModifyIPO, value = -1 },
             new RumorEffectData { cardName = "Revaluasi_Asset",    description = "Aset perusahaan dinilai kembali, harga naik.",    effectType = RumorType.ModifyIPO, value = 1 },
-            new RumorEffectData { cardName = "BuyBack",            description = "Perusahaan membeli kembali sahamnya, harga naik.",  effectType = RumorType.ModifyIPO, value = 1 },
+            new RumorEffectData { cardName = "Buyback",            description = "Perusahaan membeli kembali sahamnya, harga naik.",  effectType = RumorType.ModifyIPO, value = 1 },
             new RumorEffectData { cardName = "Tender_Kompetitif",  description = "Memenangkan tender proyek besar, harga naik.",     effectType = RumorType.ModifyIPO, value = 1 },
             new RumorEffectData { cardName = "Audit_Forensik",     description = "Ditemukan penyelewengan dana, harga anjlok.",    effectType = RumorType.ModifyIPO, value = -2 },
             new RumorEffectData { cardName = "Suap_Audit",         description = "Skandal suap terungkap, kepercayaan investor jatuh.", effectType = RumorType.ModifyIPO, value = -2 },
