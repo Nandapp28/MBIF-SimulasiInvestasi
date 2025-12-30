@@ -243,6 +243,11 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
             // Panggil fungsi publik di ActionPhaseManager (yang akan kita buat di Langkah 2)
             ActionPhaseManager.Instance.OnTenderOfferTargetClicked(photonView.Owner);
         }
+        else if (TestingCardManagerMultiplayer.Instance != null)
+        {
+            // Panggil fungsi baru di TestingCardManager (akan kita buat di langkah 3)
+            TestingCardManagerMultiplayer.Instance.OnTargetPlayerSelected(photonView.Owner);
+        }
     }
     #endregion
 

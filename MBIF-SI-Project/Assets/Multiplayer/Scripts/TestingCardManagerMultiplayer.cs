@@ -47,6 +47,8 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     private List<int> playersFinishedInteraction = new List<int>();
     private Coroutine botTestingCoroutine;
 
+    private bool isInTenderMode = false;
+
     void Awake()
     {
         if (Instance != null) Destroy(gameObject);
@@ -214,6 +216,62 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
                 // 3. Kirim semua perubahan dalam satu panggilan jaringan.
                 PhotonNetwork.CurrentRoom.SetCustomProperties(props);
                 break;
+            case TestingCardType.Cardtest6:
+                // --- LOGIKA SERVER CARDTEST6 (Tender Offer Setengah Harga) ---
+                if (activator.CustomProperties.TryGetValue("TargetActorForCardtest6", out object targetActorObj))
+                {
+                    int targetActorId = (int)targetActorObj;
+                    Player targetPlayer = PhotonNetwork.CurrentRoom.GetPlayer(targetActorId);
+
+                    if (targetPlayer != null && !string.IsNullOrEmpty(chosenSector))
+                    {
+                        string cardKey = PlayerProfileMultiplayer.GetCardKeyFromColor(chosenSector);
+                        int targetCardCount = targetPlayer.CustomProperties.ContainsKey(cardKey) ? (int)targetPlayer.CustomProperties[cardKey] : 0;
+
+                        Debug.Log($"[Cardtest6] {activator.NickName} mencoba membeli paksa {chosenSector} dari {targetPlayer.NickName}. Jumlah kartu target: {targetCardCount}");
+
+                        if (targetCardCount > 0)
+                        {
+                            // 1. Hitung Harga (Setengah Harga)
+                            int fullPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(chosenSector);
+                            int purchasePrice = Mathf.CeilToInt(fullPrice / 2.0f); // Pembulatan ke atas
+
+                            int activatorMoney = (int)activator.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+
+                            // 2. Cek Uang
+                            if (activatorMoney >= purchasePrice)
+                            {
+                                // 3. Proses Transaksi
+                                // Kurangi kartu target, tambah uang target
+                                int targetMoney = (int)targetPlayer.CustomProperties[PlayerProfileMultiplayer.INVESTPOINT_KEY];
+                                Hashtable targetProps = new Hashtable {
+                                    { cardKey, targetCardCount - 1 },
+                                    { PlayerProfileMultiplayer.INVESTPOINT_KEY, targetMoney + purchasePrice }
+                                };
+                                targetPlayer.SetCustomProperties(targetProps);
+
+                                // Tambah kartu activator, kurangi uang activator
+                                int activatorCardCount = activator.CustomProperties.ContainsKey(cardKey) ? (int)activator.CustomProperties[cardKey] : 0;
+                                Hashtable activatorProps = new Hashtable {
+                                    { cardKey, activatorCardCount + 1 },
+                                    { PlayerProfileMultiplayer.INVESTPOINT_KEY, activatorMoney - purchasePrice }
+                                };
+                                activator.SetCustomProperties(activatorProps);
+
+                                Debug.Log($"[Cardtest6] Sukses! Dibeli seharga {purchasePrice}.");
+                            }
+                            else
+                            {
+                                Debug.LogWarning("[Cardtest6] Gagal: Uang activator tidak cukup.");
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"[Cardtest6] Gagal: {targetPlayer.NickName} tidak punya kartu {chosenSector}. Efek hangus.");
+                        }
+                    }
+                }
+                break;
         }
     }
 
@@ -248,11 +306,72 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
                 playerHasMadeChoice = true;
                 photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient);
                 break;
+            case TestingCardType.Cardtest6:
+                // --- LOGIKA BARU CARDTEST6 ---
+                StartTenderSelectionMode();
+                break;
 
             default:
                 playerHasMadeChoice = true;
                 photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient);
                 break;
+        }
+    }
+    private void StartTenderSelectionMode()
+    {
+        isInTenderMode = true;
+        Debug.Log("[Cardtest6] Memulai mode pemilihan pemain.");
+
+        // Animasikan container pemain online ke tengah (meminjam fungsi dari MultiplayerManager)
+        if (MultiplayerManager.Instance != null)
+        {
+            MultiplayerManager.Instance.AnimatePlayerContainers(true);
+        }
+
+        // Tampilkan tombol "Select" di atas kepala setiap pemain LAIN
+        PlayerProfileMultiplayer[] profiles = FindObjectsOfType<PlayerProfileMultiplayer>();
+        foreach (var profile in profiles)
+        {
+            // Jangan tampilkan tombol di diri sendiri
+            if (profile.photonView.IsMine) continue;
+
+            // Aktifkan tombol tender di profil tersebut
+            profile.SetupTenderOfferButton(true);
+        }
+    }
+    public void OnTargetPlayerSelected(Player targetPlayer)
+    {
+        if (!isInTenderMode) return;
+
+        Debug.Log($"[Cardtest6] Target pemain dipilih: {targetPlayer.NickName}");
+
+        // Simpan ID target ke properti sementara diri sendiri agar bisa dikirim ke MasterClient nanti
+        Hashtable props = new Hashtable { { "TargetActorForCardtest6", targetPlayer.ActorNumber } };
+        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+
+        // Reset Visual (Kembalikan container, sembunyikan tombol)
+        CleanupTenderVisuals();
+
+        // Lanjut ke langkah berikutnya: Pilih Sektor
+        if (sectorChoicePanel != null)
+        {
+            sectorChoicePanel.SetActive(true);
+            Debug.Log("[Cardtest6] Silakan pilih sektor target.");
+        }
+    }
+
+    private void CleanupTenderVisuals()
+    {
+        isInTenderMode = false;
+        if (MultiplayerManager.Instance != null)
+        {
+            MultiplayerManager.Instance.AnimatePlayerContainers(false);
+        }
+
+        PlayerProfileMultiplayer[] profiles = FindObjectsOfType<PlayerProfileMultiplayer>();
+        foreach (var profile in profiles)
+        {
+            profile.SetupTenderOfferButton(false);
         }
     }
 
@@ -275,6 +394,14 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             playerHasMadeChoice = true;
 
             // INILAH saat yang tepat memanggil RPC, setelah sektor dipilih
+            photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient, sectorName);
+        }
+        else if (cardData.cardType == TestingCardType.Cardtest6)
+        {
+            // --- LOGIKA CARDTEST6 ---
+            // Kita sudah punya "TargetActorForCardtest6" di properties (dari langkah 2)
+            // Sekarang kita kirim sektornya lewat RPC
+            playerHasMadeChoice = true;
             photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient, sectorName);
         }
     }
@@ -303,10 +430,15 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     {
         // PERBAIKAN 1: Cegah skip paksa jika animasi sedang berjalan
         // Jika waktu habis tapi animasi masih jalan, biarkan animasi menyelesaikannya nanti.
+        
         if (isAnimating)
         {
             Debug.Log("Sedang animasi, menunggu selesai sebelum skip.");
             return;
+        }
+        if (isInTenderMode)
+        {
+            CleanupTenderVisuals();
         }
 
         // PERBAIKAN 2: Pastikan panel pilihan sektor tertutup jika waktu habis saat memilih
@@ -463,7 +595,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             {
                 foreach (Player p in PhotonNetwork.PlayerList)
                 {
-                    int randomIndex = 2;
+                    int randomIndex = 5;
                     Hashtable props = new Hashtable { { PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY, randomIndex } };
                     p.SetCustomProperties(props);
                     photonView.RPC("Rpc_ShowMyTestingCard", p, randomIndex);
