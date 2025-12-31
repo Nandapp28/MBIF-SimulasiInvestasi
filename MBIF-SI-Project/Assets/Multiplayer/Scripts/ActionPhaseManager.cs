@@ -64,7 +64,7 @@ public class ActionPhaseManager : MonoBehaviourPunCallbacks
     private int cardsTaken = 0; // KEMBALI MENGGUNAKAN INI untuk melacak progres
     private int totalCardsOnTable = 0;
     private int consecutiveSkipCount = 0;
-    private bool isInTenderOfferMode = false;
+    public bool isInTenderOfferMode = false;
     private HashSet<int> disconnectedPlayerActorNumbers = new HashSet<int>();
 
     // Variabel Lokal UI & Data

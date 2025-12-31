@@ -238,15 +238,17 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     /// </summary>
     private void OnTenderTargetClicked()
     {
-        if (ActionPhaseManager.Instance != null && photonView.Owner != null)
+        if (ActionPhaseManager.Instance != null && ActionPhaseManager.Instance.isInTenderOfferMode)
         {
-            // Panggil fungsi publik di ActionPhaseManager (yang akan kita buat di Langkah 2)
+            Debug.Log("[PlayerProfile] Mengirim klik target ke ActionPhaseManager.");
             ActionPhaseManager.Instance.OnTenderOfferTargetClicked(photonView.Owner);
+            return;
         }
-        else if (TestingCardManagerMultiplayer.Instance != null)
+        if (TestingCardManagerMultiplayer.Instance != null && TestingCardManagerMultiplayer.Instance.isInTenderMode)
         {
-            // Panggil fungsi baru di TestingCardManager (akan kita buat di langkah 3)
+            Debug.Log("[PlayerProfile] Mengirim klik target ke TestingCardManager (Cardtest6).");
             TestingCardManagerMultiplayer.Instance.OnTargetPlayerSelected(photonView.Owner);
+            return; // Selesai, jangan lanjut ke bawah
         }
     }
     #endregion

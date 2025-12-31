@@ -47,7 +47,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     private List<int> playersFinishedInteraction = new List<int>();
     private Coroutine botTestingCoroutine;
 
-    private bool isInTenderMode = false;
+    public bool isInTenderMode = false;
 
     void Awake()
     {
@@ -327,6 +327,11 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         {
             MultiplayerManager.Instance.AnimatePlayerContainers(true);
         }
+        if (containerCanvasGroup != null)
+        {
+            containerCanvasGroup.alpha = 0f;
+            containerCanvasGroup.blocksRaycasts = false; // Matikan interaksi
+        }
 
         // Tampilkan tombol "Select" di atas kepala setiap pemain LAIN
         PlayerProfileMultiplayer[] profiles = FindObjectsOfType<PlayerProfileMultiplayer>();
@@ -336,6 +341,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             if (profile.photonView.IsMine) continue;
 
             // Aktifkan tombol tender di profil tersebut
+            
             profile.SetupTenderOfferButton(true);
         }
     }
