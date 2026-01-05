@@ -49,6 +49,9 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
 
     public bool isInTenderMode = false;
 
+    private string swapSourceSector = ""; 
+    private int swapTargetActorNumber = -1;
+
     void Awake()
     {
         if (Instance != null) Destroy(gameObject);
@@ -272,6 +275,68 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
                     }
                 }
                 break;
+            case TestingCardType.Cardtest7:
+        {
+            // --- PERBAIKAN LOGIKA SERVER ---
+            // Kita pecah data dari string "SektorLawan|SektorKita|ActorIDLawan"
+            string[] dataParts = chosenSector.Split('|');
+
+            if (dataParts.Length < 3) 
+            {
+                Debug.LogError("[Cardtest7] Format data RPC salah atau korup.");
+                return;
+            }
+
+            string swapTargetSector = dataParts[0]; // Sektor yang mau diambil
+            string sourceSector = dataParts[1];     // Sektor yang mau dikasih
+            int swapTargetActorId = int.Parse(dataParts[2]); // ID Pemain target
+
+            Player swapTargetPlayer = PhotonNetwork.CurrentRoom.GetPlayer(swapTargetActorId);
+
+            if (swapTargetPlayer != null && !string.IsNullOrEmpty(sourceSector) && !string.IsNullOrEmpty(swapTargetSector))
+            {
+                Debug.Log($"[Cardtest7] {activator.NickName} menukar 1 {sourceSector} dengan 1 {swapTargetSector} milik {swapTargetPlayer.NickName}");
+
+                // 1. Cek Ketersediaan Kartu
+                string sourceKey = PlayerProfileMultiplayer.GetCardKeyFromColor(sourceSector);
+                string targetKey = PlayerProfileMultiplayer.GetCardKeyFromColor(swapTargetSector);
+
+                int activatorSourceCount = activator.CustomProperties.ContainsKey(sourceKey) ? (int)activator.CustomProperties[sourceKey] : 0;
+                int targetTargetCount = swapTargetPlayer.CustomProperties.ContainsKey(targetKey) ? (int)swapTargetPlayer.CustomProperties[targetKey] : 0;
+
+                if (activatorSourceCount > 0 && targetTargetCount > 0)
+                {
+                    // 2. Eksekusi Tukar
+                    
+                    // UPDATE ACTIVATOR: -1 Source, +1 Target
+                    // Ambil jumlah kartu target yang dimiliki activator saat ini
+                    int actTargetOld = activator.CustomProperties.ContainsKey(targetKey) ? (int)activator.CustomProperties[targetKey] : 0;
+                    
+                    Hashtable actProps = new Hashtable { 
+                        { sourceKey, activatorSourceCount - 1 },
+                        { targetKey, actTargetOld + 1 }
+                    };
+                    activator.SetCustomProperties(actProps);
+
+                    // UPDATE TARGET PLAYER: -1 Target, +1 Source
+                    // Ambil jumlah kartu source yang dimiliki target saat ini
+                    int tgtSourceOld = swapTargetPlayer.CustomProperties.ContainsKey(sourceKey) ? (int)swapTargetPlayer.CustomProperties[sourceKey] : 0;
+
+                    Hashtable tgtProps = new Hashtable {
+                        { targetKey, targetTargetCount - 1 },
+                        { sourceKey, tgtSourceOld + 1 }
+                    };
+                    swapTargetPlayer.SetCustomProperties(tgtProps);
+
+                    Debug.Log("[Cardtest7] Pertukaran Berhasil!");
+                }
+                else
+                {
+                    Debug.LogWarning("[Cardtest7] Gagal: Salah satu pemain tidak memiliki kartu yang cukup.");
+                }
+            }
+            break;
+            }
         }
     }
 
@@ -283,6 +348,8 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
 
         int cardIndex = (int)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY];
         TestingCardData cardData = testingCardsPool[cardIndex];
+        swapSourceSector = "";
+        swapTargetActorNumber = -1;
 
         if (interactiveButtonsPanel != null) interactiveButtonsPanel.SetActive(false);
 
@@ -309,6 +376,14 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             case TestingCardType.Cardtest6:
                 // --- LOGIKA BARU CARDTEST6 ---
                 StartTenderSelectionMode();
+                break;
+            case TestingCardType.Cardtest7:
+                // LANGKAH 1: Tampilkan panel sektor untuk memilih saham SENDIRI yang mau ditukar
+                if (sectorChoicePanel != null) 
+                {
+                    sectorChoicePanel.SetActive(true);
+                    if (statusText != null) { statusText.text = "Pilih Sektor ANDA untuk ditukar"; statusText.gameObject.SetActive(true); }
+                }
                 break;
 
             default:
@@ -349,23 +424,34 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
     {
         if (!isInTenderMode) return;
 
-        Debug.Log($"[Cardtest6] Target pemain dipilih: {targetPlayer.NickName}");
+        int cardIndex = (int)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY];
+        TestingCardData cardData = testingCardsPool[cardIndex];
 
-        // Simpan ID target ke properti sementara diri sendiri agar bisa dikirim ke MasterClient nanti
-        Hashtable props = new Hashtable { { "TargetActorForCardtest6", targetPlayer.ActorNumber } };
-        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
-
-        // Reset Visual (Kembalikan container, sembunyikan tombol)
-        CleanupTenderVisuals();
-
-        // Lanjut ke langkah berikutnya: Pilih Sektor
-        if (sectorChoicePanel != null)
+        // Logika Cardtest6 (Tender Offer)
+        if (cardData.cardType == TestingCardType.Cardtest6)
         {
-            sectorChoicePanel.SetActive(true);
-            Debug.Log("[Cardtest6] Silakan pilih sektor target.");
+            Debug.Log($"[Cardtest6] Target pemain dipilih: {targetPlayer.NickName}");
+            Hashtable props = new Hashtable { { "TargetActorForCardtest6", targetPlayer.ActorNumber } };
+            PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+            CleanupTenderVisuals();
+            if (sectorChoicePanel != null) sectorChoicePanel.SetActive(true);
+        }
+        // Logika Cardtest7 (Swap) - LANGKAH 2
+        else if (cardData.cardType == TestingCardType.Cardtest7)
+        {
+            Debug.Log($"[Cardtest7] Target pemain dipilih: {targetPlayer.NickName}");
+            swapTargetActorNumber = targetPlayer.ActorNumber;
+            
+            CleanupTenderVisuals();
+
+            // Lanjut ke LANGKAH 3: Tampilkan panel sektor lagi untuk memilih sektor lawan
+            if (sectorChoicePanel != null)
+            {
+                sectorChoicePanel.SetActive(true);
+                if (statusText != null) { statusText.text = $"Pilih Sektor milik {targetPlayer.NickName} yang diinginkan"; statusText.gameObject.SetActive(true); }
+            }
         }
     }
-
     private void CleanupTenderVisuals()
     {
         isInTenderMode = false;
@@ -410,6 +496,34 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             playerHasMadeChoice = true;
             photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient, sectorName);
         }
+        if (cardData.cardType == TestingCardType.Cardtest7)
+    {
+        // Cek apakah ini Langkah 1 atau Langkah 3?
+        if (string.IsNullOrEmpty(swapSourceSector))
+        {
+            // INI LANGKAH 1: Pemain baru saja memilih sektor miliknya
+            swapSourceSector = sectorName;
+            Debug.Log($"[Cardtest7] Langkah 1 Selesai. Sektor Asal: {swapSourceSector}");
+
+            // Lanjut ke LANGKAH 2: Pilih Pemain Target
+            StartTenderSelectionMode(); 
+            if (statusText != null) { statusText.text = "Pilih PEMAIN TARGET"; statusText.gameObject.SetActive(true); }
+        }
+        else
+        {
+            // INI LANGKAH 3: Pemain baru saja memilih sektor milik lawan
+            Debug.Log($"[Cardtest7] Langkah 3 Selesai. Sektor Target: {sectorName}");
+            
+            playerHasMadeChoice = true;
+            
+            // --- PERBAIKAN DI SINI ---
+            // Jangan pakai SetCustomProperties. Kita gabungkan data jadi satu string.
+            // Format: "SektorLawan|SektorKita|ActorIDLawan"
+            string packedData = $"{sectorName}|{swapSourceSector}|{swapTargetActorNumber}";
+
+            photonView.RPC("Rpc_ApplyTestingCardEffect", RpcTarget.MasterClient, packedData);
+        }
+    }
     }
     private IEnumerator PrivateRumorPreviewAnimation(string sectorName)
     {
@@ -601,7 +715,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
             {
                 foreach (Player p in PhotonNetwork.PlayerList)
                 {
-                    int randomIndex = 5;
+                    int randomIndex = Random.Range(0, testingCardsPool.Count);
                     Hashtable props = new Hashtable { { PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY, randomIndex } };
                     p.SetCustomProperties(props);
                     photonView.RPC("Rpc_ShowMyTestingCard", p, randomIndex);

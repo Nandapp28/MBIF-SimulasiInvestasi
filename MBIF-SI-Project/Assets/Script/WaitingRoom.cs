@@ -70,7 +70,7 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient)
         {
             // Cek apakah jumlah pemain saat ini sudah minimal 2
-            bool hasEnoughPlayers = PhotonNetwork.CurrentRoom.PlayerCount >= 1;
+            bool hasEnoughPlayers = PhotonNetwork.CurrentRoom.PlayerCount >= 2;
             
             // Aktifkan tombol HANYA jika pemain sudah cukup (minimal 2)
             playButton.interactable = hasEnoughPlayers;
@@ -118,7 +118,7 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
     private void OnPlayButtonClicked()
     {
         // Pengecekan ini tetap ada sebagai lapisan keamanan kedua
-        if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 1)
+        if (PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 2)
         {
             // --- TAMBAHAN PENTING ---
             PhotonNetwork.CurrentRoom.PlayerTtl = -1;
