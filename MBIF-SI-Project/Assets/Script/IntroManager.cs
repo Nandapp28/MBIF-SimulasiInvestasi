@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections;
+using Firebase.Auth;
 
 public class IntroManager : MonoBehaviour
 {
@@ -24,13 +25,27 @@ public class IntroManager : MonoBehaviour
         // Tampilkan logo dulu
         yield return new WaitForSeconds(logoDisplayTime);
 
-        string targetSceneName;
+        string targetSceneName = "Login";
 
         // Cek apakah ID guest sudah tersimpan di PlayerPrefs
         if (PlayerPrefs.HasKey(GuestUserIdKey))
         {
-            Debug.Log("ID Guest ditemukan. Memuat scene MainMenu...");
-            targetSceneName = "MainMenu"; // Arahkan ke MainMenu jika ID ada
+            FirebaseAuth auth = FirebaseAuth.DefaultInstance;
+
+            if (auth.CurrentUser != null)
+            {
+                Debug.Log("ID Guest ditemukan DAN Sesi Firebase Aktif. Ke MainMenu.");
+                targetSceneName = "MainMenu"; 
+            }
+            else
+            {
+                // Jika ID lokal ada, tapi Firebase belum login (kasus habis install ulang),
+                // Kita LEMPAR ke scene 'Login'. 
+                // Di sana, script 'AnonymousLogin.cs' akan mendeteksi ID lokal 
+                // dan menjalankan 'AutoLoginRecovery' secara otomatis.
+                Debug.Log("ID Guest ditemukan tapi Sesi Firebase Mati. Ke Login untuk Recovery.");
+                targetSceneName = "Login";
+            }
         }
         else
         {

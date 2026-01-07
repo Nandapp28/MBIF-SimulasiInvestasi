@@ -243,7 +243,7 @@ public class ResolutionPhaseManager : MonoBehaviour
 
         if (gameManager.resetCount == 0)
         {
-            helpCardPhaseManager.DistributeHelpCards(players);
+            yield return StartCoroutine(helpCardPhaseManager.DistributeHelpCards(players));
         }
         if (gameManager.resetCount == gameManager.maxResetCount)
         {

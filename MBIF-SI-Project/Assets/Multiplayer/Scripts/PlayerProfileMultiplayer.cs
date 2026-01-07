@@ -20,6 +20,9 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     public Text blueCardText;   // Teks untuk jumlah kartu biru
     public Text greenCardText;  // Teks untuk jumlah kartu hijau
 
+    [Header("New Stats")]
+    public Text totalShareValueText;
+
     [Header("Public UI")]
     public Image publicTimerBar;
     public GameObject tenderOfferTargetButton; 
@@ -43,10 +46,10 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     public const string TURN_DURATION_KEY = "turnDuration";
     private Coroutine publicTimerCoroutine;
 
-    private MultiplayerManager multiplayerManager;
+    
     void Awake()
     {
-        multiplayerManager = MultiplayerManager.Instance;
+        
         if (publicTimerBar != null)
         {
             publicTimerBar.gameObject.SetActive(false);
@@ -55,6 +58,7 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
 
     void Start()
     {
+        PlaceProfileInContainer();
         if (photonView.IsMine)
         {
             Hashtable initialProps = new Hashtable
@@ -78,6 +82,50 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
             tenderOfferTargetButton.SetActive(false); // Sembunyikan saat mulai
         }
     }
+    private void PlaceProfileInContainer()
+{
+    // 1. Temukan MultiplayerManager
+    MultiplayerManager manager = MultiplayerManager.Instance;
+    if (manager == null)
+    {
+        // Tampilkan error dengan nama pemilik jika ada, jika tidak, tampilkan "Owner N/A"
+        string ownerName = (photonView.Owner != null) ? photonView.Owner.NickName : "Owner N/A";
+        Debug.LogError($"[PlayerProfile] Gagal menemukan MultiplayerManager.Instance untuk {ownerName}");
+        return;
+    }
+
+    Transform targetContainer;
+
+    // --- PERBAIKAN LOGIKA INTI ---
+    // Jangan gunakan "IsMine". Cek apakah "Owner" dari prefab ini
+    // adalah "LocalPlayer" (pemain yang menjalankan game di komputer ini).
+    if (photonView.Owner != null && photonView.Owner == PhotonNetwork.LocalPlayer)
+    {
+        targetContainer = manager.localPlayerContainer;
+    }
+    else
+    {
+        targetContainer = manager.onlinePlayerContainer;
+    }
+    // --- AKHIR PERBAIKAN ---
+
+    // 3. Pindahkan prefab ini (transform) ke dalam kontainer tersebut
+    if (targetContainer != null)
+    {
+        transform.SetParent(targetContainer, false);
+        transform.localScale = Vector3.one; // Pastikan skala tidak berubah
+        gameObject.SetActive(true); // Pastikan objeknya aktif
+        
+        // Tambahkan pengecekan null untuk NickName saat logging
+        string ownerName = (photonView.Owner != null) ? photonView.Owner.NickName : "Disconnecting Player";
+        Debug.Log($"[PlayerProfile] {ownerName} telah ditempatkan di kontainer UI.");
+    }
+    else
+    {
+        string ownerName = (photonView.Owner != null) ? photonView.Owner.NickName : "Owner N/A";
+        Debug.LogWarning($"[PlayerProfile] Gagal menemukan targetContainer untuk {ownerName}");
+    }
+}
 
     #region Photon Callbacks
 
@@ -128,6 +176,23 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
                 }
             }
         }
+        bool priceChanged = false;
+        foreach (object key in propertiesThatChanged.Keys)
+        {
+            string keyStr = key.ToString();
+            // Cek prefix key yang digunakan di SellingPhaseManager
+            if (keyStr.StartsWith("ipo_index_") || keyStr.StartsWith("ipo_bonus_"))
+            {
+                priceChanged = true;
+                break;
+            }
+        }
+
+        if (priceChanged && photonView.Owner != null)
+        {
+            // Panggil update khusus untuk menghitung ulang nilai saham
+            UpdateTotalShareValue(photonView.Owner);
+        }
     }
 
     // --- BARU --- Coroutine untuk menganimasikan timer publik
@@ -173,10 +238,17 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
     /// </summary>
     private void OnTenderTargetClicked()
     {
-        if (ActionPhaseManager.Instance != null && photonView.Owner != null)
+        if (ActionPhaseManager.Instance != null && ActionPhaseManager.Instance.isInTenderOfferMode)
         {
-            // Panggil fungsi publik di ActionPhaseManager (yang akan kita buat di Langkah 2)
+            Debug.Log("[PlayerProfile] Mengirim klik target ke ActionPhaseManager.");
             ActionPhaseManager.Instance.OnTenderOfferTargetClicked(photonView.Owner);
+            return;
+        }
+        if (TestingCardManagerMultiplayer.Instance != null && TestingCardManagerMultiplayer.Instance.isInTenderMode)
+        {
+            Debug.Log("[PlayerProfile] Mengirim klik target ke TestingCardManager (Cardtest6).");
+            TestingCardManagerMultiplayer.Instance.OnTargetPlayerSelected(photonView.Owner);
+            return; // Selesai, jangan lanjut ke bawah
         }
     }
     #endregion
@@ -257,6 +329,59 @@ public class PlayerProfileMultiplayer : MonoBehaviourPunCallbacks
             else
                 greenCardText.text = "0";
         }
+        UpdateCardCountUI(player, KONSUMER_CARDS_KEY, redCardText);
+        UpdateCardCountUI(player, INFRASTRUKTUR_CARDS_KEY, orangeCardText);
+        UpdateCardCountUI(player, KEUANGAN_CARDS_KEY, blueCardText);
+        UpdateCardCountUI(player, TAMBANG_CARDS_KEY, greenCardText);
+        UpdateTotalShareValue(player);
+    }
+    private void UpdateCardCountUI(Player player, string key, Text uiText)
+    {
+        if (uiText != null)
+        {
+            if (player.CustomProperties.TryGetValue(key, out object count))
+                uiText.text = count.ToString();
+            else
+                uiText.text = "0";
+        }
+    }
+
+    // [BARU] Fungsi Logika Menghitung Total Aset
+    private void UpdateTotalShareValue(Player player)
+    {
+        if (totalShareValueText == null) return;
+
+        // Cek apakah SellingManager ada untuk mengambil harga. 
+        // Jika tidak ada (misal belum load), set 0 atau strip.
+        if (SellingPhaseManagerMultiplayer.Instance == null)
+        {
+            // Debug.LogWarning("SellingPhaseManager belum siap, tidak bisa menghitung nilai saham.");
+            totalShareValueText.text = "0"; 
+            return;
+        }
+
+        int totalValue = 0;
+        string[] colors = { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
+
+        foreach (string color in colors)
+        {
+            // 1. Ambil jumlah kartu yang dimiliki
+            string cardKey = GetCardKeyFromColor(color);
+            int cardCount = 0;
+            if (player.CustomProperties.TryGetValue(cardKey, out object countObj))
+            {
+                cardCount = (int)countObj;
+            }
+
+            // 2. Ambil harga pasar saat ini dari SellingPhaseManager
+            int currentPrice = SellingPhaseManagerMultiplayer.Instance.GetFullCardPrice(color);
+
+            // 3. Kalikan dan tambahkan ke total
+            totalValue += (cardCount * currentPrice);
+        }
+
+        // Tampilkan ke UI
+        totalShareValueText.text = totalValue.ToString();
     }
     
     public static string GetCardKeyFromColor(string color)

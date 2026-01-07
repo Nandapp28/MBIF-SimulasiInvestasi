@@ -32,6 +32,11 @@ public class HelpCardPhaseManager : MonoBehaviour
     public UnityEngine.UI.Text effectPlayerNameText;
     public UnityEngine.UI.Image effectCardImage;
     public UnityEngine.UI.Text effectTargetText;
+    [Header("Player Selection Settings")] // <-- TAMBAHKAN HEADER INI
+    public RectTransform selectionUIContainer; // Container list pemain yang akan dianimasikan      
+    public float animationDuration = 0.5f;
+    private Vector2 originalPosition;
+    private Vector3 originalScale;
     [Header("Game Assets")] // Header baru untuk aset gambar
     public List<HelpCardArt> cardArtList;
     private Dictionary<HelpCardEffect, Sprite> cardArtDictionary;
@@ -48,6 +53,7 @@ public class HelpCardPhaseManager : MonoBehaviour
     //public GameObject playerButtonPrefab;
 
     private List<PlayerProfile> turnOrder;
+    private bool isPhaseRunning = false;
     private void Awake()
     {
         // Ubah List menjadi Dictionary agar pencarian gambar lebih cepat
@@ -65,27 +71,112 @@ public class HelpCardPhaseManager : MonoBehaviour
     // Fungsi utama yang dipanggil untuk memulai fase ini
     public void StartHelpCardPhase(List<PlayerProfile> players, int resetCount)
     {
+        // --- PERBAIKAN 1: Cek apakah fase sedang berjalan ---
+        if (isPhaseRunning) 
+        {
+            Debug.LogWarning("[HelpCardPhase] Fase sudah berjalan, mengabaikan pemanggilan ganda.");
+            return;
+        }
+        
+        isPhaseRunning = true; // Tandai fase dimulai
         Debug.Log("--- Memulai Fase Kartu Bantuan ---");
+        
         this.turnOrder = players.OrderBy(p => p.ticketNumber).ToList();
 
+        // --- PERBAIKAN 2: Cek apakah ada pemain yang punya kartu bantuan ---
+        bool anyPlayerHasCards = this.turnOrder.Any(p => p.helpCards != null && p.helpCards.Count > 0);
 
-        StartCoroutine(ActivationSequence());
-    }
-
-    public void DistributeHelpCards(List<PlayerProfile> playersToDistribute)
-    {
-        Debug.Log("Membagikan Kartu Bantuan kepada semua pemain...");
-        foreach (var player in playersToDistribute)
+        if (!anyPlayerHasCards)
         {
-            var card = GetRandomHelpCard();
-            if (player.helpCards == null)
-            {
-                player.helpCards = new List<HelpCard>();
-            }
-            player.helpCards.Add(card);
-            Debug.Log($"{player.playerName} mendapatkan kartu: '{card.cardName}'");
+            Debug.Log("🚫 Tidak ada pemain yang memiliki Kartu Bantuan. Langsung melompat ke Fase Penjualan.");
+            StartCoroutine(SkipToSellingPhase());
+        }
+        else
+        {
+            StartCoroutine(ActivationSequence());
         }
     }
+
+   public IEnumerator DistributeHelpCards(List<PlayerProfile> playersToDistribute)
+{
+    Debug.Log("Membagikan Kartu Bantuan kepada semua pemain...");
+    foreach (var player in playersToDistribute)
+    {
+        var card = GetRandomHelpCard();
+        if (player.helpCards == null)
+        {
+            player.helpCards = new List<HelpCard>();
+        }
+        player.helpCards.Add(card);
+        Debug.Log($"{player.playerName} mendapatkan kartu: '{card.cardName}'");
+
+        // --- LOGIKA TAMPILAN PEMAIN (YOU) ---
+        if (player.playerName.Contains("You"))
+        {
+            if (helpCardActivationPanel != null)
+            {
+                // 1. Setup Data UI (Gambar & Teks)
+                // Pastikan variabel Text di Inspector sudah di-assign
+                if (cardNameText != null) cardNameText.text = "ANDA MENDAPATKAN:\n" + card.cardName;
+                if (cardDescriptionText != null) cardDescriptionText.text = card.description;
+                if (cardImageUI != null) cardImageUI.sprite = card.cardImage;
+
+                // 2. Sembunyikan Tombol agar hanya jadi "Viewer"
+                if (activateButton != null) activateButton.gameObject.SetActive(false);
+                if (skipButton != null) skipButton.gameObject.SetActive(false);
+
+                // 3. Pastikan ada CanvasGroup untuk efek Fade
+                CanvasGroup cg = helpCardActivationPanel.GetComponent<CanvasGroup>();
+                if (cg == null) cg = helpCardActivationPanel.AddComponent<CanvasGroup>();
+
+                // 4. Reset kondisi awal & Aktifkan Panel
+                cg.alpha = 0f; 
+                helpCardActivationPanel.SetActive(true);
+
+                // 5. Animasi FADE IN (0.5 detik)
+                yield return StartCoroutine(FadeCanvasGroup(cg, 0f, 1f, 0.5f));
+
+                // 6. Tahan tampilan (2 detik)
+                yield return new WaitForSeconds(2f);
+
+                // 7. Animasi FADE OUT (0.5 detik)
+                yield return StartCoroutine(FadeCanvasGroup(cg, 1f, 0f, 0.5f));
+
+                // 8. Matikan panel dan KEMBALIKAN tombol (PENTING!)
+                helpCardActivationPanel.SetActive(false);
+                
+                // Kembalikan tombol agar bisa dipakai di fase aktivasi nanti
+                if (activateButton != null) activateButton.gameObject.SetActive(true);
+                if (skipButton != null) skipButton.gameObject.SetActive(true);
+                
+                // Reset alpha ke 1 jaga-jaga jika panel dibuka tanpa animasi nanti
+                cg.alpha = 1f; 
+            }
+        }
+    }
+}
+
+// --- FUNGSI TAMBAHAN UNTUK ANIMASI HALUS ---
+private IEnumerator FadeCanvasGroup(CanvasGroup cg, float startAlpha, float endAlpha, float duration)
+{
+    float elapsedTime = 0f;
+    cg.alpha = startAlpha;
+
+    while (elapsedTime < duration)
+    {
+        elapsedTime += Time.deltaTime;
+        // Mengubah alpha secara bertahap
+        cg.alpha = Mathf.Lerp(startAlpha, endAlpha, elapsedTime / duration);
+        yield return null;
+    }
+
+    cg.alpha = endAlpha;
+}
+    private IEnumerator SkipToSellingPhase()
+    {
+        yield return new WaitForSeconds(1f); 
+        yield return StartCoroutine(EndHelpCardPhase());
+    }   
 
     private IEnumerator ActivationSequence()
     {
@@ -93,12 +184,11 @@ public class HelpCardPhaseManager : MonoBehaviour
 
         foreach (var player in turnOrder)
         {
-            if (player.helpCards.Count == 0)
+            if (player.helpCards == null || player.helpCards.Count == 0)
             {
-                Debug.Log($"{player.playerName} tidak memiliki Kartu Bantuan untuk diaktifkan.");
+                // Debug.Log($"{player.playerName} tidak memiliki Kartu Bantuan untuk diaktifkan.");
                 continue;
             }
-
             Debug.Log($"Giliran {player.playerName} untuk mengaktifkan kartu bantuannya.");
 
             for (int i = player.helpCards.Count - 1; i >= 0; i--)
@@ -121,19 +211,42 @@ public class HelpCardPhaseManager : MonoBehaviour
             }
         }
 
+        yield return StartCoroutine(EndHelpCardPhase());
+
+    }
+    private IEnumerator EndHelpCardPhase()
+    {
         Debug.Log("--- Fase Kartu Bantuan Selesai ---");
-        UITransitionAnimator.Instance.StartTransition("Selling Phase");
+        
+        if (UITransitionAnimator.Instance != null)
+        {
+            UITransitionAnimator.Instance.StartTransition("Selling Phase");
+        }
+        
         yield return new WaitForSeconds(4f);
-        sellingManager.StartSellingPhase(turnOrder, gameManager.resetCount, gameManager.maxResetCount, gameManager.resetSemesterButton);
-
-
+        
+        isPhaseRunning = false; // Reset flag agar bisa dijalankan lagi di semester berikutnya
+        
+        if (sellingManager != null)
+        {
+            sellingManager.StartSellingPhase(turnOrder, gameManager.resetCount, gameManager.maxResetCount, gameManager.resetSemesterButton);
+        }
+        else
+        {
+            Debug.LogError("SellingPhaseManager reference is missing!");
+        }
     }
 
 
     private IEnumerator HandlePlayerChoice(PlayerProfile player, HelpCard card)
     {
+        CanvasGroup cg = helpCardActivationPanel.GetComponent<CanvasGroup>();
+    if (cg != null) cg.alpha = 1f;
+
         helpCardActivationPanel.SetActive(true);
         cardImageUI.sprite = card.cardImage;
+        if (cardNameText != null) cardNameText.text = card.cardName;
+    if (cardDescriptionText != null) cardDescriptionText.text = card.description;
 
         bool choiceMade = false;
         bool wantsToActivate = false;
@@ -486,21 +599,59 @@ public class HelpCardPhaseManager : MonoBehaviour
     // Fungsi baru untuk menampilkan UI pemilihan pemain
     public IEnumerator ShowPlayerSelectionUI(List<PlayerProfile> players, Action<PlayerProfile> onPlayerSelected)
     {
-        // Pastikan panel lama (jika masih ada) tidak aktif
-    
+        // 1. Simpan kondisi awal UI Container
+        if (selectionUIContainer != null)
+        {
+            originalPosition = selectionUIContainer.anchoredPosition;
+            originalScale = selectionUIContainer.localScale;
+            Vector2 targetCustomPosition = new Vector2(-40f, 100f);
+            
+            // Animasi Masuk: Bergerak ke Tengah (0,0) dan Skala 1.5x
+            StartCoroutine(AnimateUI(selectionUIContainer, targetCustomPosition, Vector3.one * 0.8f));
+        }
 
         bool selectionMade = false;
 
-        // Panggil fungsi baru di GameManager untuk mengaktifkan tombol target di UI pemain
+        // 3. Panggil fungsi GameManager untuk setup tombol target di list pemain
         gameManager.StartPlayerTargeting(players, selectedPlayer =>
         {
-            // Callback ini akan dijalankan oleh GameManager saat target sudah diklik
             onPlayerSelected?.Invoke(selectedPlayer);
             selectionMade = true;
         });
 
-        // Coroutine ini akan berhenti di sini sampai 'selectionMade' menjadi true
+        // Tunggu sampai pemain memilih target ATAU menekan skip
         yield return new WaitUntil(() => selectionMade);
+
+
+        if (selectionUIContainer != null)
+        {
+            // Animasi Keluar: Kembali ke posisi dan skala awal
+            StartCoroutine(AnimateUI(selectionUIContainer, originalPosition, originalScale));
+        }
+    }
+
+    // --- TAMBAHKAN HELPER COROUTINE INI ---
+    private IEnumerator AnimateUI(RectTransform target, Vector2 targetPos, Vector3 targetScale)
+    {
+        float elapsed = 0f;
+        Vector2 startPos = target.anchoredPosition;
+        Vector3 startScale = target.localScale;
+
+        while (elapsed < animationDuration)
+        {
+            float t = elapsed / animationDuration;
+            // Menggunakan SmoothStep untuk gerakan yang lebih luwes
+            t = t * t * (3f - 2f * t); 
+
+            target.anchoredPosition = Vector2.Lerp(startPos, targetPos, t);
+            target.localScale = Vector3.Lerp(startScale, targetScale, t);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        target.anchoredPosition = targetPos;
+        target.localScale = targetScale;
     }
     private IEnumerator ShowEffectResult(PlayerProfile player, HelpCard card, string targetInfo)
     {

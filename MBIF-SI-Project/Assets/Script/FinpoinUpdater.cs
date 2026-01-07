@@ -17,6 +17,10 @@ public class FinpoinUpdater : MonoBehaviour
     // Menggunakan async void Start untuk alur yang aman
     async void Start()
     {
+        if (GlobalUserData.HasData)
+        {
+             finpoinText.text = "$ " + GlobalUserData.cachedData.finPoin.ToString("N0");
+        }
         // untuk menunggu FirebaseInitializer siap di dalam sebuah metode async.
         while (FirebaseInitializer.Instance == null || !FirebaseInitializer.Instance.IsFirebaseReady)
         {
@@ -31,6 +35,7 @@ public class FinpoinUpdater : MonoBehaviour
             UpdateFinpoinUI(0); // Tampilkan 0 jika belum login
             return;
         }
+        
 
         string currentUserUID = auth.CurrentUser.UserId;
         // Buat referensi langsung ke node "finPoin" milik user saat ini
@@ -43,21 +48,23 @@ public class FinpoinUpdater : MonoBehaviour
     // Fungsi ini adalah callback yang dieksekusi saat data finPoin berubah
     private void OnFinpoinValueChanged(object sender, ValueChangedEventArgs args)
     {
-        if (args.DatabaseError != null)
-        {
-            Debug.LogError(args.DatabaseError.Message);
-            return;
-        }
+        if (args.DatabaseError != null) return;
 
-        long currentFinpoin = 0;
         if (args.Snapshot != null && args.Snapshot.Exists)
         {
-            // Ambil nilai dari snapshot dan konversi ke long
-            currentFinpoin = (long)args.Snapshot.Value;
-        }
+            long currentFinpoin = (long)args.Snapshot.Value;
+            
+            // Update UI
+            if (finpoinText != null)
+                finpoinText.text = "$ " + currentFinpoin.ToString("N0");
 
-        // Panggil fungsi untuk update UI
-        UpdateFinpoinUI(currentFinpoin);
+            // --- UPDATE CACHE JUGA ---
+            // Agar jika pindah scene lagi, uangnya sudah terupdate di cache
+            if (GlobalUserData.cachedData != null)
+            {
+                GlobalUserData.cachedData.finPoin = (int)currentFinpoin;
+            }
+        }
     }
 
     // Fungsi khusus untuk memperbarui teks di UI

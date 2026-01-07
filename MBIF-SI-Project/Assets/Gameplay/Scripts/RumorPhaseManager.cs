@@ -488,47 +488,218 @@ public class RumorPhaseManager : MonoBehaviour
     // Tambahkan metode ini di dalam kelas RumorPhaseManager.cs
 
     public IEnumerator ShowPredictionCardAtCenter(RumorEffect rumorToShow)
+{
+    Debug.Log($"[Prediction] Menampilkan preview untuk: {rumorToShow.cardName}");
+
+    // --- 1. Persiapan & Validasi ---
+    GameObject cardObject = predictionCardObject;       // Ini pengganti rumorCardNetral
+    Renderer cardRenderer = predictionCardRenderer;
+
+    if (cardObject == null || cardRenderer == null)
     {
-        Debug.Log($"Menampilkan bocoran kartu rumor: {rumorToShow.cardName}");
-
-        // Langkah 1: Tentukan objek kartu dan renderer yang akan digunakan
-        GameObject cardObject = predictionCardObject;
-        Renderer cardRenderer = predictionCardRenderer;
-
-        if (cardObject == null || cardRenderer == null)
-        {
-            Debug.LogError("Referensi 'Prediction Card Object' atau 'Prediction Card Renderer' belum di-assign di Inspector!");
-            yield break;
-        }
-
-        // Validasi texture
-        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == rumorToShow.cardName)?.texture;
-        if (frontTexture == null)
-        {
-            Debug.LogWarning($"Texture untuk '{rumorToShow.cardName}' tidak ditemukan!");
-            yield break;
-        }
-
-        if (cameraController) yield return cameraController.MoveTo(CameraController.CameraPosition.Center);
-
-        Vector3 originalPosition = cardObject.transform.position;
-
-        // Pindahkan kartu ke stage dan balik
-        cardObject.transform.position = predictionCardStage.position;
-        cardObject.transform.rotation = predictionCardStage.rotation;
-        cardRenderer.material.mainTexture = frontTexture;
-        yield return StartCoroutine(FlipCard(cardObject));
-
-        yield return new WaitForSeconds(3f); // Waktu untuk pemain melihat
-
-        cardObject.SetActive(false);
-        cardObject.transform.position = originalPosition; // Kembalikan posisi logisnya
-
-        // 2. KEMBALIKAN KAMERA KE NORMAL
-        if (cameraController) yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
-
-        Debug.Log($"Kartu {cardObject.name} telah disembunyikan dan kamera kembali normal.");
+        Debug.LogError("Referensi 'Prediction Card Object/Renderer' belum di-assign!");
+        yield break;
     }
+
+    // Definisi parameter animasi (SAMA PERSIS dengan AnimateSingleRumorCard)
+    float holdDuration = 4f;           
+    float nudgeHorizontalOffset = -1.2f; 
+    float nudgeVerticalOffset = -0.01f;  
+    float nudgeDuration = 0.4f;          
+
+    // --- 2. Gerakkan Kamera ---
+    if (cameraController != null)
+    {
+        yield return cameraController.MoveTo(CameraController.CameraPosition.Center);
+        // yield return new WaitForSeconds(cameraController.moveDuration); // Opsional, sesuaikan dengan kebutuhan
+    }
+
+    // --- 3. Tentukan Posisi & Objek Referensi (Sektor) ---
+    
+    // a. Tentukan GameObject di posisi Sektor (Red/Blue/Green/Orange)
+    GameObject sectorCardObject = null;
+    switch (rumorToShow.color)
+    {
+        case "Konsumer":      sectorCardObject = cardRed; break;
+        case "Infrastruktur": sectorCardObject = cardBlue; break;
+        case "Keuangan":      sectorCardObject = cardGreen; break;
+        case "Tambang":       sectorCardObject = cardOrange; break;
+    }
+
+    // b. Tentukan Posisi Awal (Sektor) dan Akhir (Stage Tengah)
+    // Jika sectorCardObject ada, gunakan posisinya. Jika tidak, gunakan posisi default cardObject.
+    Vector3 startPosition = (sectorCardObject != null) ? sectorCardObject.transform.position : cardObject.transform.position;
+    Vector3 endPosition = predictionCardStage.position; // Posisi tengah panggung
+
+    // c. Dapatkan & Terapkan Tekstur
+    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == rumorToShow.cardName)?.texture;
+    if (frontTexture != null)
+    {
+        cardRenderer.material.mainTexture = frontTexture;
+    }
+    else
+    {
+        Debug.LogWarning($"Texture untuk '{rumorToShow.cardName}' tidak ditemukan!");
+        yield break; 
+    }
+
+    // --- 4. Jalankan Skenario Animasi ---
+    
+    // Cek apakah kartu sektor (tumpukan) sedang AKTIF
+    if (sectorCardObject != null && sectorCardObject.activeInHierarchy)
+    {
+        // --- SKENARIO 2 (Jika tumpukan aktif: Geser/Nudge dulu baru Flip) ---
+        Debug.Log("[Prediction] Menjalankan Skenario 2 (Active Stack)");
+
+        // 1. Hitung posisi offset
+        Vector3 scenario2StartPos = startPosition + (Vector3.up * nudgeVerticalOffset);
+        Vector3 nudgeTargetPos = scenario2StartPos + (Vector3.right * nudgeHorizontalOffset);
+
+        // 2. Set posisi awal & aktifkan
+        cardObject.transform.position = scenario2StartPos;
+        cardObject.SetActive(true);
+
+        // 3. Animasi "Nudge" (Geser ke kiri)
+        yield return StartCoroutine(AnimateSimpleMove(cardObject, scenario2StartPos, nudgeTargetPos, nudgeDuration));
+
+        // 4. Animasi "Flip & Move" ke Tengah
+        yield return StartCoroutine(FlipAndMoveCard(cardObject, nudgeTargetPos, endPosition));
+
+        // 5. Tahan
+        yield return new WaitForSeconds(holdDuration);
+
+        // 6. Animasi "Reverse" kembali ke posisi Nudge
+        yield return StartCoroutine(AnimateFlipAndMoveReverse(cardObject, endPosition, nudgeTargetPos));
+
+        // 7. Animasi "Un-Nudge" (Geser balik ke tumpukan)
+        yield return StartCoroutine(AnimateSimpleMove(cardObject, nudgeTargetPos, scenario2StartPos, nudgeDuration));
+
+        // 8. Sembunyikan
+        cardObject.SetActive(false);
+        cardObject.transform.position = endPosition; // Reset transform
+    }
+    else
+    {
+        // --- SKENARIO 1 (Jika tumpukan tidak aktif/kosong: Langsung Flip) ---
+        Debug.Log("[Prediction] Menjalankan Skenario 1 (Inactive Stack)");
+
+        // 1. Animasi "Flip & Move" langsung dari posisi Sektor ke Tengah
+        yield return StartCoroutine(FlipAndMoveCard(cardObject, startPosition, endPosition));
+
+        // 2. Tahan
+        yield return new WaitForSeconds(holdDuration);
+
+        // 3. Animasi "Reverse" kembali ke Sektor
+        yield return StartCoroutine(AnimateFlipAndMoveReverse(cardObject, endPosition, startPosition));
+
+        // 4. Sembunyikan
+        cardObject.SetActive(false);
+        cardObject.transform.position = endPosition; // Reset transform
+    }
+
+    // --- 5. Reset Kamera ---
+    if (cameraController) yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+}
+    // --- ANIMASI HOP & FLIP (Masuk) ---
+private IEnumerator FlipAndMoveCard(GameObject cardObject, Vector3 startPos, Vector3 endPos)
+{
+    // --- Persiapan ---
+    Quaternion startRotation = Quaternion.Euler(0, 180, 180); // Face down
+    Quaternion finalRotation = Quaternion.Euler(0, 180, 0);   // Face up
+
+    cardObject.transform.position = startPos; // Mulai dari posisi sektor
+    cardObject.transform.rotation = startRotation;
+    cardObject.SetActive(true);
+
+    float moveDuration = 0.7f; // Durasi animasi
+    float flipHeight = 0.5f;   // Ketinggian lengkungan (hop) - NILAI ASLI
+    float moveElapsed = 0f;
+
+    // Tambahan kecil: Mainkan sound jika ada (opsional, tidak mengubah logika gerak)
+    if (SfxManager.Instance != null && rumourFlipSound != null) SfxManager.Instance.PlaySound(rumourFlipSound);
+
+    // --- Loop Animasi ---
+    while (moveElapsed < moveDuration)
+    {
+        float progress = moveElapsed / moveDuration;
+
+        // 1. Gerakkan posisi dari startPos ke endPos (linear)
+        Vector3 currentPos = Vector3.Lerp(startPos, endPos, progress);
+        
+        // 2. Tambahkan lengkungan (hop)
+        currentPos.y += Mathf.Sin(progress * Mathf.PI) * flipHeight;
+        cardObject.transform.position = currentPos;
+
+        // 3. Rotasikan kartu secara Slerp
+        cardObject.transform.rotation = Quaternion.Slerp(startRotation, finalRotation, progress);
+
+        moveElapsed += Time.deltaTime;
+        yield return null;
+    }
+
+    // --- Finalisasi ---
+    cardObject.transform.position = endPos;
+    cardObject.transform.rotation = finalRotation;
+}
+
+private IEnumerator AnimateFlipAndMoveReverse(GameObject cardObject, Vector3 startPos, Vector3 endPos)
+{
+    // --- Persiapan ---
+    Quaternion startRotation = Quaternion.Euler(0, 180, 0);   // Face up (dari posisi akhir)
+    Quaternion finalRotation = Quaternion.Euler(0, 180, 180); // Face down (kembali ke awal)
+
+    cardObject.transform.position = startPos; // Mulai dari Center
+    cardObject.transform.rotation = startRotation;
+    cardObject.SetActive(true); // Pastikan masih aktif
+
+    float moveDuration = 0.7f; // Durasi animasi
+    float flipHeight = 0.5f;   // Ketinggian lengkungan (hop) - NILAI ASLI
+    float moveElapsed = 0f;
+
+    // --- Loop Animasi ---
+    while (moveElapsed < moveDuration)
+    {
+        float progress = moveElapsed / moveDuration;
+
+        // 1. Gerakkan posisi dari startPos ke endPos (linear)
+        Vector3 currentPos = Vector3.Lerp(startPos, endPos, progress);
+        
+        // 2. Tambahkan lengkungan (hop)
+        currentPos.y += Mathf.Sin(progress * Mathf.PI) * flipHeight;
+        cardObject.transform.position = currentPos;
+
+        // 3. Rotasikan kartu secara Slerp (reverse)
+        cardObject.transform.rotation = Quaternion.Slerp(startRotation, finalRotation, progress);
+
+        moveElapsed += Time.deltaTime;
+        yield return null;
+    }
+
+    // --- Finalisasi ---
+    cardObject.transform.position = endPos;
+    cardObject.transform.rotation = finalRotation;
+}
+private IEnumerator AnimateSimpleMove(GameObject cardObject, Vector3 startPos, Vector3 endPos, float duration)
+{
+    float moveElapsed = 0f;
+    
+    // Pastikan objek ada di posisi start sebelum mulai
+    cardObject.transform.position = startPos;
+
+    while (moveElapsed < duration)
+    {
+        float progress = moveElapsed / duration;
+        
+        // Gerakan linear biasa (Lerp)
+        cardObject.transform.position = Vector3.Lerp(startPos, endPos, progress);
+        
+        moveElapsed += Time.deltaTime;
+        yield return null;
+    }
+    
+    // Pastikan posisi akhir presisi
+    cardObject.transform.position = endPos;
+}
 
 
     public void HideAllCardObjects()

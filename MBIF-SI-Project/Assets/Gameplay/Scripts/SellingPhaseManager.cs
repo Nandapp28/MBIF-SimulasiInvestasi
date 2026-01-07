@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
+using TMPro;
 public enum IPOState { Normal, Ascend, Advanced }
 public class SellingPhaseManager : MonoBehaviour
 {
@@ -16,6 +17,9 @@ public class SellingPhaseManager : MonoBehaviour
     public Button confirmSellButton;
     public Transform colorSellPanelContainer;
     public GameObject colorSellRowPrefab;
+    [Header("UI Toggles")] // TAMBAHKAN HEADER INI
+    public Button togglePanelButton; // Referensi ke tombol "Sembunyikan/Tampilkan"
+    public TextMeshProUGUI toggleButtonText;    
     [Header("System References")] // <-- TAMBAHKAN HEADER BARU
     public CameraController cameraController;
     [Header("Sound Effects")] // <-- TAMBAHKAN HEADER & VARIABEL INI
@@ -122,6 +126,11 @@ public class SellingPhaseManager : MonoBehaviour
             }
             data.manager = this; // INJEKSI Referensi ke manager
         }
+        if (togglePanelButton != null)
+        {
+            togglePanelButton.onClick.AddListener(ToggleSellingPanel);
+            togglePanelButton.gameObject.SetActive(false); // Sembunyikan tombol saat game mulai
+        }
         UpdateIPOVisuals();
 
     }
@@ -165,6 +174,11 @@ public class SellingPhaseManager : MonoBehaviour
     private void SetupSellingUI(PlayerProfile player)
     {
         sellingUI.SetActive(true);
+        if (togglePanelButton != null)
+        {
+            togglePanelButton.gameObject.SetActive(true);
+            if (toggleButtonText != null) toggleButtonText.text = "Close";
+        }
         confirmSellButton.onClick.RemoveAllListeners();
         foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
 
@@ -344,6 +358,10 @@ public class SellingPhaseManager : MonoBehaviour
             Debug.Log($"{player.playerName} menjual {soldCards.Count} kartu dan mendapatkan {earnedFinpoints} finpoints. Finpoint sekarang: {player.finpoint}");
             player.marketPredictions.Clear();
         }
+        if (togglePanelButton != null)
+        {
+            togglePanelButton.gameObject.SetActive(false);
+        }
 
         rumorPhaseManager.StartRumorPhase(currentPlayers);
 
@@ -505,6 +523,11 @@ public class SellingPhaseManager : MonoBehaviour
     public IEnumerator ShowMultiColorSellUI(PlayerProfile player, System.Action<Dictionary<string, int>> onConfirm)
     {
         sellingUI.SetActive(true);
+        if (togglePanelButton != null)
+        {
+            togglePanelButton.gameObject.SetActive(true);
+            if (toggleButtonText != null) toggleButtonText.text = "Close";
+        }
         confirmSellButton.onClick.RemoveAllListeners();
         foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
 
@@ -570,6 +593,10 @@ public class SellingPhaseManager : MonoBehaviour
             }
 
             sellingUI.SetActive(false);
+            if (togglePanelButton != null)
+        {
+            togglePanelButton.gameObject.SetActive(false);
+        }
             onConfirm?.Invoke(currentValues);
         });
 
@@ -713,6 +740,20 @@ public class SellingPhaseManager : MonoBehaviour
         if (cameraController != null)
         {
             yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
+        }
+    }
+    public void ToggleSellingPanel()
+    {
+        if (sellingUI != null)
+        {
+            bool isActive = sellingUI.activeSelf;
+            sellingUI.SetActive(!isActive);
+
+            // (Opsional) Ubah teks tombol sesuai status
+            if (toggleButtonText != null)
+            {
+                toggleButtonText.text = isActive ? "Open" : "Close";
+            }
         }
     }
 

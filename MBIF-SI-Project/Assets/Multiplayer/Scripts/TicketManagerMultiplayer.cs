@@ -59,11 +59,16 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient)
         {
             Debug.Log("MasterClient me-reset TURN_ORDER_KEY semua pemain dan menyiapkan tiket...");
-
-            // 3. (PERBAIKAN) Reset TURN_ORDER_KEY semua pemain ke 0
-            Hashtable resetProp = new Hashtable { { PlayerProfileMultiplayer.TURN_ORDER_KEY, 0 } };
             foreach (Player p in PhotonNetwork.PlayerList)
             {
+                if (p.IsInactive) // p.IsInactive adalah cara Photon menandai disconnect
+                {
+                    // Mulai coroutine 5 detik untuk pemain ini
+                    StartCoroutine(HandleDisconnectedPlayerBidding(p));
+                }
+            
+                // 3. (PERBAIKAN) Reset TURN_ORDER_KEY semua pemain ke 0
+                Hashtable resetProp = new Hashtable { { PlayerProfileMultiplayer.TURN_ORDER_KEY, 0 } };
                 p.SetCustomProperties(resetProp);
             }
 
@@ -369,4 +374,90 @@ public class TicketManagerMultiplayer : MonoBehaviourPunCallbacks
         }
         localTicketButtons.Clear();
     }
+    public void HandlePlayerDisconnect(Player disconnectedPlayer)
+    {
+        // Hanya MasterClient & hanya jika bidding panel sedang aktif (secara lokal di MasterClient)
+        if (!PhotonNetwork.IsMasterClient || !biddingPanel.activeInHierarchy)
+        {
+            return;
+        }
+
+        Debug.Log($"[TicketManager] Menangani disconnect {disconnectedPlayer.NickName}...");
+
+        // Cek apakah pemain ini SUDAH punya tiket
+        if (disconnectedPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY) && (int)disconnectedPlayer.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY] > 0)
+        {
+            Debug.Log($"[TicketManager] {disconnectedPlayer.NickName} sudah punya tiket. Tidak ada aksi.");
+            return;
+        }
+
+        // Jika tiket masih tersedia, berikan satu secara acak
+        if (availableTickets != null && availableTickets.Count > 0)
+        {
+            Debug.Log($"[TicketManager] {disconnectedPlayer.NickName} belum punya tiket. Menetapkan tiket acak...");
+            int randomIndex = Random.Range(0, availableTickets.Count);
+            int randomTicket = availableTickets[randomIndex];
+            
+            // Panggil helper internal yang sudah ada (AssignTicketToPlayer)
+            // Ini akan menghapus tiket, mengirim RPC visual, dan mengecek akhir fase.
+            AssignTicketToPlayer(randomTicket, disconnectedPlayer, true);
+        }
+    }
+    private IEnumerator HandleDisconnectedPlayerBidding(Player disconnectedPlayer)
+    {
+        Debug.Log($"[TicketManager] Player {disconnectedPlayer.NickName} sudah disconnect. Menunggu 5 detik (Bot Mode) sebelum auto-assign tiket...");
+        yield return new WaitForSeconds(5.0f);
+
+        // Cek lagi jika MasterClient masih aktif dan fase masih berjalan
+        if (!PhotonNetwork.IsMasterClient || !biddingPanel.activeInHierarchy || availableTickets == null || availableTickets.Count == 0)
+        {
+            yield break; // Batalkan jika fase sudah selesai
+        }
+        
+        // Cek apakah pemain ini (secara ajaib) sudah punya tiket
+        if (disconnectedPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY) && (int)disconnectedPlayer.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY] > 0)
+        {
+            yield break; 
+        }
+
+        Debug.Log($"[TicketManager] Menetapkan tiket acak untuk {disconnectedPlayer.NickName} (Disconnect Bot Mode).");
+        // Panggil RPC yang sama dengan yang dipanggil oleh Bot Mode
+        photonView.RPC("RequestRandomTicket", RpcTarget.MasterClient, disconnectedPlayer);
+    }
+    public void ResumeBiddingPhase()
+{
+    if (!PhotonNetwork.IsMasterClient) return;
+
+    // 1. Rekonstruksi tiket yang tersedia
+    if (availableTickets == null) availableTickets = new List<int>();
+    availableTickets.Clear();
+
+    // Buat daftar semua kemungkinan tiket (1 sampai jumlah pemain)
+    List<int> allPossibleTickets = Enumerable.Range(1, PhotonNetwork.CurrentRoom.PlayerCount).ToList();
+    
+    // Cek tiket mana yang SUDAH diambil oleh pemain
+    foreach (Player p in PhotonNetwork.PlayerList)
+    {
+        if (p.CustomProperties.ContainsKey(PlayerProfileMultiplayer.TURN_ORDER_KEY))
+        {
+            int takenTicket = (int)p.CustomProperties[PlayerProfileMultiplayer.TURN_ORDER_KEY];
+            if (takenTicket > 0)
+            {
+                // Jika tiket sudah diambil, hapus dari daftar kemungkinan
+                allPossibleTickets.Remove(takenTicket);
+            }
+        }
+    }
+
+    // Sisanya adalah tiket yang tersedia (available)
+    availableTickets = allPossibleTickets;
+    Debug.Log($"[HOST MIGRATION] Bidding dipulihkan. Tiket tersisa: {availableTickets.Count}");
+
+    // 2. Jika timer berhenti karena host lama keluar, kita harus memulainya lagi atau memaksa selesai
+    // Opsi sederhana: Jika semua tiket habis, akhiri fase. Jika belum, biarkan pemain lanjut memilih.
+    if (availableTickets.Count == 0)
+    {
+        EndBiddingRPC();
+    }
+}
 }

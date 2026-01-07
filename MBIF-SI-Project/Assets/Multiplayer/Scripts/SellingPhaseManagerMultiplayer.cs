@@ -21,6 +21,9 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     public GameObject colorSellRowPrefab;
     public AudioClip buttonClickSellSfx; // <-- BARIS INI ADA
     private AudioSource audioSource;
+    [Header("Toggle UI (BARU)")]
+    public Button togglePanelButton; // <-- Masukkan tombol baru di sini
+    public TextMeshProUGUI toggleButtonText;
 
     [Header("Timer UI (Shared)")]
     public GameObject timerPanel;
@@ -118,6 +121,20 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     void Start()
     {
         if (timerPanel != null) timerPanel.SetActive(false);
+        if (togglePanelButton != null) togglePanelButton.gameObject.SetActive(false);
+    }
+    public void OnTogglePanelClicked()
+    {
+        if (sellingPanel == null) return;
+
+        bool isVisible = !sellingPanel.activeSelf;
+        sellingPanel.SetActive(isVisible);
+
+        // Update teks tombol jika ada
+        if (toggleButtonText != null)
+        {
+            toggleButtonText.text = isVisible ? "Close" : "Open";
+        }
     }
     public void InitializeIpoState(Dictionary<string, int> initialIndices)
 {
@@ -377,6 +394,7 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         }
         if (timerPanel != null) timerPanel.SetActive(false);
         if (sellingPanel != null) sellingPanel.SetActive(false); // Sembunyikan panel utama di sini
+        if (togglePanelButton != null) togglePanelButton.gameObject.SetActive(false);
     }
     #endregion
 
@@ -387,6 +405,13 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
             Debug.Log("MasterClient memulai Fase Penjualan dan mengatur IPO awal...");
             playersToWaitFor = new List<Player>(turnOrder);
             allPlayerSellDecisions.Clear();
+            foreach (Player p in turnOrder) 
+            {
+                if (p.IsInactive)
+                {
+                    StartCoroutine(HandleDisconnectedPlayerSelling(p));
+                }
+            }
             // Kirim RPC ke semua pemain untuk memulai fase
             photonView.RPC("Rpc_ShowSellingUI", RpcTarget.All);
 
@@ -448,6 +473,14 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         confirmSellButton.onClick.AddListener(OnConfirmSellButtonClicked);
         sellingPanel.SetActive(true);
 
+        if (togglePanelButton != null)
+        {
+            togglePanelButton.gameObject.SetActive(true);
+            togglePanelButton.onClick.RemoveAllListeners();
+            togglePanelButton.onClick.AddListener(OnTogglePanelClicked);
+            if(toggleButtonText != null) toggleButtonText.text = "Close";
+        }
+
         if (botSellingCoroutine != null) StopCoroutine(botSellingCoroutine); // Hentikan jika ada sisa
         if (PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey(PlayerProfileMultiplayer.IS_BOT_MODE_KEY)
             && (bool)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.IS_BOT_MODE_KEY])
@@ -505,12 +538,34 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
     private void SubmitSellDecision(Hashtable decision, PhotonMessageInfo info)
     {
         if (!PhotonNetwork.IsMasterClient) return;
-        Player sender = info.Sender;
+        // Panggil helper baru
+        ProcessPlayerSellDecision(decision, info.Sender.ActorNumber);
+    }
+
+    // --- FUNGSI HELPER BARU (untuk dipanggil oleh RPC dan Coroutine) ---
+    private void ProcessPlayerSellDecision(Hashtable decision, int actorNumber)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        // Cari player berdasarkan actorNumber
+        Player sender = PhotonNetwork.CurrentRoom.GetPlayer(actorNumber);
+        if (sender == null)
+        {
+            Debug.LogWarning($"[SellingPhase] SubmitSellDecision gagal: Player dengan ActorNumber {actorNumber} tidak ditemukan.");
+            return;
+        }
+
         allPlayerSellDecisions[sender.ActorNumber] = decision;
 
         if (playersToWaitFor.Contains(sender))
         {
             playersToWaitFor.Remove(sender);
+        }
+        else
+        {
+             // Jika 'sender' tidak ada di 'playersToWaitFor', mungkin karena dia disconnect
+             // dan coroutine HandleDisconnectedPlayerSelling memanggil ini.
+             // Kita tidak perlu log warning, cukup pastikan dia tidak ada di list.
         }
 
         if (playersToWaitFor.Count == 0)
@@ -629,4 +684,94 @@ public class SellingPhaseManagerMultiplayer : MonoBehaviourPunCallbacks
         yield return new WaitForSeconds(2f);
         MultiplayerManager.Instance.ShowLeaderboard();
     }
+    public void HandlePlayerDisconnect(Player disconnectedPlayer)
+    {
+        // Hanya MasterClient & hanya jika kita sedang menunggu pemain
+        if (!PhotonNetwork.IsMasterClient || playersToWaitFor == null || playersToWaitFor.Count == 0)
+        {
+            return;
+        }
+
+        if (playersToWaitFor.Contains(disconnectedPlayer))
+        {
+            Debug.Log($"[SellingPhaseManager] {disconnectedPlayer.NickName} disconnect. Mensubmit 0 penjualan untuknya.");
+            
+            // Ini adalah logika yang sama dari Rpc_SubmitSellDecision
+            allPlayerSellDecisions[disconnectedPlayer.ActorNumber] = new Hashtable(); // Submit 0 sales
+            playersToWaitFor.Remove(disconnectedPlayer);
+
+            // Cek apakah semua pemain (yang tersisa) sudah selesai
+            if (playersToWaitFor.Count == 0)
+            {
+                photonView.RPC("Rpc_StopSellingTimer", RpcTarget.All);
+                StartCoroutine(ProcessAllSales());
+            }
+        }
+    }
+    private IEnumerator HandleDisconnectedPlayerSelling(Player disconnectedPlayer)
+    {
+        Debug.Log($"[SellingPhaseManager] Player {disconnectedPlayer.NickName} sudah disconnect. Menunggu 5 detik (Bot Mode) sebelum submit 0 sales...");
+        yield return new WaitForSeconds(5.0f);
+
+        // Cek lagi jika MasterClient masih aktif dan fase masih berjalan
+        if (!PhotonNetwork.IsMasterClient || playersToWaitFor == null || !playersToWaitFor.Contains(disconnectedPlayer))
+        {
+            yield break; // Batalkan jika fase sudah selesai atau pemain sudah diproses
+        }
+
+        Debug.Log($"[SellingPhaseManager] Mensubmit 0 penjualan untuk {disconnectedPlayer.NickName} (Disconnect Bot Mode).");
+        
+        // Panggil fungsi helper yang baru kita buat
+        ProcessPlayerSellDecision(new Hashtable(), disconnectedPlayer.ActorNumber);
+    }
+    public void ResumeSellingPhase()
+{
+    if (!PhotonNetwork.IsMasterClient) return;
+
+    // 1. Ambil kembali list pemain yang belum submit (playersToWaitFor)
+    if (playersToWaitFor == null) playersToWaitFor = new List<Player>();
+    playersToWaitFor.Clear();
+
+    // Cek siapa saja yang BELUM ada di allPlayerSellDecisions
+    foreach (Player p in PhotonNetwork.PlayerList)
+    {
+        if (!allPlayerSellDecisions.ContainsKey(p.ActorNumber))
+        {
+            playersToWaitFor.Add(p);
+        }
+    }
+
+    // 2. Cek Timer
+    if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("sellingStartTime", out object startTimeObj))
+    {
+        double startTime = (double)startTimeObj;
+        double elapsed = PhotonNetwork.Time - startTime;
+        float remainingTime = SELLING_TIME - (float)elapsed;
+
+        if (remainingTime > 0)
+        {
+            // Jalankan timer recovery
+            StartCoroutine(MasterClientSellingMonitor(remainingTime));
+        }
+        else
+        {
+            // Waktu sudah habis, proses yang ada
+            StartCoroutine(ProcessAllSales());
+        }
+    }
+}
+
+private IEnumerator MasterClientSellingMonitor(float duration)
+{
+    yield return new WaitForSeconds(duration);
+    
+    if (PhotonNetwork.IsMasterClient)
+    {
+        Debug.Log("[HOST MIGRATION] Waktu Selling habis (Recovered).");
+        // Hentikan timer UI di semua klien
+        photonView.RPC("Rpc_StopSellingTimer", RpcTarget.All);
+        // Proses penjualan (otomatis handle pemain yang belum submit sebagai 0)
+        StartCoroutine(ProcessAllSales());
+    }
+}
 }

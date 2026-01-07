@@ -324,75 +324,144 @@ public Sprite GetCardSprite2D(string cardName)
     }
 
     #region Visuals & Animation
-    public IEnumerator AnimatePrivateRumorPreview(string sectorName)
+   public IEnumerator AnimatePrivateRumorPreview(string sectorName)
+{
+    Debug.Log($"[PRIVATE PREVIEW] Menjalankan animasi privat untuk sektor: {sectorName}");
+
+    // --- BAGIAN 0: DATA & VALIDASI (Sama seperti sebelumnya) ---
+    if (!PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("nextRumorDeck", out object deckIndicesObj))
     {
-        Debug.Log($"[PRIVATE PREVIEW] Menjalankan animasi privat untuk sektor: {sectorName}");
-
-        // Dapatkan dek rumor yang akan datang dari Room Properties
-        if (!PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue("nextRumorDeck", out object deckIndicesObj))
-        {
-            Debug.LogError("[PRIVATE PREVIEW] Gagal: 'nextRumorDeck' tidak ditemukan.");
-            yield break;
-        }
-
-        int[] rumorIndices = (int[])deckIndicesObj;
-        Sektor targetSektor = (Sektor)System.Enum.Parse(typeof(Sektor), sectorName);
-
-        // Tentukan indeks kartu yang sesuai dengan sektor yang dipilih
-        int sectorIndexInDeck = -1;
-        switch (targetSektor)
-        {
-            case Sektor.Konsumer: sectorIndexInDeck = 0; break;
-            case Sektor.Infrastruktur: sectorIndexInDeck = 1; break;
-            case Sektor.Keuangan: sectorIndexInDeck = 2; break;
-            case Sektor.Tambang: sectorIndexInDeck = 3; break;
-        }
-
-        if (sectorIndexInDeck == -1 || rumorIndices.Length <= sectorIndexInDeck)
-        {
-            Debug.LogError($"[PRIVATE PREVIEW] Indeks sektor tidak valid untuk {sectorName}.");
-            yield break;
-        }
-
-        // Dapatkan data kartu rumor yang akan ditampilkan
-        int cardToShowIndex = rumorIndices[sectorIndexInDeck];
-        if (cardToShowIndex < 0 || cardToShowIndex >= allRumorEffects.Count) yield break;
-        RumorEffectData effectData = allRumorEffects[cardToShowIndex];
-
-        // Salin dan tempel logika animasi dari AnimateSingleRumorCard
-        // Bagian 1: Gerakkan Kamera
-        CameraController.CameraPosition targetPos = (CameraController.CameraPosition)System.Enum.Parse(typeof(CameraController.CameraPosition), sectorName);
-        if (cameraController != null)
-        {
-            cameraController.MoveTo(targetPos);
-            yield return new WaitForSeconds(cameraController.moveDuration);
-        }
-
-        // Bagian 2: Tampilkan Kartu 3D
-        HideAllCardObjects();
-        Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == effectData.cardName)?.texture;
-        if (frontTexture != null)
-        {
-            GameObject cardToDisplay = GetCardObjectByColor(sectorName);
-            if (cardToDisplay != null)
-            {
-                Renderer cardRenderer = cardToDisplay.GetComponent<Renderer>();
-                cardRenderer.material.mainTexture = frontTexture;
-                StartCoroutine(FlipCard(cardToDisplay));
-            }
-        }
-
-        // Bagian 3: Kembalikan Kamera
-        HideAllCardObjects();
-        yield return new WaitForSeconds(0.5f);
-        if (cameraController != null)
-        {
-            cameraController.MoveTo(CameraController.CameraPosition.Normal);
-            yield return new WaitForSeconds(cameraController.moveDuration);
-        }
-        Debug.Log($"[PRIVATE PREVIEW] Animasi untuk {sectorName} selesai.");
+        Debug.LogError("[PRIVATE PREVIEW] Gagal: 'nextRumorDeck' tidak ditemukan.");
+        yield break;
     }
 
+    int[] rumorIndices = (int[])deckIndicesObj;
+    Sektor targetSektor = (Sektor)System.Enum.Parse(typeof(Sektor), sectorName);
+
+    int sectorIndexInDeck = -1;
+    switch (targetSektor)
+    {
+        case Sektor.Konsumer: sectorIndexInDeck = 0; break;
+        case Sektor.Infrastruktur: sectorIndexInDeck = 1; break;
+        case Sektor.Keuangan: sectorIndexInDeck = 2; break;
+        case Sektor.Tambang: sectorIndexInDeck = 3; break;
+    }
+
+    if (sectorIndexInDeck == -1 || rumorIndices.Length <= sectorIndexInDeck)
+    {
+        Debug.LogError($"[PRIVATE PREVIEW] Indeks sektor tidak valid untuk {sectorName}.");
+        yield break;
+    }
+
+    int cardToShowIndex = rumorIndices[sectorIndexInDeck];
+    if (cardToShowIndex < 0 || cardToShowIndex >= allRumorEffects.Count) yield break;
+    RumorEffectData effectData = allRumorEffects[cardToShowIndex];
+    // -----------------------------------------------------------
+
+    // --- BAGIAN 1: SETUP VISUAL (SAMA PERSIS DENGAN INSIDER TRADE) ---
+    
+    // 1. Parameter Animasi
+    float holdDuration = 4f;
+    float nudgeHorizontalOffset = -1.2f;
+    float nudgeVerticalOffset = -0.01f;
+    float nudgeDuration = 0.4f;
+
+    // 2. Gerakkan Kamera ke Tengah
+    if (cameraController != null)
+    {
+        cameraController.MoveTo(CameraController.CameraPosition.Center);
+        yield return new WaitForSeconds(cameraController.moveDuration);
+    }
+
+    // 3. Tentukan Objek Sektor (hanya untuk referensi posisi)
+    GameObject sectorCardObject = null;
+    switch (targetSektor)
+    {
+        case Sektor.Konsumer: sectorCardObject = rumorCardKonsumer; break;
+        case Sektor.Infrastruktur: sectorCardObject = rumorCardInfrastruktur; break;
+        case Sektor.Keuangan: sectorCardObject = rumorCardKeuangan; break;
+        case Sektor.Tambang: sectorCardObject = rumorCardTambang; break;
+        default: sectorCardObject = rumorCardNetral; break;
+    }
+
+    // 4. Tentukan Posisi Awal dan Akhir
+    Vector3 startPosition = (sectorCardObject != null) ? sectorCardObject.transform.position : rumorCardNetral.transform.position;
+    Vector3 endPosition = rumorCardNetral.transform.position; // Posisi Netral selalu di tengah
+
+    // 5. Setup Tekstur pada rumorCardNetral (Objek Proxy)
+    Texture frontTexture = cardVisuals.FirstOrDefault(v => v.cardName == effectData.cardName)?.texture;
+    if (frontTexture != null && rumorCardNetral != null)
+    {
+        Renderer cardRenderer = rumorCardNetral.GetComponent<Renderer>();
+        if (cardRenderer != null)
+        {
+            cardRenderer.material.mainTexture = frontTexture;
+        }
+    }
+    else
+    {
+        Debug.LogWarning($"[Private Preview] Texture tidak ditemukan untuk {effectData.cardName}");
+        yield break;
+    }
+
+    // --- BAGIAN 2: EKSEKUSI ANIMASI (TANPA HideAllCardObjects) ---
+
+    // Cek apakah kartu asli di sektor sedang aktif (Scenario 2) atau tidak (Scenario 1)
+    if (sectorCardObject != null && sectorCardObject.activeInHierarchy)
+    {
+        // --- SKENARIO 2 (Aktif: Geser dulu baru gerak) ---
+        Debug.Log("[Private Preview] Skenario 2 (Aktif)");
+
+        Vector3 scenario2StartPos = startPosition + (Vector3.up * nudgeVerticalOffset);
+        Vector3 nudgeTargetPos = scenario2StartPos + (Vector3.right * nudgeHorizontalOffset);
+
+        // Reset posisi rumorCardNetral ke posisi "numpuk"
+        rumorCardNetral.transform.position = scenario2StartPos;
+        rumorCardNetral.transform.rotation = Quaternion.Euler(0, 180, 180); // Face down
+        rumorCardNetral.SetActive(true);
+
+        // Geser ke kiri
+        yield return StartCoroutine(AnimateSimpleMove(rumorCardNetral, scenario2StartPos, nudgeTargetPos, nudgeDuration));
+        
+        // Flip & Move ke Tengah
+        yield return StartCoroutine(FlipAndMoveCard(rumorCardNetral, nudgeTargetPos, endPosition));
+        
+        yield return new WaitForSeconds(holdDuration);
+
+        // Balik ke posisi geser
+        yield return StartCoroutine(AnimateFlipAndMoveReverse(rumorCardNetral, endPosition, nudgeTargetPos));
+        yield return StartCoroutine(AnimateSimpleMove(rumorCardNetral, nudgeTargetPos, scenario2StartPos, nudgeDuration));
+
+        rumorCardNetral.SetActive(false);
+        rumorCardNetral.transform.position = endPosition;
+    }
+    else
+    {
+        // --- SKENARIO 1 (Tidak Aktif: Langsung gerak dari posisi sektor) ---
+        Debug.Log("[Private Preview] Skenario 1 (Tidak Aktif)");
+
+        // Animasi Flip & Move dari Sektor ke Tengah
+        yield return StartCoroutine(FlipAndMoveCard(rumorCardNetral, startPosition, endPosition));
+        
+        yield return new WaitForSeconds(holdDuration);
+        
+        // Animasi Balik dari Tengah ke Sektor
+        yield return StartCoroutine(AnimateFlipAndMoveReverse(rumorCardNetral, endPosition, startPosition));
+
+        // Sembunyikan Proxy
+        rumorCardNetral.SetActive(false);
+        rumorCardNetral.transform.position = endPosition;
+    }
+
+    // --- BAGIAN 3: CLEANUP ---
+    if (cameraController != null)
+    {
+        cameraController.MoveTo(CameraController.CameraPosition.Normal);
+        yield return new WaitForSeconds(cameraController.moveDuration);
+    }
+    
+    Debug.Log($"[PRIVATE PREVIEW] Animasi selesai.");
+}
     [PunRPC]
     private void Rpc_MoveCamera(CameraController.CameraPosition targetPosition)
     {

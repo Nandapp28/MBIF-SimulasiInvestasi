@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 using System.Linq;
+using TMPro;
 [System.Serializable]
 public class CardTextureMapping
 {
@@ -32,6 +33,7 @@ public class GameManager : MonoBehaviour
     public GameObject cardPrefab;
     public Transform cardHolderParent;
     public Button toggleCardsButton;
+    public TextMeshProUGUI toggleCardsButtonText;
     public GameObject ticketButtonPrefab;
     public Transform ticketListContainer;
     public GameObject activateButtonPrefab;
@@ -163,6 +165,7 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         player = new PlayerProfile("You");
+        player.finpoint = GameSettings.StartingFinpoints;
         if (resetSemesterButton != null)
             resetSemesterButton.SetActive(false); // ganti dengan nama canvas kamu
         skipButton.SetActive(false);
@@ -215,12 +218,18 @@ public class GameManager : MonoBehaviour
         bots.Clear();
         for (int i = 0; i < count; i++)
         {
-            bots.Add(new PlayerProfile("Bot " + (i + 1)));
+            PlayerProfile newBot = new PlayerProfile("Bot " + (i + 1));
+            
+            // --- PERBAIKAN: Set Finpoin Bot agar ikut Hard Mode ---
+            newBot.finpoint = GameSettings.StartingFinpoints; 
+            // -----------------------------------------------------
+
+            bots.Add(newBot);
         }
 
         // --- PERUBAHAN DIMULAI DI SINI ---
         // Gabungkan pemain utama dan bot ke dalam turnOrder untuk pertama kalinya
-        turnOrder.Clear();
+        turnOrder.Clear();  
         turnOrder.Add(player);
         turnOrder.AddRange(bots);
 
@@ -327,6 +336,14 @@ public class GameManager : MonoBehaviour
         if (toggleCardsButton != null)
         {
             toggleCardsButton.gameObject.SetActive(true);
+            
+            // Atur teks awal saat tombol muncul
+            if (toggleCardsButtonText != null && cardHolderParent != null)
+            {
+                // Jika panel aktif -> Teks "Close", Jika mati -> Teks "Open"
+                bool isPanelOpen = cardHolderParent.gameObject.activeSelf;
+                toggleCardsButtonText.text = isPanelOpen ? "Close" : "Open";
+            }
         }
         ResetAll();
     }
@@ -611,13 +628,21 @@ public class GameManager : MonoBehaviour
         UpdateDeckCardValuesWithIPO();
         if (cardHolderParent != null)
         {
-            // Mengubah status aktif/non-aktif dari GameObject panel
             bool isActive = cardHolderParent.gameObject.activeSelf;
-            cardHolderParent.gameObject.SetActive(!isActive);
-            Debug.Log($"Panel list kartu di-toggle menjadi {(cardHolderParent.gameObject.activeSelf ? "Aktif" : "Tidak Aktif")}");
-            if (isActive)
+            cardHolderParent.gameObject.SetActive(!isActive); // Balik status
+
+            // --- [4. TAMBAHKAN LOGIKA INI] ---
+            if (toggleCardsButtonText != null)
             {
-                // Reset semua status pilihan kartu (menghilangkan highlight dan tombol activate/save)
+                // Jika tadinya Aktif (sekarang mati) -> Teks jadi "Open"
+                // Jika tadinya Mati (sekarang aktif) -> Teks jadi "Close"
+                toggleCardsButtonText.text = isActive ? "Open" : "Close";
+            }
+            // ---------------------------------
+
+            Debug.Log($"Panel list kartu di-toggle menjadi {(cardHolderParent.gameObject.activeSelf ? "Aktif" : "Tidak Aktif")}");
+            if (isActive) // Ingat, isActive adalah status SEBELUM dibalik
+            {
                 ResetCardSelection();
             }
         }
@@ -689,6 +714,7 @@ public class GameManager : MonoBehaviour
                     }
 
                     skipButton.SetActive(false);
+                    cardTaken = true;
                     ResetCardSelection();
                     skipCount++;
                     currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
