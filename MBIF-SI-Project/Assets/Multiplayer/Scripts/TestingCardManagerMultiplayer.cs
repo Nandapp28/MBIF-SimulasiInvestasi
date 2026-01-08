@@ -150,6 +150,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         switch (cardData.cardType)
         {
             case TestingCardType.Cardtest1:
+            case TestingCardType.Cardtest8:
                 // Tidak ada aksi di server untuk Cardtest1
                 break;
 
@@ -194,7 +195,15 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
 
                 // Pilih nilai penurunan IPO secara acak (-1, -2, atau -3)
                 // (Efeknya tetap acak, tapi targetnya sekarang dipilih pemain)
-                int randomDecrease = -2;
+                int randomDecrease = 0;
+                if (cardData.cardType == TestingCardType.Cardtest3)
+                {
+                    randomDecrease = -2; // Cardtest3: Pengurangan 2
+                }
+                else if (cardData.cardType == TestingCardType.Cardtest4)
+                {
+                    randomDecrease = 2;  // Cardtest4: Penambahan 2
+                }
 
                 Debug.Log($"[{cardData.cardType} Effect] Pemain {activator.NickName} memilih sektor '{targetSector}'. Menurunkan IPO sebesar {randomDecrease}.");
 
@@ -356,6 +365,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         switch (cardData.cardType)
         {
             case TestingCardType.Cardtest1:
+            case TestingCardType.Cardtest8:
                 if (sectorChoicePanel != null) sectorChoicePanel.SetActive(true);
                 break;
 
@@ -475,7 +485,7 @@ public class TestingCardManagerMultiplayer : MonoBehaviourPunCallbacks
         int cardIndex = (int)PhotonNetwork.LocalPlayer.CustomProperties[PlayerProfileMultiplayer.TESTING_CARD_INDEX_KEY];
         TestingCardData cardData = testingCardsPool[cardIndex];
 
-        if (cardData.cardType == TestingCardType.Cardtest1)
+        if (cardData.cardType == TestingCardType.Cardtest1 || cardData.cardType == TestingCardType.Cardtest8)
         {
             // Logika Lama: Jalankan Animasi Preview
             StartCoroutine(PrivateRumorPreviewAnimation(sectorName));
