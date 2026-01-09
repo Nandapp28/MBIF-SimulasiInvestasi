@@ -278,6 +278,27 @@ public class SellingPhaseManager : MonoBehaviour
             }
             else // Logika untuk Bot
             {
+                if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+                {
+                    var script = TutorialManager.Instance.GetBotSellingData(player.playerName);
+                    
+                    if (!string.IsNullOrEmpty(script.botName))
+                    {
+                        sellCounts["Konsumer"] = script.sellKonsumer;
+                        sellCounts["Infrastruktur"] = script.sellInfrastruktur;
+                        sellCounts["Keuangan"] = script.sellKeuangan;
+                        sellCounts["Tambang"] = script.sellTambang;
+                    }
+                    else
+                    {
+                        // Fallback: Jual 0 jika tidak ada script
+                         sellCounts["Konsumer"] = 0;
+                         sellCounts["Infrastruktur"] = 0;
+                         sellCounts["Keuangan"] = 0;
+                         sellCounts["Tambang"] = 0;
+                    }
+                }
+                else{
                 foreach (var color in ipoPriceMap.Keys)
                 {
                     int countToSell = 0;
@@ -366,7 +387,7 @@ public class SellingPhaseManager : MonoBehaviour
         rumorPhaseManager.StartRumorPhase(currentPlayers);
 
         Debug.Log("Fase penjualan selesai.");
-    }
+        }}
     public void ForceSellAllCards(List<PlayerProfile> players)
     {
         Debug.Log("💰 Menjual semua sisa kartu pemain untuk skor akhir...");

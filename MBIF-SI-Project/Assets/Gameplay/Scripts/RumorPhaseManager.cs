@@ -210,6 +210,17 @@ public class RumorPhaseManager : MonoBehaviour
     public void InitializeRumorDeck()
     {
         shuffledRumorDeck.Clear();
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+        {
+            List<RumorEffect> source = (TutorialManager.Instance.CurrentSemester == 1) 
+                ? TutorialManager.Instance.fixedRumorsSem1 
+                : TutorialManager.Instance.fixedRumorsSem2;
+            
+            if (source != null) shuffledRumorDeck.AddRange(source);
+            
+            Debug.Log("[RumorDeck] Tutorial Fixed Deck Loaded.");
+            return; 
+        }
 
         // Ambil satu kartu acak dari tiap warna
         List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };

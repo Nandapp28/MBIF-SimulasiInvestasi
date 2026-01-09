@@ -111,13 +111,20 @@ public class GameManager : MonoBehaviour
     {
 
 
-        if (resetCount >= maxResetCount)
+        int limit = GameSettings.IsTutorial ? 2 : maxResetCount;
+
+        if (resetCount >= limit)
         {
             ShowLeaderboard();
             Debug.Log("Semester sudah berakhir");
         }
         else
         {
+             // Naikkan semester tutorial
+            if(GameSettings.IsTutorial && TutorialManager.Instance != null) 
+            {
+                TutorialManager.Instance.AdvanceSemester();
+            }
             ResetSemester();
         }
 
@@ -182,12 +189,20 @@ public class GameManager : MonoBehaviour
             // Tambahkan listener untuk menyembunyikan panel saat tombol close diklik
             closeDetailPanelButton.onClick.AddListener(HideCardDetailPanel);
         }
+        if (GameSettings.IsTutorial)
+        {
+            SetBotCount(4); // Paksa 4 bot
+            // Sembunyikan panel pemilihan bot jika masih aktif
+            if (botSelectionPanel != null) botSelectionPanel.SetActive(false);
+            return; // SetBotCount akan memanggil logika selanjutnya
+        }
 
         isBotCountSelected = false;
 
         bot2Button.onClick.AddListener(() => SetBotCount(2));
         bot3Button.onClick.AddListener(() => SetBotCount(3));
         bot4Button.onClick.AddListener(() => SetBotCount(4));
+        
 
         // Listener play button
         playButton.onClick.AddListener(OnPlayButtonClicked);
@@ -401,6 +416,23 @@ public class GameManager : MonoBehaviour
     private void InitializeDeck()
     {
         deck.Clear();
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+        {
+            List<Card> sourceList = (TutorialManager.Instance.CurrentSemester == 1) 
+                ? TutorialManager.Instance.fixedDeckSem1 
+                : TutorialManager.Instance.fixedDeckSem2;
+
+            if (sourceList != null)
+            {
+                foreach(var c in sourceList) 
+                {
+                    // Copy data kartu agar instance terpisah
+                    deck.Add(new Card(c.cardName, c.description, c.baseValue, c.color));
+                }
+            }
+            UpdateDeckCardValuesWithIPO();
+            return; // Keluar, JANGAN SHUFFLE
+        }
 
 
         List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
@@ -852,9 +884,46 @@ public class GameManager : MonoBehaviour
 
             // Cari kartu yang masih tersedia
             List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
+            bool botSkips = false;
+            GameObject cardToTake = null;
+            if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+            {
+                int actionIndex = TutorialManager.Instance.GetBotActionIndex(currentPlayer.playerName);
+                
+                
+                if (actionIndex == -1) // Script bilang SKIP
+                {
+                    botSkips = true;
+                }
+                else if (actionIndex >= 0) // Script bilang AMBIL KARTU TERTENTU
+                {
+                    // Cek apakah index valid dan kartu belum diambil
+                    if (actionIndex < cardObjects.Count && cardObjects[actionIndex] != null && !takenCards.Contains(cardObjects[actionIndex]))
+                    {
+                        cardToTake = cardObjects[actionIndex];
+                    }
+                    else
+                    {
+                        // Fallback: Jika kartu target sudah diambil orang lain (misal player salah ambil),
+                        // Bot bisa dipaksa skip atau ambil random. Di sini kita buat skip saja biar aman.
+                        Debug.LogWarning($"[Tutorial] Kartu target untuk {currentPlayer.playerName} (Index {actionIndex}) tidak valid/sudah diambil. Bot Skip.");
+                        botSkips = true; 
+                    }
+                }
+                else
+                {
+                    // Jika tidak ada script (-2), fallback ke random (seharusnya tidak terjadi jika data lengkap)
+                    botSkips = UnityEngine.Random.value < 0.3f;
+                }
+            }
+            else
+            {
+                // Logika Normal RNG
+                botSkips = UnityEngine.Random.value < 0.3f; 
+            }
 
             // Periksa apakah bot akan skip
-            bool botSkips = UnityEngine.Random.value < 0.3f; // 30% kemungkinan skip
+            botSkips = UnityEngine.Random.value < 0.3f; // 30% kemungkinan skip
             if (botSkips)
             {
                 skipCount++;

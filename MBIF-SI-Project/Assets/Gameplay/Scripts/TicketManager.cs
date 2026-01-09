@@ -8,6 +8,11 @@ public class TicketManager : MonoBehaviour
     public void InitializeTickets(int totalPlayers)
     {
         tickets.Clear();
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+        {
+            TutorialManager.Instance.SetupSemester(TutorialManager.Instance.CurrentSemester);
+            return; // Jangan isi tiket random
+        }
         for (int i = 1; i <= totalPlayers; i++)
         {
             tickets.Add(i);
@@ -16,6 +21,12 @@ public class TicketManager : MonoBehaviour
 
     public int PickTicketForPlayer(int chosenTicket)
     {
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+        {
+            return (TutorialManager.Instance.CurrentSemester == 1) 
+                ? TutorialManager.Instance.playerTicketSem1 
+                : TutorialManager.Instance.playerTicketSem2;
+        }
         if (tickets.Contains(chosenTicket))
         {
             tickets.Remove(chosenTicket);
@@ -39,6 +50,10 @@ public static void ShuffleList<T>(List<T> list)
 }
     public int GetRandomTicketForBot()
     {
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+        {
+            return TutorialManager.Instance.GetNextBotTicket();
+        }
         if (tickets.Count == 0) return -1;
 
         int randomIndex = Random.Range(0, tickets.Count);

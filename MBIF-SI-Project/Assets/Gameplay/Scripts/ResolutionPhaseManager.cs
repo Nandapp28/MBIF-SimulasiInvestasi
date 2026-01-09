@@ -79,12 +79,39 @@ public class ResolutionPhaseManager : MonoBehaviour
         {
             data.ramalanTokens = new List<int>();
             data.revealedTokenCount = 0;
+            List<int> tutorialIndices = null;
+            if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+            {
+                var semesterTokens = (TutorialManager.Instance.CurrentSemester == 1) 
+                    ? TutorialManager.Instance.fixedTokensSem1 
+                    : TutorialManager.Instance.fixedTokensSem2;
+
+                // Cari config yang warnanya cocok
+                var config = semesterTokens.FirstOrDefault(t => t.color == data.color);
+                
+                // Jika ketemu dan list index-nya ada isinya, pakai itu
+                if (!string.IsNullOrEmpty(config.color) && config.tokenIndices != null && config.tokenIndices.Count > 0)
+                {
+                    tutorialIndices = config.tokenIndices;
+                }
+            }
 
             // Random token values
             for (int i = 0; i < 4; i++)
             {
-                int token = possibleTokens[Random.Range(0, possibleTokens.Length)];
-                data.ramalanTokens.Add(token);
+                int tokenValue;
+
+                if (tutorialIndices != null && i < tutorialIndices.Count)
+                {
+                    int index = Mathf.Clamp(tutorialIndices[i], 0, possibleTokens.Length - 1);
+                    tokenValue = possibleTokens[index];
+                }
+                else
+                {
+                    // Fallback ke Random
+                    tokenValue = possibleTokens[Random.Range(0, possibleTokens.Length)];
+                }
+                data.ramalanTokens.Add(tokenValue);
             }
 
             Debug.Log($"[Init Ramalan] {data.color} tokens: {string.Join(", ", data.ramalanTokens)}");
