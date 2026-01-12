@@ -79,31 +79,33 @@ public class ResolutionPhaseManager : MonoBehaviour
         {
             data.ramalanTokens = new List<int>();
             data.revealedTokenCount = 0;
-            List<int> tutorialIndices = null;
+            List<int> combinedTutorialIndices = new List<int>();
             if (GameSettings.IsTutorial && TutorialManager.Instance != null)
             {
-                var semesterTokens = (TutorialManager.Instance.CurrentSemester == 1) 
-                    ? TutorialManager.Instance.fixedTokensSem1 
-                    : TutorialManager.Instance.fixedTokensSem2;
-
-                // Cari config yang warnanya cocok
-                var config = semesterTokens.FirstOrDefault(t => t.color == data.color);
-                
-                // Jika ketemu dan list index-nya ada isinya, pakai itu
-                if (!string.IsNullOrEmpty(config.color) && config.tokenIndices != null && config.tokenIndices.Count > 0)
+                // Ambil config Semester 1
+                var configSem1 = TutorialManager.Instance.fixedTokensSem1.FirstOrDefault(t => t.color == data.color);
+                if (configSem1.tokenIndices != null && configSem1.tokenIndices.Count > 0)
                 {
-                    tutorialIndices = config.tokenIndices;
+                    combinedTutorialIndices.AddRange(configSem1.tokenIndices);
                 }
-            }
 
+                // Ambil config Semester 2 (Digabungkan langsung di awal)
+                var configSem2 = TutorialManager.Instance.fixedTokensSem2.FirstOrDefault(t => t.color == data.color);
+                if (configSem2.tokenIndices != null && configSem2.tokenIndices.Count > 0)
+                {
+                    combinedTutorialIndices.AddRange(configSem2.tokenIndices);
+                }
+                
+                // Jika Anda punya Semester 3/4 di TutorialManager, tambahkan logicnya di sini
+            }
             // Random token values
             for (int i = 0; i < 4; i++)
             {
                 int tokenValue;
 
-                if (tutorialIndices != null && i < tutorialIndices.Count)
+                if (GameSettings.IsTutorial && i < combinedTutorialIndices.Count)
                 {
-                    int index = Mathf.Clamp(tutorialIndices[i], 0, possibleTokens.Length - 1);
+                    int index = Mathf.Clamp(combinedTutorialIndices[i], 0, possibleTokens.Length - 1);
                     tokenValue = possibleTokens[index];
                 }
                 else
