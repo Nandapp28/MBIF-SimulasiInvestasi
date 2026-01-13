@@ -7460,7 +7460,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -396.7992}
+  m_AnchoredPosition: {x: 0, y: -396.79968}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &583440887
@@ -17798,7 +17798,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 839016320}
   m_Direction: 2
   m_Value: 0
-  m_Size: 1
+  m_Size: 0.9997955
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -24002,6 +24002,16 @@ MonoBehaviour:
     baseValue: 0
     value: 0
     color: Konsumer
+  - cardName: Flashbuy
+    description: 
+    baseValue: 0
+    value: 0
+    color: Konsumer
+  - cardName: Flashbuy
+    description: 
+    baseValue: 0
+    value: 0
+    color: Konsumer
   fixedDeckSem2:
   - cardName: 
     description: 
@@ -24054,18 +24064,38 @@ MonoBehaviour:
     value: 0
     color: 
   botActions:
+  - botName: Bot 1
+    semester: 1
+    cardIndexToTake: 0
+    shouldActivate: 0
+  - botName: Bot 1
+    semester: 1
+    cardIndexToTake: 5
+    shouldActivate: 0
   - botName: Bot 2
     semester: 1
     cardIndexToTake: -1
-  - botName: Bot 1
+    shouldActivate: 0
+  - botName: Bot 2
     semester: 1
-    cardIndexToTake: -1
+    cardIndexToTake: 1
+    shouldActivate: 0
   - botName: Bot 3
     semester: 1
-    cardIndexToTake: -1
+    cardIndexToTake: 3
+    shouldActivate: 0
+  - botName: Bot 3
+    semester: 1
+    cardIndexToTake: 4
+    shouldActivate: 0
   - botName: Bot 4
     semester: 1
-    cardIndexToTake: -1
+    cardIndexToTake: 6
+    shouldActivate: 0
+  - botName: Bot 4
+    semester: 1
+    cardIndexToTake: 8
+    shouldActivate: 0
   botSellingActions: []
   fixedRumorsSem1:
   - color: Konsumer

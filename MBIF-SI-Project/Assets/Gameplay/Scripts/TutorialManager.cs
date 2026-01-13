@@ -30,6 +30,7 @@ public class TutorialManager : MonoBehaviour
         public string botName; // Contoh: "Bot 1", "Bot 2", dst.
         public int semester;
         public int cardIndexToTake; // Index kartu di meja (0-4). Isi -1 untuk SKIP.
+        public bool shouldActivate;
     }
      [Header("KONFIGURASI AKSI BOT AMBIL KARTU")]
     public List<BotActionScript> botActions;
@@ -117,6 +118,26 @@ public class TutorialManager : MonoBehaviour
         if (string.IsNullOrEmpty(action.botName)) return -2; // -2 Kode untuk "Tidak ada script, gunakan random/default"
         
         return action.cardIndexToTake;
+    }
+    public bool ShouldBotActivate(string botName)
+    {
+        var action = botActions.FirstOrDefault(x => x.botName == botName && x.semester == CurrentSemester);
+        
+        // Jika tidak ditemukan, defaultnya false
+        if (string.IsNullOrEmpty(action.botName)) return false;
+
+        return action.shouldActivate;
+    }
+    public void ConsumeBotAction(string botName)
+    {
+        // Cari index dari item yang cocok di list
+        int index = botActions.FindIndex(x => x.botName == botName && x.semester == CurrentSemester);
+        
+        if (index != -1)
+        {
+            botActions.RemoveAt(index);
+            Debug.Log($"[Tutorial] Instruksi ambil kartu untuk {botName} di Semester {CurrentSemester} telah dihapus/dikonsumsi.");
+        }
     }
 
     public BotSellingScript GetBotSellingData(string botName)

@@ -323,10 +323,11 @@ public class GameManager : MonoBehaviour
 
         // 🟡 Ganti sprite tombol yang diklik
         Image img = clickedButton.GetComponent<Image>();
-        if (img != null && ticketNumberSprites.Count >= chosenTicket)
+        if (img != null && player.ticketNumber > 0 && ticketNumberSprites.Count >= player.ticketNumber)
         {
-            img.sprite = ticketNumberSprites[chosenTicket - 1]; // karena index mulai dari 0
-        }
+            img.sprite = ticketNumberSprites[player.ticketNumber - 1];
+        }// karena index mulai dari 0
+        
 
         // ⏳ Mulai delay 3 detik buat bot
         StartCoroutine(AssignTicketsToBotsAfterDelay());
@@ -886,121 +887,129 @@ public class GameManager : MonoBehaviour
             List<GameObject> availableCards = cardObjects.FindAll(c => c != null && !takenCards.Contains(c));
             bool botSkips = false;
             GameObject cardToTake = null;
+            bool forceActivateFromTutorial = false;
             if (GameSettings.IsTutorial && TutorialManager.Instance != null)
             {
+                // --- LOGIKA TUTORIAL ---
                 int actionIndex = TutorialManager.Instance.GetBotActionIndex(currentPlayer.playerName);
-                
-                
-                if (actionIndex == -1) // Script bilang SKIP
+
+                if (actionIndex == -1) // Script: Explicit SKIP
                 {
                     botSkips = true;
                 }
-                else if (actionIndex >= 0) // Script bilang AMBIL KARTU TERTENTU
+                else if (actionIndex == -2) // Script: TIDAK ADA INSTRUKSI
                 {
-                    // Cek apakah index valid dan kartu belum diambil
+                    // Sesuai request: "jika bot tidak disuruh ambil kartu dia akan skip"
+                    botSkips = true;
+                }
+                else // Script: AMBIL KARTU INDEX TERTENTU (>= 0)
+                {
+                    // Validasi: Apakah index ada di list cardObjects dan belum diambil?
                     if (actionIndex < cardObjects.Count && cardObjects[actionIndex] != null && !takenCards.Contains(cardObjects[actionIndex]))
                     {
                         cardToTake = cardObjects[actionIndex];
+                        botSkips = false;
+                        
+                        // Cek apakah script menyuruh aktivasi?
+                        forceActivateFromTutorial = TutorialManager.Instance.ShouldBotActivate(currentPlayer.playerName);
                     }
                     else
                     {
-                        // Fallback: Jika kartu target sudah diambil orang lain (misal player salah ambil),
-                        // Bot bisa dipaksa skip atau ambil random. Di sini kita buat skip saja biar aman.
-                        Debug.LogWarning($"[Tutorial] Kartu target untuk {currentPlayer.playerName} (Index {actionIndex}) tidak valid/sudah diambil. Bot Skip.");
-                        botSkips = true; 
+                        Debug.LogWarning($"[Tutorial] Bot {currentPlayer.playerName} target index {actionIndex} invalid. Force Skip.");
+                        botSkips = true;
                     }
-                }
-                else
-                {
-                    // Jika tidak ada script (-2), fallback ke random (seharusnya tidak terjadi jika data lengkap)
-                    botSkips = UnityEngine.Random.value < 0.3f;
                 }
             }
             else
             {
-                // Logika Normal RNG
-                botSkips = UnityEngine.Random.value < 0.3f; 
+                // --- LOGIKA NORMAL (RNG) ---
+                botSkips = UnityEngine.Random.value < 0.3f; // 30% Chance Skip
+
+                if (!botSkips)
+                {
+                    // Cari kartu yang mampu dibeli
+                    List<GameObject> affordableCards = availableCards.FindAll(card =>
+                    {
+                        int val = GetCardValue(card);
+                        return currentPlayer.finpoint >= val;
+                    });
+
+                    if (affordableCards.Count > 0)
+                    {
+                        // Pilih acak dari yang mampu dibeli
+                        cardToTake = affordableCards[UnityEngine.Random.Range(0, affordableCards.Count)];
+                    }
+                    else
+                    {
+                        // Tidak punya uang untuk kartu apapun
+                        botSkips = true;
+                    }
+                }
             }
 
-            // Periksa apakah bot akan skip
-            botSkips = UnityEngine.Random.value < 0.3f; // 30% kemungkinan skip
+            // 3. Eksekusi SKIP
             if (botSkips)
             {
                 skipCount++;
-                Debug.Log($"{currentPlayer.playerName} skipped their turn.");
+                Debug.Log($"{currentPlayer.playerName} skipped their turn (Bot).");
 
-                // Ganti giliran ke pemain berikutnya
                 currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
+                if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+                {
+                    TutorialManager.Instance.ConsumeBotAction(currentPlayer.playerName);
+                }
                 StartCoroutine(NextTurn());
-                yield break; // keluar dari coroutine untuk mencegah aksi lanjutan
+                yield break; // Selesai
             }
 
-            // Jika tidak skip, lanjut ke ambil/aktifkan kartu
-            bool botActivates = UnityEngine.Random.value < 0.7f; // 70% kemungkinan bot menyimpan kartu
-                                                                 // Filter kartu yang bisa diambil oleh bot berdasarkan finpoint
-            List<GameObject> affordableCards = availableCards.FindAll(card =>
+            // 4. Eksekusi AMBIL / AKTIVASI KARTU
+            // (Jika sampai sini, cardToTake PASTI tidak null)
+            
+            bool botActivates;
+
+            if (GameSettings.IsTutorial)
             {
-                int val = GetCardValue(card);
-                return currentPlayer.finpoint >= val;
-            });
-
-            if (affordableCards.Count == 0)
-            {
-                Debug.Log($"{currentPlayer.playerName} tidak mampu mengambil kartu manapun.");
-                skipCount++;
-                currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
-                StartCoroutine(NextTurn());
-                yield break;
-            }
-
-            // ... di dalam blok 'else' untuk giliran Bot
-
-            GameObject randomCard = affordableCards[UnityEngine.Random.Range(0, affordableCards.Count)];
-
-            // --- MODIFIKASI DIMULAI ---
-            // Ambil nama dan warna kartu untuk pengecekan
-            Text cardNameTextBot = randomCard.transform.Find("CardText")?.GetComponent<Text>();
-            Text cardColorTextBot = randomCard.transform.Find("CardColor")?.GetComponent<Text>();
-            string cardNameBot = cardNameTextBot != null ? cardNameTextBot.text : "";
-            string cardColorBot = cardColorTextBot != null ? cardColorTextBot.text : "";
-
-            // Cek apakah bot boleh mengaktifkan kartu ini
-            bool canBotActivate = CanActivateEffect(cardNameBot, cardColorBot, currentPlayer);
-
-            // Bot akan mencoba mengaktifkan HANYA JIKA syarat terpenuhi DAN ia memutuskan untuk aktif
-            if (canBotActivate && botActivates)
-            {
-                Debug.Log($"[BOT-LOGIC] {currentPlayer.playerName} memenuhi syarat dan memilih untuk MENGAKTIFKAN '{cardNameBot}'.");
-                yield return StartCoroutine(ActivateCard(randomCard, currentPlayer));
+                // Di Tutorial: Ikuti checkbox inspector
+               botActivates = forceActivateFromTutorial;
             }
             else
             {
-                // Jika syarat tidak terpenuhi ATAU bot memilih untuk tidak aktif, ia akan MENYIMPAN kartu.
-                if (!canBotActivate)
-                {
-                    Debug.Log($"[BOT-LOGIC] {currentPlayer.playerName} TIDAK memenuhi syarat untuk '{cardNameBot}', jadi MENYIMPAN kartu.");
-                }
-                else
-                {
-                    Debug.Log($"[BOT-LOGIC] {currentPlayer.playerName} memenuhi syarat, tapi memilih untuk MENYIMPAN kartu.");
-                }
-                TakeCard(randomCard, currentPlayer);
-            }
-            // --- MODIFIKASI SELESAI ---
+                // Di Normal: Random 40% chance
+               botActivates = UnityEngine.Random.value < 0.4f;
+            } // RNG Aktivasi
 
-            // Reset skip counter karena aksi diambil
+            Text cardNameTextBot = cardToTake.transform.Find("CardText")?.GetComponent<Text>();
+            Text cardColorTextBot = cardToTake.transform.Find("CardColor")?.GetComponent<Text>();
+            string cardNameBot = cardNameTextBot != null ? cardNameTextBot.text : "";
+            string cardColorBot = cardColorTextBot != null ? cardColorTextBot.text : "";
+
+            bool canBotActivate = CanActivateEffect(cardNameBot, cardColorBot, currentPlayer);
+
+            if (canBotActivate && botActivates)
+            {
+                Debug.Log($"[BOT] {currentPlayer.playerName} mengaktifkan '{cardNameBot}'.");
+                yield return StartCoroutine(ActivateCard(cardToTake, currentPlayer));
+            }
+            else
+            {
+                Debug.Log($"[BOT] {currentPlayer.playerName} mengambil/menyimpan '{cardNameBot}'.");
+                
+                // Ambil Kartu
+                TakeCard(cardToTake, currentPlayer);
+
+                // KHUSUS TUTORIAL: Hapus instruksi setelah berhasil ambil kartu
+                if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+                {
+                    TutorialManager.Instance.ConsumeBotAction(currentPlayer.playerName);
+                }
+            }
+
+            // 5. Cleanup & Next Turn
             currentCardIndex++;
             skipCount = 0;
-            // ... (sisa kodenya tetap sama)
-
-            // Lanjut ke giliran berikutnya
             currentTurnIndex = (currentTurnIndex + 1) % turnOrder.Count;
             StartCoroutine(NextTurn());
-
-        }
-
-
-    }
+        }}
     public bool CanActivateEffect(string cardName, string cardColor, PlayerProfile activator)
     {
         switch (cardName)
