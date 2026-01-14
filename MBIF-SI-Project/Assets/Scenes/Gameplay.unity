@@ -7460,7 +7460,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -396.79968}
+  m_AnchoredPosition: {x: 0, y: -396.79974}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &583440887
@@ -17798,7 +17798,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 839016320}
   m_Direction: 2
   m_Value: 0
-  m_Size: 0.9997955
+  m_Size: 0.9995101
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -23962,107 +23962,107 @@ MonoBehaviour:
   botTicketsSem1: 02000000030000000400000005000000
   botTicketsSem2: 02000000010000000500000003000000
   fixedDeckSem1:
+  - cardName: TradeFee
+    description: 
+    baseValue: 1
+    value: 0
+    color: Konsumer
+  - cardName: TenderOffer
+    description: 
+    baseValue: 0
+    value: 0
+    color: Infrastruktur
   - cardName: Flashbuy
     description: 
     baseValue: 0
     value: 0
     color: Konsumer
-  - cardName: Flashbuy
+  - cardName: StockSplit
+    description: 
+    baseValue: 0
+    value: 0
+    color: Keuangan
+  - cardName: InsiderTrade
+    description: 
+    baseValue: 0
+    value: 0
+    color: Tambang
+  - cardName: StockSplit
+    description: 
+    baseValue: 0
+    value: 0
+    color: Konsumer
+  - cardName: TradeFee
+    description: 
+    baseValue: 1
+    value: 0
+    color: Infrastruktur
+  - cardName: InsiderTrade
     description: 
     baseValue: 0
     value: 0
     color: Tambang
   - cardName: Flashbuy
     description: 
-    baseValue: 5
+    baseValue: 0
     value: 0
-    color: Konsumer
-  - cardName: Flashbuy
+    color: Keuangan
+  - cardName: TenderOffer
     description: 
     baseValue: 0
     value: 0
-    color: Konsumer
-  - cardName: Flashbuy
-    description: 
-    baseValue: 0
-    value: 0
-    color: Konsumer
-  - cardName: Flashbuy
-    description: 
-    baseValue: 0
-    value: 0
-    color: Konsumer
-  - cardName: Flashbuy
-    description: 
-    baseValue: 0
-    value: 0
-    color: Konsumer
-  - cardName: Flashbuy
-    description: 
-    baseValue: 0
-    value: 0
-    color: Konsumer
-  - cardName: Flashbuy
-    description: 
-    baseValue: 0
-    value: 0
-    color: Konsumer
-  - cardName: Flashbuy
-    description: 
-    baseValue: 0
-    value: 0
-    color: Konsumer
+    color: Tambang
   fixedDeckSem2:
-  - cardName: 
+  - cardName: Flashbuy
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Konsumer
+  - cardName: InsiderTrade
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Infrastruktur
+  - cardName: Flashbuy
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Konsumer
+  - cardName: Flashbuy
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Infrastruktur
+  - cardName: InsiderTrade
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Keuangan
+  - cardName: StockSplit
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Keuangan
+  - cardName: StockSplit
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Keuangan
+  - cardName: TenderOffer
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Tambang
+  - cardName: InsiderTrade
     description: 
     baseValue: 0
     value: 0
-    color: 
-  - cardName: 
+    color: Tambang
+  - cardName: TenderOffer
     description: 
     baseValue: 0
     value: 0
-    color: 
+    color: Infrastruktur
   botActions:
   - botName: Bot 1
     semester: 1
@@ -24096,44 +24096,68 @@ MonoBehaviour:
     semester: 1
     cardIndexToTake: 8
     shouldActivate: 0
-  botSellingActions: []
+  botSellingActions:
+  - botName: 
+    semester: 0
+    sellKonsumer: 0
+    sellInfrastruktur: 0
+    sellKeuangan: 0
+    sellTambang: 0
+  - botName: 
+    semester: 0
+    sellKonsumer: 0
+    sellInfrastruktur: 0
+    sellKeuangan: 0
+    sellTambang: 0
+  - botName: 
+    semester: 0
+    sellKonsumer: 0
+    sellInfrastruktur: 0
+    sellKeuangan: 0
+    sellTambang: 0
+  - botName: 
+    semester: 0
+    sellKonsumer: 0
+    sellInfrastruktur: 0
+    sellKeuangan: 0
+    sellTambang: 0
   fixedRumorsSem1:
   - color: Konsumer
     description: 
-    cardName: Buyback
+    cardName: Depresiasi_Rupiah
     effectType: 0
-    value: 1
+    value: -2
     affectAllPlayers: 0
   - color: Infrastruktur
     description: 
-    cardName: Resesi_Ekonomi
-    effectType: 0
-    value: -1
-    affectAllPlayers: 0
+    cardName: Pajak_Jalan
+    effectType: 4
+    value: 0
+    affectAllPlayers: 1
   - color: Keuangan
     description: 
-    cardName: Resesi_Ekonomi
-    effectType: 0
-    value: -1
+    cardName: Reformasi_Ekonomi
+    effectType: 3
+    value: 0
     affectAllPlayers: 0
   - color: Tambang
     description: 
-    cardName: Resesi_Ekonomi
+    cardName: Stimulus_Ekonomi
     effectType: 0
-    value: -1
+    value: 2
     affectAllPlayers: 0
   fixedRumorsSem2:
   - color: Konsumer
     description: 
-    cardName: Resesi_Ekonomi
+    cardName: Stimulus_Ekonomi
     effectType: 0
-    value: -1
+    value: 2
     affectAllPlayers: 0
   - color: Infrastruktur
     description: 
-    cardName: Buyback
+    cardName: Depresiasi_Rupiah
     effectType: 0
-    value: 1
+    value: -2
     affectAllPlayers: 0
   - color: Keuangan
     description: 
@@ -24151,18 +24175,18 @@ MonoBehaviour:
   - color: Konsumer
     tokenIndices: 02000000
   - color: Infrastruktur
-    tokenIndices: 02000000
+    tokenIndices: 03000000
   - color: Keuangan
-    tokenIndices: 02000000
+    tokenIndices: 00000000
   - color: Tambang
-    tokenIndices: 02000000
+    tokenIndices: 01000000
   fixedTokensSem2:
   - color: Konsumer
     tokenIndices: 01000000
   - color: Infrastruktur
-    tokenIndices: 01000000
+    tokenIndices: 03000000
   - color: Keuangan
-    tokenIndices: 01000000
+    tokenIndices: 02000000
   - color: Tambang
     tokenIndices: 01000000
 --- !u!4 &1719798876
