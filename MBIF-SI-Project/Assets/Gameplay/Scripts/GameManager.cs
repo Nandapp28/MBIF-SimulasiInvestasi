@@ -196,6 +196,7 @@ public class GameManager : MonoBehaviour
             if (botSelectionPanel != null) botSelectionPanel.SetActive(false);
             return; // SetBotCount akan memanggil logika selanjutnya
         }
+        
 
         isBotCountSelected = false;
 
@@ -264,6 +265,10 @@ public class GameManager : MonoBehaviour
         ClearTicketButtons();
 
         ticketChosen = false;
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+    {
+        StartCoroutine(ShowBiddingTutorialDelayed());
+    }
 
         int totalPlayers = bots.Count + 1;
         // 1 player + bots
@@ -273,6 +278,7 @@ public class GameManager : MonoBehaviour
         {
             availableTickets.Add(i);
         }
+        
 
         // ⬇️ Acak posisi ticket sebelum buat button
         TicketManager.ShuffleList(availableTickets);
@@ -305,9 +311,19 @@ public class GameManager : MonoBehaviour
 
 
     }
+    private IEnumerator ShowBiddingTutorialDelayed()
+{
+    // Tunggu sampai akhir frame agar semua tombol tiket selesai di-spawn
+    yield return new WaitForEndOfFrame();
+    TutorialUIController.Instance.ShowPackage("Bidding1");
+}
 
     private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
     {
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+    {
+        TutorialUIController.Instance.ShowPackage("Bidding2");
+    }
         if (ticketChosen) return;
         ticketChosen = true;
 

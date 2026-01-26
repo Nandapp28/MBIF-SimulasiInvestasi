@@ -23,8 +23,8 @@ public class TicketManager : MonoBehaviour
     {
         if (GameSettings.IsTutorial && TutorialManager.Instance != null)
         {
-            return (TutorialManager.Instance.CurrentSemester == 1) 
-                ? TutorialManager.Instance.playerTicketSem1 
+            return (TutorialManager.Instance.CurrentSemester == 1)
+                ? TutorialManager.Instance.playerTicketSem1
                 : TutorialManager.Instance.playerTicketSem2;
         }
         if (tickets.Contains(chosenTicket))
@@ -38,16 +38,16 @@ public class TicketManager : MonoBehaviour
             return -1;
         }
     }
-public static void ShuffleList<T>(List<T> list)
-{
-    for (int i = 0; i < list.Count; i++)
+    public static void ShuffleList<T>(List<T> list)
     {
-        int randomIndex = UnityEngine.Random.Range(i, list.Count);
-        T temp = list[i];
-        list[i] = list[randomIndex];
-        list[randomIndex] = temp;
+        for (int i = 0; i < list.Count; i++)
+        {
+            int randomIndex = UnityEngine.Random.Range(i, list.Count);
+            T temp = list[i];
+            list[i] = list[randomIndex];
+            list[randomIndex] = temp;
+        }
     }
-}
     public int GetRandomTicketForBot()
     {
         if (GameSettings.IsTutorial && TutorialManager.Instance != null)
