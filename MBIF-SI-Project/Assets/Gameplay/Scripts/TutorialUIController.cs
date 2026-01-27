@@ -10,95 +10,109 @@ public class TutorialUIController : MonoBehaviour
     [System.Serializable]
     public class UIPackage
     {
-        public string packageName; // Nama unik untuk memanggil paket ini
-        public GameObject packageContainer; // Parent object yang berisi UI (Text, Image, Button)
+        public string packageName;
+        // Diubah menjadi List agar satu package bisa punya banyak panel/halaman
+        public List<GameObject> packageContainers = new List<GameObject>(); 
+        
         [Header("UI Elements (Optional)")]
         public List<Text> textElements;
         public List<Button> buttonElements;
         public List<Image> imageElements;
+
+        [HideInInspector] public int currentStepIndex = 0; // Melacak halaman aktif
     }
 
     [Header("Main Settings")]
-    public GameObject tutorialCanvas; // Referensi ke Canvas Tutorial Utama
-    public Button closeTutorialButton; // Tombol global untuk mematikan tutorial
+    public GameObject tutorialCanvas;
+    // Tombol ini sekarang berfungsi sebagai Next atau Close
+    public Button actionButton; 
+    public Text actionButtonText; 
 
     [Header("UI Packages")]
     public List<UIPackage> uiPackages = new List<UIPackage>();
 
+    private UIPackage activePackage;
+
     private void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
     private void Start()
     {
-        // Pastikan semua paket mati di awal
         DeactivateAllPackages();
-        
-        if (tutorialCanvas != null)
-            tutorialCanvas.SetActive(false);
+        if (tutorialCanvas != null) tutorialCanvas.SetActive(false);
 
-        // Setup tombol penutup global
-        if (closeTutorialButton != null)
+        if (actionButton != null)
         {
-            closeTutorialButton.onClick.AddListener(CloseTutorial);
+            actionButton.onClick.AddListener(HandleNextOrClose);
         }
     }
 
-    /// <summary>
-    /// Aktifkan paket tutorial berdasarkan nama.
-    /// Contoh panggil: TutorialUIController.Instance.ShowPackage("IntroSemester1");
-    /// </summary>
     public void ShowPackage(string name)
-{
-    // 1. Matikan semua paket yang mungkin sedang aktif sebelumnya
-    DeactivateAllPackages();
-
-    // 2. Cari paket berdasarkan nama
-    UIPackage target = uiPackages.FirstOrDefault(p => p.packageName == name);
-
-    if (target != null)
     {
-        // 3. Aktifkan Canvas Utama
-        if (tutorialCanvas != null) 
-            tutorialCanvas.SetActive(true);
-            
-        // 4. AKTIFKAN CONTAINER UTAMA PAKET (Ini yang memastikan UI muncul)
-        if (target.packageContainer != null) 
+        DeactivateAllPackages();
+        activePackage = uiPackages.FirstOrDefault(p => p.packageName == name);
+
+        if (activePackage != null && activePackage.packageContainers.Count > 0)
         {
-            target.packageContainer.SetActive(true);
+            if (tutorialCanvas != null) tutorialCanvas.SetActive(true);
+            
+            activePackage.currentStepIndex = 0;
+            ShowCurrentStep();
+            
+            Time.timeScale = 0f;
+            Debug.Log($"[Tutorial] Package '{name}' dimulai.");
         }
-        
-        // 5. Jeda waktu permainan
-        Time.timeScale = 0f;
-        
-        Debug.Log($"[Tutorial] Package '{name}' aktif dan Container di-set ke ON.");
     }
-    else
-    {
-        Debug.LogWarning($"[Tutorial] Package dengan nama '{name}' tidak ditemukan!");
-    }
-}
 
-    /// <summary>
-    /// Mematikan Canvas Tutorial dan semua package di dalamnya.
-    /// </summary>
+    private void ShowCurrentStep()
+    {
+        // Matikan semua container dalam package ini dulu
+        foreach (var container in activePackage.packageContainers)
+        {
+            container.SetActive(false);
+        }
+
+        // Aktifkan container sesuai step saat ini
+        GameObject currentPanel = activePackage.packageContainers[activePackage.currentStepIndex];
+        currentPanel.SetActive(true);
+
+        // Update teks tombol: Jika masih ada halaman berikut, tampilkan "Next", jika terakhir "Close"
+        if (actionButtonText != null)
+        {
+            actionButtonText.text = (activePackage.currentStepIndex < activePackage.packageContainers.Count - 1) 
+                ? "Next" 
+                : "Close";
+        }
+    }
+
+    public void HandleNextOrClose()
+    {
+        if (activePackage == null) return;
+
+        if (activePackage.currentStepIndex < activePackage.packageContainers.Count - 1)
+        {
+            // Pindah ke panel berikutnya
+            activePackage.currentStepIndex++;
+            ShowCurrentStep();
+        }
+        else
+        {
+            // Jika sudah di panel terakhir, tutup tutorial
+            CloseTutorial();
+        }
+    }
+
     public void CloseTutorial()
     {
         DeactivateAllPackages();
-        if (tutorialCanvas != null)
-        {
-            tutorialCanvas.SetActive(false);
-        }
+        if (tutorialCanvas != null) tutorialCanvas.SetActive(false);
+        
         Time.timeScale = 1f;
-        // Memainkan sound effect jika diperlukan (referensi dari sistem SfxManager yang ada)
+        activePackage = null;
+
         if (SfxManager.Instance != null && GameManager.Instance != null && GameManager.Instance.skipSound != null)
         {
             SfxManager.Instance.PlaySound(GameManager.Instance.skipSound);
@@ -109,9 +123,9 @@ public class TutorialUIController : MonoBehaviour
     {
         foreach (var pkg in uiPackages)
         {
-            if (pkg.packageContainer != null)
+            foreach (var container in pkg.packageContainers)
             {
-                pkg.packageContainer.SetActive(false);
+                if (container != null) container.SetActive(false);
             }
         }
     }
