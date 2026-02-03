@@ -170,6 +170,10 @@ public class ResolutionPhaseManager : MonoBehaviour
             yield return StartCoroutine(RevealNextToken(data)); // Memanggil coroutine baru
             yield return new WaitForSeconds(1f); // Jeda antar warna
         }
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+    {
+        TutorialUIController.Instance.ShowPackage("TokenReveal");
+    }
     }
     public IEnumerator RevealNextToken(DividendData data)
     {
