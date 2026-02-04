@@ -13,8 +13,8 @@ public class TutorialUIController : MonoBehaviour
         public string packageName;
         // Diubah menjadi List agar satu package bisa punya banyak panel/halaman
         public List<GameObject> packageContainers = new List<GameObject>(); 
-        
-        [Header("UI Elements (Optional)")]
+        // UI akan selalu ditampikan di dalam satu nama package
+        [Header("Shared UI Elements")]
         public List<Text> textElements;
         public List<Button> buttonElements;
         public List<Image> imageElements;
@@ -58,6 +58,8 @@ public class TutorialUIController : MonoBehaviour
         if (activePackage != null && activePackage.packageContainers.Count > 0)
         {
             if (tutorialCanvas != null) tutorialCanvas.SetActive(true);
+
+            SetSharedUIActive(activePackage, true);
             
             activePackage.currentStepIndex = 0;
             ShowCurrentStep();
@@ -127,6 +129,29 @@ public class TutorialUIController : MonoBehaviour
             {
                 if (container != null) container.SetActive(false);
             }
+            SetSharedUIActive(pkg, false);
         }
+    }
+    private void SetSharedUIActive(UIPackage pkg, bool isActive)
+    {
+        // Jika Anda menggunakan Text
+        foreach (var txt in pkg.textElements)
+        {
+            if (txt != null) txt.gameObject.SetActive(isActive);
+        }
+
+        // Jika Anda menggunakan Button
+        foreach (var btn in pkg.buttonElements)
+        {
+            if (btn != null) btn.gameObject.SetActive(isActive);
+        }
+
+        // Jika Anda menggunakan Image
+        foreach (var img in pkg.imageElements)
+        {
+            if (img != null) img.gameObject.SetActive(isActive);
+        }
+
+        // Jika Anda menambahkan parent container shared (opsional)
     }
 }

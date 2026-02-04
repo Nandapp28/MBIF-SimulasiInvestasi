@@ -634,6 +634,10 @@ public class GameManager : MonoBehaviour
 
         currentCardIndex = 0;
         currentTurnIndex = 0;
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+    {
+        TutorialUIController.Instance.ShowPackage("Action1");
+    }
         StartCoroutine(NextTurn());
     }
     public void RefreshCardValuesUI()
