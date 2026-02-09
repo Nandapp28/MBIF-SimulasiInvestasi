@@ -263,24 +263,43 @@ public class GameManager : MonoBehaviour
     private void ShowTicketChoices()
     {
         ClearTicketButtons();
-
         ticketChosen = false;
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
-    {
-        StartCoroutine(ShowBiddingTutorialDelayed());
+
+        // [LOGIKA BARU] Cek Tutorial Semester 1 sebelum memunculkan tiket
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
+        {
+            // Tampilkan "Opening" dulu. 
+            // Kita gunakan Callback (Lambda expression) agar SpawnTickets() baru jalan setelah tutorial ditutup.
+            TutorialUIController.Instance.ShowPackage("Opening", () => 
+            {
+                SpawnTicketButtonsAndLogic(); // Lanjut ke logika tiket setelah tutup
+            });
+            return; // Hentikan eksekusi sementara agar tiket tidak muncul di belakang
+        }
+
+        // Jika bukan tutorial Sem 1, langsung jalankan normal
+        SpawnTicketButtonsAndLogic();
     }
 
+    // [BARU] Pindahkan logika spawn tiket asli ke method terpisah ini
+    private void SpawnTicketButtonsAndLogic()
+    {
+        // 1. Trigger Tutorial Bidding (akan muncul setelah frame ini selesai)
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        {
+            StartCoroutine(ShowBiddingTutorialDelayed());
+        }
+
+        // 2. Logika asli pembuatan tombol tiket
         int totalPlayers = bots.Count + 1;
-        // 1 player + bots
-        ticketManager.InitializeTickets(totalPlayers); // Isi tiket 1..n
+        ticketManager.InitializeTickets(totalPlayers);
+        
         List<int> availableTickets = new List<int>();
         for (int i = 1; i <= totalPlayers; i++)
         {
             availableTickets.Add(i);
         }
-        
 
-        // ⬇️ Acak posisi ticket sebelum buat button
         TicketManager.ShuffleList(availableTickets);
 
         foreach (int ticketNumber in availableTickets)
@@ -288,13 +307,11 @@ public class GameManager : MonoBehaviour
             GameObject btnObj = Instantiate(ticketButtonPrefab, ticketListContainer);
             ticketButtons.Add(btnObj);
 
-            // Set sprite awal (belum dipilih)
             Image img = btnObj.GetComponent<Image>();
             if (img != null && defaultTicketSprite != null)
             {
                 img.sprite = defaultTicketSprite;
             }
-
 
             Button btn = btnObj.GetComponent<Button>();
             if (btn != null)
@@ -306,16 +323,18 @@ public class GameManager : MonoBehaviour
                 });
             }
         }
-
-        // Jalankan timer auto-pilih jika player tidak klik
-
-
     }
     private IEnumerator ShowBiddingTutorialDelayed()
 {
     // Tunggu sampai akhir frame agar semua tombol tiket selesai di-spawn
     yield return new WaitForEndOfFrame();
     TutorialUIController.Instance.ShowPackage("Bidding1");
+}
+private IEnumerator ShowOpeningTutorialDelayed()
+{
+    // Tunggu sampai akhir frame agar semua tombol tiket selesai di-spawn
+    yield return new WaitForEndOfFrame();
+    TutorialUIController.Instance.ShowPackage("Opening");
 }
 
     private void OnTicketSelected(int chosenTicket, GameObject clickedButton)

@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Linq;
-
+using System;
 public class TutorialUIController : MonoBehaviour
 {
     public static TutorialUIController Instance { get; private set; }
@@ -32,6 +32,7 @@ public class TutorialUIController : MonoBehaviour
     public List<UIPackage> uiPackages = new List<UIPackage>();
 
     private UIPackage activePackage;
+    private Action onTutorialCloseCallback;
 
     private void Awake()
     {
@@ -41,19 +42,36 @@ public class TutorialUIController : MonoBehaviour
 
     private void Start()
     {
-        DeactivateAllPackages();
-        if (tutorialCanvas != null) tutorialCanvas.SetActive(false);
-
         if (actionButton != null)
         {
+            // Hapus listener lama untuk mencegah double-click bug jika scene di-reload
+            actionButton.onClick.RemoveAllListeners();
             actionButton.onClick.AddListener(HandleNextOrClose);
+        }
+
+        // [PERBAIKAN] Hanya matikan canvas jika BELUM ADA package yang aktif.
+        // Ini mencegah Start() menimpa panggilan ShowPackage() dari GameManager.
+        if (activePackage == null)
+        {
+            DeactivateAllPackages();
+            if (tutorialCanvas != null) tutorialCanvas.SetActive(false);
+        }
+        else
+        {
+            // Jika activePackage sudah ada (karena dipanggil GameManager duluan),
+            // Pastikan UI-nya benar-benar tampil (refresh)
+            if (tutorialCanvas != null) tutorialCanvas.SetActive(true);
+            ShowCurrentStep();
         }
     }
 
-    public void ShowPackage(string name)
+    public void ShowPackage(string name, Action onClose = null)
     {
         DeactivateAllPackages();
         activePackage = uiPackages.FirstOrDefault(p => p.packageName == name);
+
+        // Simpan callback yang diberikan (bisa null)
+        onTutorialCloseCallback = onClose;
 
         if (activePackage != null && activePackage.packageContainers.Count > 0)
         {
@@ -118,6 +136,13 @@ public class TutorialUIController : MonoBehaviour
         if (SfxManager.Instance != null && GameManager.Instance != null && GameManager.Instance.skipSound != null)
         {
             SfxManager.Instance.PlaySound(GameManager.Instance.skipSound);
+        }
+
+        // [BARU] Jalankan callback jika ada, lalu kosongkan
+        if (onTutorialCloseCallback != null)
+        {
+            onTutorialCloseCallback.Invoke();
+            onTutorialCloseCallback = null;
         }
     }
 
