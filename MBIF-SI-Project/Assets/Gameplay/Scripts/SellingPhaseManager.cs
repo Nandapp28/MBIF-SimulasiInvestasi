@@ -179,6 +179,10 @@ public class SellingPhaseManager : MonoBehaviour
             togglePanelButton.gameObject.SetActive(true);
             if (toggleButtonText != null) toggleButtonText.text = "Close";
         }
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+    {
+        TutorialUIController.Instance.ShowPackage("Selling");
+    }
         confirmSellButton.onClick.RemoveAllListeners();
         foreach (Transform child in colorSellPanelContainer) Destroy(child.gameObject);
 

@@ -330,12 +330,7 @@ public class GameManager : MonoBehaviour
     yield return new WaitForEndOfFrame();
     TutorialUIController.Instance.ShowPackage("Bidding1");
 }
-private IEnumerator ShowOpeningTutorialDelayed()
-{
-    // Tunggu sampai akhir frame agar semua tombol tiket selesai di-spawn
-    yield return new WaitForEndOfFrame();
-    TutorialUIController.Instance.ShowPackage("Opening");
-}
+
 
     private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
     {
