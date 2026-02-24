@@ -251,6 +251,10 @@ public class RumorPhaseManager : MonoBehaviour
 
         players = currentPlayers;
         Debug.Log("Memulai fase rumor...");
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+    {
+        TutorialUIController.Instance.ShowPackage("Rumour1");
+    }
 
         StartCoroutine(RunRumorSequence());
     }
@@ -304,6 +308,10 @@ public class RumorPhaseManager : MonoBehaviour
         {
             yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
         }
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+    {
+        TutorialUIController.Instance.ShowPackage("Rumour2");
+    }
         yield return new WaitForSeconds(1.0f); 
 
         rumorRunning = false;

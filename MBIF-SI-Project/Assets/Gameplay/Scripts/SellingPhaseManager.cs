@@ -215,21 +215,23 @@ public class SellingPhaseManager : MonoBehaviour
             }
             else
             {
+                string currentColor = color;
+
                 plusButton.onClick.AddListener(() =>
                 {
-                    if (currentValues[color] < maxValue)
+                    if (currentValues[currentColor] < maxValue)
                     {
-                        currentValues[color]++;
-                        valueText.text = currentValues[color].ToString();
+                        currentValues[currentColor]++;
+                        valueText.text = currentValues[currentColor].ToString();
                     }
                 });
 
                 minusButton.onClick.AddListener(() =>
                 {
-                    if (currentValues[color] > 0)
+                    if (currentValues[currentColor] > 0)
                     {
-                        currentValues[color]--;
-                        valueText.text = currentValues[color].ToString();
+                        currentValues[currentColor]--;
+                        valueText.text = currentValues[currentColor].ToString();
                     }
                 });
             }
@@ -255,8 +257,6 @@ public class SellingPhaseManager : MonoBehaviour
 
     private void ProcessSellingPhase()
     {
-
-
         foreach (var player in currentPlayers)
         {
             int earnedFinpoints = 0;
@@ -295,72 +295,68 @@ public class SellingPhaseManager : MonoBehaviour
                     }
                     else
                     {
-                        // Fallback: Jual 0 jika tidak ada script
                          sellCounts["Konsumer"] = 0;
                          sellCounts["Infrastruktur"] = 0;
                          sellCounts["Keuangan"] = 0;
                          sellCounts["Tambang"] = 0;
                     }
                 }
-                else{
-                foreach (var color in ipoPriceMap.Keys)
+                else
                 {
-                    int countToSell = 0;
-                    if (cardsByColor.ContainsKey(color))
+                    foreach (var color in ipoPriceMap.Keys)
                     {
-                        List<Card> ownedCards = cardsByColor[color];
-
-                        // <-- LOGIKA BARU DIMULAI DI SINI -->
-                        bool hasPrediction = player.marketPredictions.TryGetValue(color, out MarketPredictionType prediction);
-
-                        if (hasPrediction)
+                        int countToSell = 0;
+                        if (cardsByColor.ContainsKey(color))
                         {
-                            if (prediction == MarketPredictionType.Rise)
+                            List<Card> ownedCards = cardsByColor[color];
+                            bool hasPrediction = player.marketPredictions.TryGetValue(color, out MarketPredictionType prediction);
+
+                            if (hasPrediction)
                             {
-                                // Pasar akan NAIK, jangan jual!
-                                countToSell = 0;
-                                Debug.Log($"[Prediksi Bot] {player.playerName} tidak menjual {color} karena pasar akan naik.");
-                            }
-                            else // prediction == MarketPredictionType.Fall
-                            {
-                                // Pasar akan TURUN, 90% jual semua!
-                                if (Random.value < 0.9f)
+                                if (prediction == MarketPredictionType.Rise)
                                 {
-                                    countToSell = ownedCards.Count;
-                                    Debug.Log($"[Prediksi Bot] {player.playerName} menjual semua ({countToSell}) {color} karena pasar akan turun.");
+                                    countToSell = 0;
+                                    Debug.Log($"[Prediksi Bot] {player.playerName} tidak menjual {color} karena pasar akan naik.");
+                                }
+                                else 
+                                {
+                                    if (Random.value < 0.9f)
+                                    {
+                                        countToSell = ownedCards.Count;
+                                        Debug.Log($"[Prediksi Bot] {player.playerName} menjual semua ({countToSell}) {color} karena pasar akan turun.");
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                float sellChance = color switch
+                                {
+                                    "Konsumer" => 0.5f,
+                                    "Infrastruktur" => 0.5f,
+                                    "Keuangan" => 0.5f,
+                                    "Tambang" => 0.5f,
+                                    _ => 0.5f
+                                };
+
+                                foreach (var card in ownedCards)
+                                {
+                                    if (Random.value < sellChance)
+                                        countToSell++;
                                 }
                             }
                         }
-                        else
-                        {
-                            // <-- LOGIKA LAMA (JIKA TIDAK ADA PREDIKSI) -->
-                            float sellChance = color switch
-                            {
-                                "Konsumer" => 0.5f,
-                                "Infrastruktur" => 0.5f,
-                                "Keuangan" => 0.5f,
-                                "Tambang" => 0.5f,
-                                _ => 0.5f
-                            };
-
-                            foreach (var card in ownedCards)
-                            {
-                                if (Random.value < sellChance)
-                                    countToSell++;
-                            }
-                        }
-                        // <-- LOGIKA BARU BERAKHIR DI SINI -->
+                        sellCounts[color] = countToSell;
                     }
-                    sellCounts[color] = countToSell;
                 }
-            }
+            } // <--- PERBAIKAN: BLOK BOT DITUTUP DI SINI
 
+            // --- EKSEKUSI PENJUALAN (SEKARANG BERLAKU UNTUK PLAYER & BOT) ---
             foreach (var color in sellCounts.Keys)
             {
                 int toSell = sellCounts[color];
                 if (cardsByColor.ContainsKey(color))
                 {
-                    IPOData data = ipoDataList.FirstOrDefault(d => d.color == color); // Ambil data IPO
+                    IPOData data = ipoDataList.FirstOrDefault(d => d.color == color);
                     if (data == null) continue;
                     var availableCards = cardsByColor[color];
                     int actualSell = Mathf.Min(toSell, availableCards.Count);
@@ -383,6 +379,7 @@ public class SellingPhaseManager : MonoBehaviour
             Debug.Log($"{player.playerName} menjual {soldCards.Count} kartu dan mendapatkan {earnedFinpoints} finpoints. Finpoint sekarang: {player.finpoint}");
             player.marketPredictions.Clear();
         }
+
         if (togglePanelButton != null)
         {
             togglePanelButton.gameObject.SetActive(false);
@@ -391,7 +388,7 @@ public class SellingPhaseManager : MonoBehaviour
         rumorPhaseManager.StartRumorPhase(currentPlayers);
 
         Debug.Log("Fase penjualan selesai.");
-        }}
+    }
     public void ForceSellAllCards(List<PlayerProfile> players)
     {
         Debug.Log("💰 Menjual semua sisa kartu pemain untuk skor akhir...");
