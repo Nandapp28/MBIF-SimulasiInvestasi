@@ -242,6 +242,12 @@ public class RumorPhaseManager : MonoBehaviour
             Debug.Log($"- {effect.color}: {effect.cardName} ({effect.description})");
         }
     }
+      private IEnumerator ShowRumourTutorialDelayed()
+{
+    // Tunggu sampai akhir frame agar semua tombol tiket selesai di-spawn
+    yield return new WaitForEndOfFrame();
+    TutorialUIController.Instance.ShowPackage("Rumour1");
+}
 
 
     public void StartRumorPhase(List<PlayerProfile> currentPlayers)
@@ -251,10 +257,6 @@ public class RumorPhaseManager : MonoBehaviour
 
         players = currentPlayers;
         Debug.Log("Memulai fase rumor...");
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
-    {
-        TutorialUIController.Instance.ShowPackage("Rumour1");
-    }
 
         StartCoroutine(RunRumorSequence());
     }
@@ -263,6 +265,11 @@ public class RumorPhaseManager : MonoBehaviour
         yield return new WaitForSeconds(2f);
         UITransitionAnimator.Instance.StartTransition("Rumour Phase");
         yield return new WaitForSeconds(4f);
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        {
+            StartCoroutine(ShowRumourTutorialDelayed());
+        }
+        yield return new WaitForSeconds(1f);
 
         foreach (var selected in shuffledRumorDeck)
         {
