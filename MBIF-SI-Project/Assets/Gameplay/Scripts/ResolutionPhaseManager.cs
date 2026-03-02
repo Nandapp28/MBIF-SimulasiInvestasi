@@ -95,7 +95,7 @@ public class ResolutionPhaseManager : MonoBehaviour
                 {
                     combinedTutorialIndices.AddRange(configSem2.tokenIndices);
                 }
-                
+
                 // Jika Anda punya Semester 3/4 di TutorialManager, tambahkan logicnya di sini
             }
             // Random token values
@@ -171,9 +171,9 @@ public class ResolutionPhaseManager : MonoBehaviour
             yield return new WaitForSeconds(1f); // Jeda antar warna
         }
         if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
-    {
-        TutorialUIController.Instance.ShowPackage("TokenReveal");
-    }
+        {
+            TutorialUIController.Instance.ShowPackage("TokenReveal");
+        }
     }
     public IEnumerator RevealNextToken(DividendData data)
     {
@@ -328,10 +328,10 @@ public class ResolutionPhaseManager : MonoBehaviour
                 data.dividendIndex = 0;
                 UpdateDividendVisuals();
                 yield return new WaitForSeconds(0.5f);
-                 NotificationManager.Instance.ShowNotification($"[Dividen BOOM] Dividen dari sektor {data.color} terlalu tinggi!!! IPO dari sektor {data.color} Bertambah", 3f, true);
+                NotificationManager.Instance.ShowNotification($"[Dividen BOOM] Dividen dari sektor {data.color} terlalu tinggi!!! IPO dari sektor {data.color} Bertambah", 3f, true);
                 Debug.LogWarning($"[Dividen Boom] {data.color} terlalu tinggi (index: {data.dividendIndex}). Menambah IPO index.");
                 yield return StartCoroutine(ModifyIPOIndex(data.color, 1)); // <-- JADIKAN COROUTINE
-                 // Reset dividend index
+                                                                            // Reset dividend index
             }
             else
             {

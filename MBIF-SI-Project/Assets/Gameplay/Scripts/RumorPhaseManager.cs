@@ -324,6 +324,10 @@ public class RumorPhaseManager : MonoBehaviour
         rumorRunning = false;
         UITransitionAnimator.Instance.StartTransition("Resolution Phase");
         yield return new WaitForSeconds(4f);
+        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+    {
+        TutorialUIController.Instance.ShowPackage("Resolution");
+    }
         resolutionPhaseManager.StartResolutionPhase(players);
     }
 
