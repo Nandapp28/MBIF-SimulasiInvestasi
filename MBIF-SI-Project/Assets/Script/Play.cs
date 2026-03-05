@@ -32,7 +32,11 @@ public class GameModeSelector : MonoBehaviour
         if (tutorialStatus == "no")
         {
             // Jika belum menyelesaikan tutorial, arahkan ke scene tutorial
-            SceneManager.LoadScene("TutorialScene");
+            GameSettings.IsTutorial = true;
+            GameSettings.StartingFinpoints = 100;
+            SceneManager.LoadScene("Gameplay");
+            PlayerPrefs.SetString("hasCompletedTutorial", "yes");
+        PlayerPrefs.Save();
         }
         else
         {
@@ -77,6 +81,7 @@ public class GameModeSelector : MonoBehaviour
 
         // 1. Set status warning menjadi "yes" agar tidak muncul lagi
         PlayerPrefs.SetString("hasWarning", "yes");
+
         PlayerPrefs.Save();
 
 
@@ -116,6 +121,9 @@ public class GameModeSelector : MonoBehaviour
         {
             SfxManager.Instance.PlayButtonClick();
         }
+        PlayerPrefs.SetString("hasCompletedTutorial", "no");
+        PlayerPrefs.Save();
+
 
         // Memuat scene berdasarkan indeks
         SceneManager.LoadScene("Options");
