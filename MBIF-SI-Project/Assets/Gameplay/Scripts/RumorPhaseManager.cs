@@ -265,7 +265,7 @@ public class RumorPhaseManager : MonoBehaviour
         yield return new WaitForSeconds(2f);
         UITransitionAnimator.Instance.StartTransition("Rumour Phase");
         yield return new WaitForSeconds(4f);
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
         {
             StartCoroutine(ShowRumourTutorialDelayed());
         }
@@ -315,7 +315,7 @@ public class RumorPhaseManager : MonoBehaviour
         {
             yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
         }
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
     {
         TutorialUIController.Instance.ShowPackage("Rumour2");
     }
@@ -324,7 +324,7 @@ public class RumorPhaseManager : MonoBehaviour
         rumorRunning = false;
         UITransitionAnimator.Instance.StartTransition("Resolution Phase");
         yield return new WaitForSeconds(4f);
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
     {
         TutorialUIController.Instance.ShowPackage("Resolution");
     }

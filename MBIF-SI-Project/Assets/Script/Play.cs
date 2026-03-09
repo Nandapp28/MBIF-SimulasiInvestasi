@@ -31,12 +31,7 @@ public class GameModeSelector : MonoBehaviour
 
         if (tutorialStatus == "no")
         {
-            // Jika belum menyelesaikan tutorial, arahkan ke scene tutorial
-            GameSettings.IsTutorial = true;
-            GameSettings.StartingFinpoints = 100;
-            SceneManager.LoadScene("Gameplay");
-            PlayerPrefs.SetString("hasCompletedTutorial", "yes");
-        PlayerPrefs.Save();
+            SceneManager.LoadScene("TutorialScene");
         }
         else
         {

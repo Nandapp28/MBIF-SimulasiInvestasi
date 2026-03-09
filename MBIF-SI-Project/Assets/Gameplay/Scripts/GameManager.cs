@@ -111,7 +111,7 @@ public class GameManager : MonoBehaviour
     {
 
 
-        int limit = GameSettings.IsTutorial ? 2 : maxResetCount;
+        int limit = GameSettings.IsTutorial ? 1 : maxResetCount;
 
         if (resetCount >= limit)
         {
@@ -285,7 +285,7 @@ public class GameManager : MonoBehaviour
     private void SpawnTicketButtonsAndLogic()
     {
         // 1. Trigger Tutorial Bidding (akan muncul setelah frame ini selesai)
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
         {
             StartCoroutine(ShowBiddingTutorialDelayed());
         }
@@ -334,7 +334,7 @@ public class GameManager : MonoBehaviour
 
     private void OnTicketSelected(int chosenTicket, GameObject clickedButton)
     {
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
     {
         TutorialUIController.Instance.ShowPackage("Bidding2");
     }
@@ -648,7 +648,7 @@ public class GameManager : MonoBehaviour
 
         currentCardIndex = 0;
         currentTurnIndex = 0;
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
     {
         TutorialUIController.Instance.ShowPackage("Action1");
     }

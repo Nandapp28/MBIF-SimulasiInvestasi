@@ -90,6 +90,11 @@ public class TutorialUIController : MonoBehaviour
     private void ShowCurrentStep()
     {
         // Matikan semua container dalam package ini dulu
+        if (SfxManager.Instance != null && GameManager.Instance != null && GameManager.Instance.skipSound != null)
+        {
+            SfxManager.Instance.PlaySound(GameManager.Instance.skipSound);
+        }
+
         foreach (var container in activePackage.packageContainers)
         {
             container.SetActive(false);

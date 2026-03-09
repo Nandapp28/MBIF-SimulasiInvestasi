@@ -179,7 +179,7 @@ public class SellingPhaseManager : MonoBehaviour
             togglePanelButton.gameObject.SetActive(true);
             if (toggleButtonText != null) toggleButtonText.text = "Close";
         }
-        if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
     {
         TutorialUIController.Instance.ShowPackage("Selling");
     }

@@ -138,7 +138,7 @@ public class HelpCardPhaseManager : MonoBehaviour
 
                 // 6. Tahan tampilan (2 detik)
                 yield return new WaitForSeconds(2f);
-                if (GameSettings.IsTutorial && TutorialUIController.Instance != null)
+                if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
             {
                 TutorialUIController.Instance.ShowPackage("Resolution1");
             }
