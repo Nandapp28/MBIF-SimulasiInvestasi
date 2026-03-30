@@ -70,8 +70,7 @@ public class TutorialManager : MonoBehaviour
     {
         if (Instance == null) 
         {
-            Instance = this;
-            DontDestroyOnLoad(gameObject); // Agar data bertahan antar scene jika perlu
+            Instance = this; // Agar data bertahan antar scene jika perlu
         }
         else 
         {
