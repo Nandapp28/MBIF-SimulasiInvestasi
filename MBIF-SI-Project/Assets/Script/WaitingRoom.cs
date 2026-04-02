@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using Photon.Pun;
 using Photon.Realtime;
+using ExitGames.Client.Photon;
 using UnityEngine.SceneManagement;
 
 public class WaitingRoom : MonoBehaviourPunCallbacks
@@ -12,6 +13,8 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
     public Transform playerListContainer;
     public Button backButton;
     public Button playButton;
+
+    private const byte KICK_EVENT_CODE = 199;
 
     private void Start()
     {
@@ -36,6 +39,30 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
         // Panggil pengecekan awal saat masuk scene
         UpdatePlayButtonState();
     }
+    public override void OnEnable()
+    {
+        base.OnEnable();
+        PhotonNetwork.NetworkingClient.EventReceived += OnEvent;
+    }
+
+    public override void OnDisable()
+    {
+        base.OnDisable();
+        PhotonNetwork.NetworkingClient.EventReceived -= OnEvent;
+    }
+
+    // --- FUNGSI PENERIMA EVENT (Dieksekusi oleh pemain yang di-kick) ---
+    private void OnEvent(EventData photonEvent)
+    {
+        // Jika event yang diterima adalah kode KICK dari Host
+        if (photonEvent.Code == KICK_EVENT_CODE)
+        {
+            Debug.Log("Anda telah di-kick oleh Host. Keluar dari Room...");
+            
+            // Perintah ini HANYA mengeluarkan pemain dari room, TIDAK memutuskan koneksi server
+            PhotonNetwork.LeaveRoom(); 
+        }
+    }
 
     private void UpdatePlayerList()
     {
@@ -57,10 +84,58 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
             {
                 Debug.LogWarning("Tidak ditemukan komponen Text di prefab!");
             }
+            Transform kickButtonTransform = FindChildRecursively(item.transform, "KickButton");
+            
+            if (kickButtonTransform != null)
+            {
+                Button kickButton = kickButtonTransform.GetComponent<Button>();
+                
+                // Tampilkan tombol KICK HANYA jika yang melihat adalah HOST dan bukan dirinya sendiri
+                if (PhotonNetwork.IsMasterClient && !player.IsLocal)
+                {
+                    kickButton.gameObject.SetActive(true);
+                    kickButton.onClick.RemoveAllListeners();
+                    kickButton.onClick.AddListener(() => OnKickButtonClicked(player));
+                }
+                else
+                {
+                    kickButton.gameObject.SetActive(false);
+                }
+            }
         }
         
         // Setiap kali daftar pemain diperbarui, cek kembali kondisi tombol Play
         UpdatePlayButtonState();
+    }
+    // Fungsi pembantu untuk mencari objek tombol KickButton di dalam Prefab
+    private Transform FindChildRecursively(Transform parent, string exactName)
+    {
+        if (parent.name == exactName) return parent;
+        foreach (Transform child in parent)
+        {
+            Transform found = FindChildRecursively(child, exactName);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    // --- FUNGSI KICK (Dieksekusi oleh HOST) ---
+    private void OnKickButtonClicked(Player targetPlayer)
+    {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayButtonClick();
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log($"Mengirim perintah LeaveRoom ke pemain: {targetPlayer.NickName}");
+            
+            // Konfigurasi agar pesan (Event) HANYA dikirimkan ke pemain target
+            RaiseEventOptions raiseEventOptions = new RaiseEventOptions { TargetActors = new int[] { targetPlayer.ActorNumber } };
+            SendOptions sendOptions = new SendOptions { Reliability = true };
+            
+            // Kirim pesan KICK
+            PhotonNetwork.RaiseEvent(KICK_EVENT_CODE, null, raiseEventOptions, sendOptions);
+        }
     }
 
     // --- FUNGSI BARU UNTUK MENGONTROL TOMBOL PLAY ---
@@ -145,6 +220,6 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
 
     public override void OnLeftRoom()
     {
-        SceneManager.LoadScene("MainMenu");
+        SceneManager.LoadScene("Play");
     }
 }
