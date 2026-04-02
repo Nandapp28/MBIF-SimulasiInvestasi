@@ -79,12 +79,41 @@ public class ResolutionPhaseManager : MonoBehaviour
         {
             data.ramalanTokens = new List<int>();
             data.revealedTokenCount = 0;
+            List<int> combinedTutorialIndices = new List<int>();
+            if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+            {
+                // Ambil config Semester 1
+                var configSem1 = TutorialManager.Instance.fixedTokensSem1.FirstOrDefault(t => t.color == data.color);
+                if (configSem1.tokenIndices != null && configSem1.tokenIndices.Count > 0)
+                {
+                    combinedTutorialIndices.AddRange(configSem1.tokenIndices);
+                }
 
+                // Ambil config Semester 2 (Digabungkan langsung di awal)
+                var configSem2 = TutorialManager.Instance.fixedTokensSem2.FirstOrDefault(t => t.color == data.color);
+                if (configSem2.tokenIndices != null && configSem2.tokenIndices.Count > 0)
+                {
+                    combinedTutorialIndices.AddRange(configSem2.tokenIndices);
+                }
+
+                // Jika Anda punya Semester 3/4 di TutorialManager, tambahkan logicnya di sini
+            }
             // Random token values
             for (int i = 0; i < 4; i++)
             {
-                int token = possibleTokens[Random.Range(0, possibleTokens.Length)];
-                data.ramalanTokens.Add(token);
+                int tokenValue;
+
+                if (GameSettings.IsTutorial && i < combinedTutorialIndices.Count)
+                {
+                    int index = Mathf.Clamp(combinedTutorialIndices[i], 0, possibleTokens.Length - 1);
+                    tokenValue = possibleTokens[index];
+                }
+                else
+                {
+                    // Fallback ke Random
+                    tokenValue = possibleTokens[Random.Range(0, possibleTokens.Length)];
+                }
+                data.ramalanTokens.Add(tokenValue);
             }
 
             Debug.Log($"[Init Ramalan] {data.color} tokens: {string.Join(", ", data.ramalanTokens)}");
@@ -140,6 +169,10 @@ public class ResolutionPhaseManager : MonoBehaviour
             var data = dividendDataList.FirstOrDefault(d => d.color == color);
             yield return StartCoroutine(RevealNextToken(data)); // Memanggil coroutine baru
             yield return new WaitForSeconds(1f); // Jeda antar warna
+        }
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
+        {
+            TutorialUIController.Instance.ShowPackage("TokenReveal");
         }
     }
     public IEnumerator RevealNextToken(DividendData data)
@@ -295,10 +328,10 @@ public class ResolutionPhaseManager : MonoBehaviour
                 data.dividendIndex = 0;
                 UpdateDividendVisuals();
                 yield return new WaitForSeconds(0.5f);
-                 NotificationManager.Instance.ShowNotification($"[Dividen BOOM] Dividen dari sektor {data.color} terlalu tinggi!!! IPO dari sektor {data.color} Bertambah", 3f, true);
+                NotificationManager.Instance.ShowNotification($"[Dividen BOOM] Dividen dari sektor {data.color} terlalu tinggi!!! IPO dari sektor {data.color} Bertambah", 3f, true);
                 Debug.LogWarning($"[Dividen Boom] {data.color} terlalu tinggi (index: {data.dividendIndex}). Menambah IPO index.");
                 yield return StartCoroutine(ModifyIPOIndex(data.color, 1)); // <-- JADIKAN COROUTINE
-                 // Reset dividend index
+                                                                            // Reset dividend index
             }
             else
             {

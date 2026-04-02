@@ -10,22 +10,28 @@ public class ModeSelectionManager : MonoBehaviour
     public string gameplaySceneName = "Gameplay"; // Sesuaikan dengan nama scene gameplay Anda
 
     // Hubungkan fungsi ini ke Button "Normal Mode" di Inspector
-    public void SelectNormalMode()
+    public void SelectTutorialMode()
     {
-        // Set finpoin ke 100
         GameSettings.StartingFinpoints = 100;
+        GameSettings.IsTutorial = true; // AKTIFKAN MODE TUTORIAL
         
-        // Pindah scene
+        // Reset Tutorial Manager jika ada
+        if(TutorialManager.Instance != null) TutorialManager.Instance.ActivateTutorial();
+
         LoadGameplay();
     }
 
-    // Hubungkan fungsi ini ke Button "Hard Mode" di Inspector
+    public void SelectNormalMode()
+    {
+        GameSettings.StartingFinpoints = 100;
+        GameSettings.IsTutorial = false;
+        LoadGameplay();
+    }
+
     public void SelectHardMode()
     {
-        // Set finpoin ke 30
         GameSettings.StartingFinpoints = 30;
-        
-        // Pindah scene
+        GameSettings.IsTutorial = false;
         LoadGameplay();
     }
 

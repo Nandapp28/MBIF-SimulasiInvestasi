@@ -138,6 +138,10 @@ public class HelpCardPhaseManager : MonoBehaviour
 
                 // 6. Tahan tampilan (2 detik)
                 yield return new WaitForSeconds(2f);
+                if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
+            {
+                TutorialUIController.Instance.ShowPackage("Resolution1");
+            }
 
                 // 7. Animasi FADE OUT (0.5 detik)
                 yield return StartCoroutine(FadeCanvasGroup(cg, 1f, 0f, 0.5f));

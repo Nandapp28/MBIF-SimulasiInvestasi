@@ -20,7 +20,7 @@ public class TutorialController : MonoBehaviour
 
     [Header("Scene Names")]
     public string playSceneName = "Play";
-    public string tutorialSceneName = "PlayTutorial";
+    private string tutorialSceneName = "Gameplay";
     
     [Header("Camera Zoom")]
     public Camera mainCamera;
@@ -95,11 +95,13 @@ public class TutorialController : MonoBehaviour
 
     public void OnNoButtonClicked()
     {
-        bearyMascot.SetActive(false);
-        bearyBubble.SetActive(false);
-        choiceButtons.SetActive(false);
-        bullishText.text = "Let me give some tour in this game";
-        conversationStep = 3;
+        GameSettings.IsTutorial = true;
+    GameSettings.StartingFinpoints = 100; // Opsional: set modal awal tutorial
+    PlayerPrefs.SetString("hasCompletedTutorial", "yes");
+        PlayerPrefs.Save();
+
+    // Jalankan efek zoom lalu pindah ke scene Gameplay
+    StartCoroutine(ZoomAndLoadScene(tutorialSceneName));
     }
 
     IEnumerator ZoomAndLoadScene(string sceneName)

@@ -11,7 +11,8 @@ public enum TestingCardType
     Cardtest4,
     Cardtest5,
     Cardtest6,
-    Cardtest7
+    Cardtest7,
+    Cardtest8
 }
 
 [System.Serializable]

@@ -210,6 +210,17 @@ public class RumorPhaseManager : MonoBehaviour
     public void InitializeRumorDeck()
     {
         shuffledRumorDeck.Clear();
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null)
+        {
+            List<RumorEffect> source = (TutorialManager.Instance.CurrentSemester == 1) 
+                ? TutorialManager.Instance.fixedRumorsSem1 
+                : TutorialManager.Instance.fixedRumorsSem2;
+            
+            if (source != null) shuffledRumorDeck.AddRange(source);
+            
+            Debug.Log("[RumorDeck] Tutorial Fixed Deck Loaded.");
+            return; 
+        }
 
         // Ambil satu kartu acak dari tiap warna
         List<string> colors = new List<string> { "Konsumer", "Infrastruktur", "Keuangan", "Tambang" };
@@ -231,6 +242,12 @@ public class RumorPhaseManager : MonoBehaviour
             Debug.Log($"- {effect.color}: {effect.cardName} ({effect.description})");
         }
     }
+      private IEnumerator ShowRumourTutorialDelayed()
+{
+    // Tunggu sampai akhir frame agar semua tombol tiket selesai di-spawn
+    yield return new WaitForEndOfFrame();
+    TutorialUIController.Instance.ShowPackage("Rumour1");
+}
 
 
     public void StartRumorPhase(List<PlayerProfile> currentPlayers)
@@ -248,6 +265,11 @@ public class RumorPhaseManager : MonoBehaviour
         yield return new WaitForSeconds(2f);
         UITransitionAnimator.Instance.StartTransition("Rumour Phase");
         yield return new WaitForSeconds(4f);
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
+        {
+            StartCoroutine(ShowRumourTutorialDelayed());
+        }
+        yield return new WaitForSeconds(1f);
 
         foreach (var selected in shuffledRumorDeck)
         {
@@ -293,11 +315,19 @@ public class RumorPhaseManager : MonoBehaviour
         {
             yield return cameraController.MoveTo(CameraController.CameraPosition.Normal);
         }
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
+    {
+        TutorialUIController.Instance.ShowPackage("Rumour2");
+    }
         yield return new WaitForSeconds(1.0f); 
 
         rumorRunning = false;
         UITransitionAnimator.Instance.StartTransition("Resolution Phase");
         yield return new WaitForSeconds(4f);
+        if (GameSettings.IsTutorial && TutorialManager.Instance != null && TutorialManager.Instance.CurrentSemester == 1)
+    {
+        TutorialUIController.Instance.ShowPackage("Resolution");
+    }
         resolutionPhaseManager.StartResolutionPhase(players);
     }
 
