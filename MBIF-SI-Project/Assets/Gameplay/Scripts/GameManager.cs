@@ -46,6 +46,8 @@ public class GameManager : MonoBehaviour
     public GameObject leaderboardPanel;
     public Transform leaderboardContainer;
     public GameObject leaderboardEntryPrefab;
+    public GameObject youProfitUI; // Drag & drop Image Profit dari Hierarchy
+public GameObject youLossUI;
     [Header("Card Visuals")]
     public List<CardTextureMapping> cardTextureMappings; // ⬅️ TAMBAHKAN INI
     [Header("Sound Effects")]
@@ -1804,6 +1806,31 @@ public class GameManager : MonoBehaviour
         // Urutkan berdasarkan finpoint secara menurun
         var rankedPlayers = allPlayers.OrderByDescending(p => p.finpoint).ToList();
         int playerRank = 0;
+        int startingModal = GameSettings.StartingFinpoints;
+
+    // Logika UI Aktif untuk pemain "You" di luar prefab
+    if (youProfitUI != null && youLossUI != null)
+    {
+        // Pastikan kita mengecek finpoint milik 'player' (si "You")
+        if (player.finpoint > startingModal)
+        {
+            youProfitUI.SetActive(true);
+            youLossUI.SetActive(false);
+            Debug.Log("You Profit: UI Aktif");
+        }
+        else if (player.finpoint < startingModal)
+        {
+            youProfitUI.SetActive(false);
+            youLossUI.SetActive(true);
+            Debug.Log("You Loss: UI Aktif");
+        }
+        else
+        {
+            // Jika seri/modal balik, keduanya nonaktif
+            youProfitUI.SetActive(true);
+            youLossUI.SetActive(false);
+        }
+    }
 
         // Buat entri leaderboard
         for (int i = 0; i < rankedPlayers.Count; i++)
