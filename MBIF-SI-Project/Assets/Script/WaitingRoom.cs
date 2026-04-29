@@ -78,7 +78,7 @@ public class WaitingRoom : MonoBehaviourPunCallbacks
             if (legacyText != null)
             {
                 string role = (player.IsMasterClient) ? "(Host)" : "(Guest)";
-                legacyText.text = $"{player.NickName} {role}";
+                legacyText.text = $"{player.NickName}\n{role}";
             }
             else
             {
