@@ -37,9 +37,9 @@ This project was proudly developed as a Project-Based Learning (PBL) final proje
 
 ## 📸 Screenshots
 
-| Gameplay | Lobby | Profile & Shop |
+| Main Menu | Gameplay | Add Friend |
 | :---: | :---: | :---: |
-| <img src="https://lh3.googleusercontent.com/d/17s34rzSQzPtW293jXwVGUHcM1xc0_4zV=w400" width="250"> | <img src="https://lh3.googleusercontent.com/d/160LPNunNX3M0oihg6QJH5k7n-Ms3tp_i=w400" width="250"> | <img src="https://lh3.googleusercontent.com/d/1uKVFeJE_7kOhCKWL4OKUGk9qi3FBp9KB=w400" width="250"> |
+| <img src="https://lh3.googleusercontent.com/d/1TdeCajLuiRkicxWqcOnQpfVOQdq1DibE=w400" width="250"> | <img src="https://lh3.googleusercontent.com/d/1vUrsL9_EliUmpyWrP5PSw7thQ4A0vhNK=w400" width="250"> | <img src="https://lh3.googleusercontent.com/d/1uKVFeJE_7kOhCKWL4OKUGk9qi3FBp9KB=w400" width="250"> |
 
 ---
 *Educating the younger generation on stock investments, one turn at a time.*
