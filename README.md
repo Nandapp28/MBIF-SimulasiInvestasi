@@ -29,10 +29,11 @@ Stock Rising is officially available on the Google Play Store! You don't need to
 
 This project was proudly developed as a Project-Based Learning (PBL) final project by D3 Informatics Engineering students at Politeknik Negeri Batam.
 
-- **Dewangga Fadillah Yusuf** - Project Manager (Planning & Analysis)
-- **Fabian Anggara** - UI/UX & Frontend (Mockup & Interface)
-- **M. Faron Fauzi** - UI/UX Designer (Mockup & Prototype)
-- **Christoffel Aristo Marbun** - Full Stack Developer (Frontend & Backend Logic)
+- **Jamal Nur Agung** - Built the singleplayer core logic, game rules from scratch, and 3D modeling.
+- **Christoffel Aristo Marbun** - Modified the core logic to build the multiplayer infrastructure, connected the game to Photon PUN 2, and developed the multiplayer UI.
+- **Dewangga Fadillah Yusuf** - Managed Firebase database integration and handled project documentation (reports, photos, presentations).
+- **Fabian Anggara** - Focused on UI/UX, integrated audio assets into the game, and developed the Settings feature.
+- **M. Faron Fauzi** - Focused on UI/UX and developed the Tutorial feature.
 
 ## 📸 Screenshots
 
