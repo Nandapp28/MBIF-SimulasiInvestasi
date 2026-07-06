@@ -27,17 +27,31 @@ Stock Rising is officially available on the Google Play Store! You don't need to
 
 ## 👥 Meet The Team
 
-This project was proudly developed as a Project-Based Learning (PBL) final project by D3 Informatics Engineering students at Politeknik Negeri Batam.
+This project was proudly developed as a Project-Based Learning (PBL) final project by students at Politeknik Negeri Batam.
 
+### Game Programmers
 - **Jamal Nur Agung** - Built the singleplayer core logic, game rules from scratch, and 3D modeling.
 - **Christoffel Aristo Marbun** - Modified the core logic to build the multiplayer infrastructure, connected the game to Photon PUN 2, and developed the multiplayer UI.
 - **Dewangga Fadillah Yusuf** - Managed Firebase database integration and handled project documentation (reports, photos, presentations).
 - **Fabian Anggara** - Focused on UI/UX, integrated audio assets into the game, and developed the Settings feature.
 - **M. Faron Fauzi** - Focused on UI/UX and developed the Tutorial feature.
+- **James Valentino Siburian** - Developed gameplay logic and scripting.
+- **M Hafizh Aldzaki** - Developed gameplay logic and scripting.
+
+### Game Designers
+- **Desrina Fatchuni'mah Putri** - Concept, Game flow, Rules, GDD/ADD Documentation.
+- **Rut Feodora Adelia Sianipar** - Concept, Game flow, Rules, Input Revisions.
+- **Teh Pieter Fernando** - Concept, Game flow, Rules, Documentation.
+
+### Game Artists
+- **Aidil Saputra** - 2D, 3D, Animation, UI/UX, Audio.
+- **Daffa Alfariz** - 2D, 3D, Animation, UI/UX, Audio.
+- **Muhammad Darryl Daffa Putera Zalie** - 2D, 3D, Animation, UI/UX, Audio.
+- **Jihan Aurani Zabela** - 2D, 3D, Animation, UI/UX, Audio.
 
 ## 📸 Screenshots
 
-| Main Menu | Gameplay | Add Friend |
+| Main Menu | Gameplay | Other |
 | :---: | :---: | :---: |
 | <img src="https://lh3.googleusercontent.com/d/1TdeCajLuiRkicxWqcOnQpfVOQdq1DibE=w400" width="250"> | <img src="https://lh3.googleusercontent.com/d/1vUrsL9_EliUmpyWrP5PSw7thQ4A0vhNK=w400" width="250"> | <img src="https://lh3.googleusercontent.com/d/1uKVFeJE_7kOhCKWL4OKUGk9qi3FBp9KB=w400" width="250"> |
 
