@@ -41,7 +41,7 @@ This project was proudly developed as a Project-Based Learning (PBL) final proje
 ### Game Designers
 - **Desrina Fatchuni'mah Putri** - Concept, Game flow, Rules, GDD/ADD Documentation.
 - **Rut Feodora Adelia Sianipar** - Concept, Game flow, Rules, Input Revisions.
-- **Teh Pieter Fernando** - Concept, Game flow, Rules, Documentation.
+- **Pieter Fernando** - Concept, Game flow, Rules, Documentation.
 
 ### Game Artists
 - **Aidil Saputra** - 2D, 3D, Animation, UI/UX, Audio.
